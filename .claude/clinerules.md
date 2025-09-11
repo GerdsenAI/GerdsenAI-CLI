@@ -1,6 +1,6 @@
 # GerdsenAI CLI Development Rules
 
-Based on the repository audit and TODO.md analysis, these rules ensure consistent development practices, package management, and local LLM optimization for the GerdsenAI CLI project.
+Never use emojis in UI.Always think socratically, UI/UX should feel perfect for this terminal/CLI application, these rules ensure consistent development practices, package management, and local LLM optimization for the GerdsenAI CLI project.
 
 ## 📝 Commit Patterns
 
@@ -28,7 +28,160 @@ Based on the repository audit and TODO.md analysis, these rules ensure consisten
 - ❌ `updated the thing` (no type, past tense)
 - ❌ `feat: Added new feature.` (capitalized type, period)
 
-## 📦 Package Management
+## � Virtual Environment Management
+
+### Python Version Requirements
+1. **Minimum Version**: Python 3.11+ (required by pyproject.toml)
+2. **Recommended**: Python 3.11.13+ (latest stable)
+3. **Installation**: Use system package manager (homebrew on macOS)
+   ```bash
+   # macOS with Homebrew
+   brew install python@3.11
+   ```
+
+### Virtual Environment Setup
+1. **Create Virtual Environment**:
+   ```bash
+   # Using specific Python version (recommended)
+   /opt/homebrew/bin/python3.11 -m venv .venv --prompt "gerdsenai-cli"
+   
+   # Or using system python (if 3.11+)
+   python3 -m venv .venv --prompt "gerdsenai-cli"
+   ```
+
+2. **Activate Virtual Environment**:
+   ```bash
+   # macOS/Linux
+   source .venv/bin/activate
+   
+   # Windows
+   .venv\Scripts\activate
+   ```
+
+3. **Verify Environment**:
+   ```bash
+   # Check Python version
+   python --version  # Should show 3.11+
+   
+   # Check pip location
+   which pip  # Should point to .venv/bin/pip
+   ```
+
+### Development Installation
+1. **Install in Editable Mode**:
+   ```bash
+   pip install -e .
+   ```
+
+2. **Verify Installation**:
+   ```bash
+   # Check package installation
+   pip list | grep gerdsenai-cli
+   
+   # Test CLI entry point
+   python -m gerdsenai_cli --version
+   ```
+
+### Environment Validation
+1. **Required Dependencies Check**:
+   ```bash
+   # Verify Rich Console (common issue)
+   python -c "from rich.console import Console; print('✅ Rich imported successfully')"
+   
+   # Verify Typer
+   python -c "import typer; print('✅ Typer imported successfully')"
+   
+   # Verify all core imports
+   python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ System commands imported successfully')"
+   ```
+
+2. **Common Import Issues**:
+   - **Rich Console errors**: Usually indicates missing or incorrect virtual environment
+   - **Module not found**: Check if editable installation completed successfully
+   - **Python version errors**: Verify Python 3.11+ is being used
+
+### Virtual Environment Best Practices
+1. **Directory Structure**:
+   ```
+   GerdsenAI-CLI/
+   ├── .venv/                    # Virtual environment (gitignored)
+   ├── gerdsenai_cli/           # Main package
+   ├── pyproject.toml           # Dependencies and build config
+   └── README.md                # Installation instructions
+   ```
+
+2. **Activation Workflow**:
+   ```bash
+   # Always activate before development
+   source .venv/bin/activate
+   
+   # Install/update dependencies
+   pip install -e .
+   
+   # Run development commands
+   python -m gerdsenai_cli
+   ```
+
+3. **Environment Isolation**:
+   - Never install project dependencies globally
+   - Use separate virtual environments for different projects
+   - Always verify which Python/pip is being used
+
+### Troubleshooting Virtual Environment Issues
+
+#### Issue: "Rich Console could not be resolved"
+**Solution**: Recreate virtual environment with correct Python version
+```bash
+rm -rf .venv
+/opt/homebrew/bin/python3.11 -m venv .venv --prompt "gerdsenai-cli"
+source .venv/bin/activate
+pip install -e .
+```
+
+#### Issue: "Module not found" errors
+**Solution**: Verify editable installation
+```bash
+source .venv/bin/activate
+pip uninstall gerdsenai-cli
+pip install -e .
+```
+
+#### Issue: Python version conflicts
+**Solution**: Use explicit Python 3.11 path
+```bash
+which python3.11  # Should show /opt/homebrew/bin/python3.11
+python3.11 --version  # Should show 3.11.x
+```
+
+#### Issue: CLI only shows version, doesn't start interactive mode
+**Diagnosis**: Usually indicates missing core modules or import errors
+```bash
+# Debug with verbose error reporting
+source .venv/bin/activate
+python -m gerdsenai_cli --debug
+```
+
+### Virtual Environment Maintenance
+1. **Weekly**: Update pip and core tools
+   ```bash
+   pip install --upgrade pip setuptools wheel
+   ```
+
+2. **Monthly**: Recreate environment for fresh state
+   ```bash
+   rm -rf .venv
+   /opt/homebrew/bin/python3.11 -m venv .venv --prompt "gerdsenai-cli"
+   source .venv/bin/activate
+   pip install -e .
+   ```
+
+3. **Before Commits**: Verify environment integrity
+   ```bash
+   source .venv/bin/activate
+   python -c "import gerdsenai_cli; print('✅ Package imports correctly')"
+   ```
+
+## �📦 Package Management
 
 ### Dependency Requirements
 1. **Python Version**: Minimum 3.11+ (as specified in pyproject.toml)

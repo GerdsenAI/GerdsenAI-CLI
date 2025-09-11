@@ -180,12 +180,40 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 
 **Commit Point 5: `feat: add enhanced command system` ✅ COMPLETE**
 
-## Phase 5.5: Command Consolidation & Cleanup 🚧 **PRIORITY**
+## Phase 5.5: Critical User Value Commands ✅ **COMPLETE**
 
-### Task 14: Command Consolidation 🚧 **NEXT**
+### Task 14: Essential Commands Implementation ✅ **COMPLETE**
 - [x] Audit existing vs documented commands
 - [x] Create consolidated command structure
 - [x] Update SLASH_COMMANDS.MD with clean structure
+- [x] Add `/about` command - Show version info for troubleshooting
+- [x] Add `/init` command - Initialize project with GerdsenAI.md guide  
+- [x] Add `/copy` command - Copy last output to clipboard
+
+**Commit Point 5.5: `feat: add essential user commands` ✅ COMPLETE**
+
+## Phase 6: Terminal Integration and Advanced Features ✅ **COMPLETE**
+
+### Task 15: Terminal Integration ✅ **COMPLETE**
+- [x] Create `gerdsenai_cli/core/terminal.py`
+- [x] Implement `TerminalExecutor` class with safety features
+- [x] Add command validation and user confirmation
+- [x] Implement command history and logging
+- [x] Create terminal commands: `/run`, `/history`, `/clear-history`, `/pwd`, `/terminal-status`
+- [x] Integrate terminal commands into main application
+- [x] Remove emojis from UI as requested
+
+### Task 16: Performance Optimizations
+- [ ] Implement async processing for better responsiveness
+- [ ] Add caching for LLM responses
+- [ ] Optimize file reading and context building
+- [ ] Add progress indicators for long operations
+
+**Commit Point 6: `feat: add terminal integration and advanced features` ✅ COMPLETE**
+
+## Phase 7: Command System Polish and Expansion
+
+### Task 17: Command System Consistency
 - [ ] Rename command classes for consistency:
   - [ ] `ConversationCommand` → `ChatCommand` (agent.py)
   - [ ] `ClearSessionCommand` → `ResetCommand` (agent.py)  
@@ -196,54 +224,50 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 - [ ] Remove duplicate/conflicting commands
 - [ ] Test command consolidation changes
 
-### Task 15: Missing High-Priority Commands 🚧 **NEXT**
-- [ ] Add `/init` - Initialize project with GerdsenAI.md guide
-- [ ] Add `/about` - Show version info for troubleshooting
+### Task 18: High-Value Commands
 - [ ] Add `/tools` - List available tools in CLI
-- [ ] Add `/mcp` - Manage Model Context Protocol server connections
-- [ ] Add `/memory` - Manage AI's instructional memory
 - [ ] Add `/settings` - Open settings editor (different from /config)
 - [ ] Add `/compress` - Replace current chat context with a summary
-- [ ] Add `/copy` - Copy last output to clipboard
 
-### Task 16: Medium-Priority Missing Commands
-- [ ] Add `/auth` - Change authentication method
+**Commit Point 7: `feat: polish command system and add high-value commands`**
+
+## Phase 8: Extended Command Set
+
+### Task 19: Workflow Commands
+- [ ] Add `/memory` - Manage AI's instructional memory
 - [ ] Add `/restore` - Restore project files to previous state
+- [ ] Add `/stats` - Show session statistics (different from /cost)
+
+### Task 20: Development Commands
 - [ ] Add `/extensions` - List active extensions
 - [ ] Add `/permissions` - View or update permissions
-- [ ] Add `/pr_comments` - View pull request comments
-- [ ] Add `/vim` - Toggle vim mode for editing
-- [ ] Add `/stats` - Show session statistics (different from /cost)
 - [ ] Add `/checkup` - Check health of installation
+
+### Task 21: User Experience Commands
+- [ ] Add `/vim` - Toggle vim mode for editing
 - [ ] Add `/theme` - Change CLI visual theme
+- [ ] Add `/auth` - Change authentication method
 
-**Commit Point 5.5: `feat: consolidate and complete command system`**
+**Commit Point 8: `feat: complete extended command ecosystem`**
 
-## Phase 6: Terminal Integration and Advanced Features
+## Phase 9: Advanced Integrations
 
-### Task 14: Terminal Integration
-- [ ] Create `gerdsenai_cli/core/terminal.py`
-- [ ] Implement `TerminalExecutor` class with safety features
-- [ ] Add command validation and user confirmation
-- [ ] Implement command history and logging
-
-### Task 15: Performance Optimizations
-- [ ] Implement async processing for better responsiveness
-- [ ] Add caching for LLM responses
-- [ ] Optimize file reading and context building
-- [ ] Add progress indicators for long operations
-
-### Task 16: MCP Server Support (Optional)
+### Task 22: Future-Facing Features
+- [ ] Add `/mcp` - Manage Model Context Protocol server connections
 - [ ] Research Model Context Protocol (MCP) integration
 - [ ] Create `gerdsenai_cli/core/mcp_client.py`
 - [ ] Implement MCP server discovery and connection
-- [ ] Add `/mcp` command for server management
 
-**Commit Point 6: `feat: add terminal integration and advanced features`**
+### Task 23: Development Workflow Integration
+- [ ] Add `/pr_comments` - View pull request comments
+- [ ] Add GitHub integration features
+- [ ] Add advanced workflow automation
 
-## Phase 7: Testing and Documentation
+**Commit Point 9: `feat: add advanced integrations and future-facing features`**
 
-### Task 17: Testing Suite
+## Phase 10: Testing and Documentation
+
+### Task 24: Testing Suite
 - [ ] Create `tests/` directory structure
 - [ ] Add unit tests for core components
 - [ ] Add integration tests for LLM client
@@ -251,14 +275,14 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 - [ ] Add agent logic tests
 - [ ] Set up GitHub Actions for CI/CD
 
-### Task 18: Documentation
+### Task 25: Documentation
 - [ ] Update `README.md` with GerdsenAI CLI information
 - [ ] Add installation instructions
 - [ ] Create user guide with examples
 - [ ] Add developer documentation
 - [ ] Create troubleshooting guide
 
-### Task 19: Packaging and Distribution
+### Task 26: Packaging and Distribution
 - [ ] Configure `pyproject.toml` for PyPI distribution (already done)
 - [ ] Add console entry points (already done)
 - [ ] Create installation scripts for pipx (Isolated Python Apps):
@@ -268,18 +292,18 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 - [ ] Add version management automation
 - [ ] Test installation on different platforms
 
-**Commit Point 7: `feat: add testing, documentation, and packaging`**
+**Commit Point 10: `feat: add comprehensive testing, documentation, and packaging`**
 
 ## Future Enhancements
 
-### Task 18: Extended Integrations
+### Extended Integrations
 - [ ] Add support for multiple LLM providers
 - [ ] Implement plugin system for extensions
 - [ ] Add web interface option
 - [ ] Integration with popular IDEs
 - [ ] Add collaboration features
 
-### Task 19: AI Model Management
+### AI Model Management
 - [ ] Add model download/update capabilities
 - [ ] Implement model performance benchmarking
 - [ ] Add custom fine-tuning support
