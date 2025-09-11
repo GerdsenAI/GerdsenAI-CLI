@@ -136,21 +136,22 @@ def show_welcome_message() -> None:
 
 
 def show_startup_sequence() -> None:
-    """Display the complete startup sequence."""
-    # Clear screen for clean startup
+    """Display the complete startup sequence with Claude/Gemini-style layout (no emojis)."""
     console.clear()
 
-    # Show ASCII art
-    show_ascii_art()
+    # Build and show welcome panel (pre-init, so we don't show model/server yet)
+    cwd = str(Path.cwd())
+    welcome = build_welcome_panel(cwd=cwd)
+    console.print()
+    console.print(Align.center(welcome))
+    console.print()
 
-    # Show welcome message
-    show_welcome_message()
+    # Tips and context warning
+    show_tips()
+    show_context_warning()
 
-    # Show getting started hint
-    console.print(
-        "[INFO] Type [bold cyan]/help[/bold cyan] to see available commands or start chatting with your AI assistant!",
-        style="dim",
-    )
+    # Prompt hint
+    show_prompt_hint()
     console.print()
 
 
@@ -177,3 +178,94 @@ def show_info(message: str) -> None:
 def show_warning(message: str) -> None:
     """Display a warning message."""
     console.print(f"[WARNING] {message}", style="bold yellow")
+
+
+# ===== New Claude/Gemini-style helpers (no emojis) =====
+
+
+def build_welcome_panel(cwd: str, model: str = "", server_url: str = "") -> Panel:
+    """Create the top welcome panel with quick hints and cwd."""
+    header = Text()
+    header.append("Welcome to ", style="white")
+    header.append("GerdsenAI CLI", style="bold bright_cyan")
+    header.append("!", style="white")
+
+    body = Text()
+    body.append("\n\n")
+    body.append("  /help for help, /status for your current setup\n", style="dim")
+    body.append(f"\n  cwd: {cwd}", style="dim")
+    if model:
+        body.append(f"\n  model: {model}", style="dim")
+    if server_url:
+        body.append(f"\n  server: {server_url}", style="dim")
+
+    content = Text.assemble(header, body)
+    return Panel(content, border_style="bright_black")
+
+
+def show_tips() -> None:
+    """Print getting-started tips similar to reference CLIs."""
+    console.print("Tips for getting started:", style="bold")
+    console.print()
+    console.print("  Run /init to create a GerdsenAI.md file with instructions")
+    console.print("  Use AI to help with file analysis, editing, bash commands and git")
+    console.print(
+        "  Be as specific as you would with another engineer for the best results"
+    )
+    console.print("  Run /terminal-setup to set up terminal integration", style="green")
+    console.print()
+
+
+def show_context_warning() -> None:
+    """Show a note when launched in home directory or outside a project."""
+    try:
+        cwd = Path.cwd()
+        in_home = cwd == Path.home()
+        in_git_repo = (cwd / ".git").exists()
+        if in_home:
+            text = Text()
+            text.append("Note: ", style="bold")
+            text.append(
+                "You have launched gerdsenai in your home directory. "
+                "For the best experience, launch it in a project directory instead.",
+                style="yellow",
+            )
+            console.print(text)
+            console.print()
+        elif not in_git_repo:
+            console.print(
+                Text(
+                    "Hint: No git repository detected. Consider initializing one for better project context.",
+                    style="yellow",
+                )
+            )
+            console.print()
+    except Exception:
+        # Non-fatal
+        pass
+
+
+def show_prompt_hint() -> None:
+    """Show a framed prompt hint line."""
+    hint = Text()
+    hint.append("> ", style="white")
+    hint.append('Try "write a test for <filepath>"', style="white")
+    console.print(Panel(hint, border_style="dim"))
+    console.print(Text("? for shortcuts", style="dim"))
+
+
+def show_footer_status(
+    security_level: str = "strict",
+    model: str = "",
+    context_percent: int = 100,
+) -> None:
+    """Render a single-line footer status similar to Gemini footer (no emojis)."""
+    footer = Text()
+    footer.append("~ ", style="dim")
+    footer.append(f" security: {security_level}", style="dim")
+    if model:
+        footer.append(f"    {model}", style="dim")
+    else:
+        footer.append("    no model", style="dim")
+    footer.append(f" ({context_percent}% context left)", style="dim")
+    console.print(footer)

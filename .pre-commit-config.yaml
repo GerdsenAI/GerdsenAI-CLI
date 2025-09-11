@@ -21,14 +21,12 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  # Temporarily disabled mypy due to types-all dependency conflicts
-  # TODO: Re-enable after resolving 190 existing type errors
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.7.1
-  #   hooks:
-  #     - id: mypy
-  #       additional_dependencies: [types-all]
-  #       args: [--strict]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.7.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests, types-setuptools]
+        args: [--ignore-missing-imports, --no-strict-optional, --allow-untyped-calls]
 
   - repo: local
     hooks:

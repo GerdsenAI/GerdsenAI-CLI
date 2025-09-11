@@ -5,6 +5,7 @@ This module contains the core application logic and interactive loop.
 """
 
 import asyncio
+from pathlib import Path
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -57,7 +58,9 @@ from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
 from .utils.display import (
+    build_welcome_panel,
     show_error,
+    show_footer_status,
     show_info,
     show_startup_sequence,
     show_success,
@@ -422,7 +425,33 @@ class GerdsenAICLI:
 
         self.running = True
 
+        # Render refreshed banner with model/server and a footer status line (no emojis)
         try:
+            cwd = ""
+            try:
+                cwd = str(Path.cwd())
+            except Exception:
+                pass
+            model = ""
+            server_url = ""
+            try:
+                model = self.settings.current_model if self.settings else ""
+            except Exception:
+                pass
+            try:
+                server_url = self.settings.llm_server_url if self.settings else ""
+            except Exception:
+                pass
+
+            console.print()
+            console.print(
+                build_welcome_panel(cwd=cwd, model=model, server_url=server_url)
+            )
+            console.print()
+            show_footer_status(
+                security_level="strict", model=model, context_percent=100
+            )
+
             while self.running:
                 # Create and display prompt
                 prompt_text = self._create_prompt()

@@ -84,7 +84,7 @@ class ExitCommand(BaseCommand):
         self, args: dict[str, Any], context: dict[str, Any]
     ) -> CommandResult:
         """Execute exit command."""
-        console.print("\n👋 [bright_cyan]Goodbye![/bright_cyan]")
+        console.print("\n[INFO] Goodbye!", style="bright_cyan")
         return CommandResult(success=True, should_exit=True)
 
 
@@ -124,7 +124,7 @@ class StatusCommand(BaseCommand):
         """Execute status command."""
         verbose = args.get("verbose", False)
 
-        console.print("\n📊 [bold cyan]System Status[/bold cyan]\n")
+        console.print("\n[bold cyan]System Status[/bold cyan]\n")
 
         # LLM Client Status
         llm_client = context.get("llm_client")
@@ -132,7 +132,7 @@ class StatusCommand(BaseCommand):
             with console.status("[bold green]Checking LLM status...", spinner="dots"):
                 health = await llm_client.health_check()
 
-            status = "✅ Connected" if health["connected"] else "❌ Disconnected"
+            status = "OK" if health["connected"] else "FAIL"
             console.print(f"  LLM Connection:     [bold]{status}[/bold]")
             console.print(f"  Server URL:         [bold]{health['server_url']}[/bold]")
 
@@ -156,7 +156,7 @@ class StatusCommand(BaseCommand):
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
-            console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
+            console.print("  AI Agent:           [bold green]OK[/bold green] Ready")
             console.print(
                 f"  Actions Performed:  [bold]{stats['actions_performed']}[/bold]"
             )
@@ -165,7 +165,7 @@ class StatusCommand(BaseCommand):
             )
 
             if verbose:
-                console.print("\n🤖 [bold cyan]Agent Details:[/bold cyan]")
+                console.print("\n[bold cyan]Agent Details:[/bold cyan]")
                 console.print(
                     f"  Files Modified:     [bold]{stats['files_modified']}[/bold]"
                 )
@@ -181,15 +181,13 @@ class StatusCommand(BaseCommand):
                         f"  Last Action:        [bold]{stats['last_action']}[/bold]"
                     )
         else:
-            console.print(
-                "  AI Agent:           [bold red]❌ Not initialized[/bold red]"
-            )
+            console.print("  AI Agent:           [bold red]Not initialized[/bold red]")
 
         # Command Parser Status
         parser = context.get("parser")
         if parser and verbose:
             parser_stats = parser.get_status()
-            console.print("\n⚙️  [bold cyan]Parser Status:[/bold cyan]")
+            console.print("\n[bold cyan]Parser Status:[/bold cyan]")
             console.print(
                 f"  Commands Loaded:    [bold]{parser_stats['total_commands']}[/bold]"
             )
@@ -273,7 +271,7 @@ class ConfigCommand(BaseCommand):
 
     async def _show_config(self, settings, context: dict[str, Any]) -> None:
         """Show full configuration."""
-        console.print("\n⚙️  [bold cyan]Current Configuration[/bold cyan]\n")
+        console.print("\n[bold cyan]Current Configuration[/bold cyan]\n")
 
         # Basic settings
         console.print(
@@ -294,14 +292,14 @@ class ConfigCommand(BaseCommand):
         # Connection status
         llm_client = context.get("llm_client")
         if llm_client:
-            status = "✅ Connected" if llm_client.is_connected else "❌ Disconnected"
+            status = "OK" if llm_client.is_connected else "FAIL"
             console.print(f"  Connection:         [bold]{status}[/bold]")
 
         # Agent status
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
-            status = "✅ Ready" if agent else "❌ Not initialized"
+            status = "OK" if agent else "Not initialized"
             console.print(f"  AI Agent:           [bold]{status}[/bold]")
             console.print(
                 f"  Project Files:      [bold]{stats['project_files_indexed']}[/bold]"
@@ -454,7 +452,7 @@ class AboutCommand(BaseCommand):
         except ImportError:
             __version__ = "0.1.0-dev"
 
-        console.print("\n🔧 [bold cyan]GerdsenAI CLI - About[/bold cyan]\n")
+        console.print("\n[bold cyan]GerdsenAI CLI - About[/bold cyan]\n")
 
         # Basic version information
         console.print(f"  Version:            [bold green]{__version__}[/bold green]")
@@ -470,7 +468,7 @@ class AboutCommand(BaseCommand):
         )
 
         if detailed:
-            console.print("\n📋 [bold cyan]Detailed System Information[/bold cyan]")
+            console.print("\n[bold cyan]Detailed System Information[/bold cyan]")
 
             # Python details
             console.print(f"  Python Executable:  [bold]{sys.executable}[/bold]")
@@ -508,16 +506,14 @@ class AboutCommand(BaseCommand):
             )
 
         # Component status
-        console.print("\n🔧 [bold cyan]Component Status[/bold cyan]")
+        console.print("\n[bold cyan]Component Status[/bold cyan]")
 
         # LLM Client
         llm_client = context.get("llm_client")
         if llm_client:
             try:
                 health = await llm_client.health_check()
-                status = (
-                    "✅ Connected" if health.get("connected") else "❌ Disconnected"
-                )
+                status = "OK" if health.get("connected") else "FAIL"
                 console.print(f"  LLM Client:         [bold]{status}[/bold]")
                 if health.get("server_url"):
                     console.print(
@@ -533,11 +529,11 @@ class AboutCommand(BaseCommand):
                     )
             except Exception as e:
                 console.print(
-                    f"  LLM Client:         [bold red]❌ Error: {str(e)}[/bold red]"
+                    f"  LLM Client:         [bold red]Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  LLM Client:         [bold yellow]⚠️  Not initialized[/bold yellow]"
+                "  LLM Client:         [bold yellow]Not initialized[/bold yellow]"
             )
 
         # Agent
@@ -545,7 +541,7 @@ class AboutCommand(BaseCommand):
         if agent:
             try:
                 stats = agent.get_agent_stats()
-                console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
+                console.print("  AI Agent:           [bold green]OK[/bold green] Ready")
                 console.print(
                     f"  Files Indexed:      [bold]{stats.get('project_files_indexed', 0)}[/bold]"
                 )
@@ -554,11 +550,11 @@ class AboutCommand(BaseCommand):
                 )
             except Exception as e:
                 console.print(
-                    f"  AI Agent:           [bold red]❌ Error: {str(e)}[/bold red]"
+                    f"  AI Agent:           [bold red]Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  AI Agent:           [bold yellow]⚠️  Not initialized[/bold yellow]"
+                "  AI Agent:           [bold yellow]Not initialized[/bold yellow]"
             )
 
         # Command Parser
@@ -566,7 +562,7 @@ class AboutCommand(BaseCommand):
         if parser:
             try:
                 parser_stats = parser.get_status()
-                console.print("  Command Parser:     [bold green]✅ Ready[/bold green]")
+                console.print("  Command Parser:     [bold green]OK[/bold green] Ready")
                 console.print(
                     f"  Commands Loaded:    [bold]{parser_stats.get('total_commands', 0)}[/bold]"
                 )
@@ -575,28 +571,25 @@ class AboutCommand(BaseCommand):
                 )
             except Exception as e:
                 console.print(
-                    f"  Command Parser:     [bold red]❌ Error: {str(e)}[/bold red]"
+                    f"  Command Parser:     [bold red]Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  Command Parser:     [bold yellow]⚠️  Not initialized[/bold yellow]"
+                "  Command Parser:     [bold yellow]Not initialized[/bold yellow]"
             )
 
         # Installation path
-        console.print("\n📦 [bold cyan]Installation Information[/bold cyan]")
+        console.print("\n[bold cyan]Installation Information[/bold cyan]")
         try:
             import gerdsenai_cli
 
             install_path = Path(gerdsenai_cli.__file__).parent
             console.print(f"  Installation Path:  [bold]{install_path}[/bold]")
-            console.print(
-                f"  Package Mode:       [bold]{'Development' if 'site-packages' not in str(install_path) else 'Installed'}[/bold]"
-            )
         except Exception:
             console.print("  Installation Path:  [dim]Unable to determine[/dim]")
 
         # Troubleshooting tips
-        console.print("\n💡 [bold cyan]Troubleshooting Tips[/bold cyan]")
+        console.print("\n[bold cyan]Troubleshooting Tips[/bold cyan]")
         console.print("  • If LLM connection fails, check your server is running")
         console.print("  • Use '/setup' to reconfigure LLM server settings")
         console.print("  • Use '/status --verbose' for detailed component status")
@@ -666,7 +659,7 @@ class InitCommand(BaseCommand):
         guide_path = Path("GerdsenAI.md")
         if guide_path.exists() and not force:
             console.print(
-                "[yellow]⚠️  GerdsenAI.md already exists in current directory.[/yellow]"
+                "[yellow]GerdsenAI.md already exists in current directory.[/yellow]"
             )
             console.print(
                 "[dim]Use --force to overwrite or choose a different directory.[/dim]\n"
@@ -681,7 +674,7 @@ class InitCommand(BaseCommand):
             with open(guide_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            console.print("[green]✅ Successfully created GerdsenAI.md![/green]")
+            console.print("[green]Successfully created GerdsenAI.md![/green]")
             console.print(f"[dim]Location: {guide_path.absolute()}[/dim]\n")
 
             # Show quick tips
@@ -694,7 +687,7 @@ class InitCommand(BaseCommand):
             )
 
         except Exception as e:
-            console.print(f"[red]❌ Failed to create GerdsenAI.md: {str(e)}[/red]\n")
+            console.print(f"[red]Failed to create GerdsenAI.md: {str(e)}[/red]\n")
             return CommandResult(
                 success=False, message=f"Failed to create guide: {str(e)}"
             )
@@ -913,7 +906,7 @@ your-web-project/
 
     def _show_quick_tips(self, template: str):
         """Show quick tips after initialization."""
-        console.print("[bold cyan]🎯 Quick Start Tips:[/bold cyan]")
+        console.print("[bold cyan]Quick Start Tips:[/bold cyan]")
         console.print("  1. Start chatting: Type your coding question or request")
         console.print("  2. Explore files: `/ls` to see project structure")
         console.print("  3. Get help: `/help` for all available commands")
@@ -931,7 +924,7 @@ your-web-project/
             console.print("  5. Try this: 'Help me organize this project structure'")
 
         console.print(
-            "\n[dim]💡 Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n"
+            "\n[dim]Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n"
         )
 
 
@@ -1154,7 +1147,7 @@ class CopyCommand(BaseCommand):
                 if len(preview_lines) > 3:
                     preview = "\n".join(preview_lines[:3]) + "\n..."
 
-                console.print("[green]✅ Copied to clipboard![/green]")
+                console.print("[green]Copied to clipboard![/green]")
                 console.print(f"[dim]Source: {source_info}[/dim]")
                 console.print(f"[dim]Length: {len(content)} characters[/dim]")
 
