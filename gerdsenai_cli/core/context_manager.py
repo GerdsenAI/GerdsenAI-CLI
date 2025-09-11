@@ -622,7 +622,7 @@ class ProjectContext:
         if not self.files:
             return ""
         
-        tree = Tree(f"📁 {self.project_root.name}", guide_style="dim")
+        tree = Tree(f"{self.project_root.name}", guide_style="dim")
         added_files = 0
         
         # Group files by directory
@@ -645,12 +645,12 @@ class ProjectContext:
             if dir_path == Path('.'):
                 # Root files
                 for file_info in sorted(dirs[dir_path], key=lambda f: f.path.name):
-                    tree.add(f"📄 {file_info.path.name}")
+                    tree.add(f"{file_info.path.name}")
             else:
                 # Create directory node
-                dir_node = tree.add(f"📁 {dir_path}")
+                dir_node = tree.add(f"{dir_path}")
                 for file_info in sorted(dirs[dir_path], key=lambda f: f.path.name):
-                    dir_node.add(f"📄 {file_info.path.name}")
+                    dir_node.add(f"{file_info.path.name}")
         
         # Render tree to string
         with console.capture() as capture:

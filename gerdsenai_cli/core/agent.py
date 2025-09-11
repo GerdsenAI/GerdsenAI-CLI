@@ -413,13 +413,13 @@ How can I help you with your code today?"""
         stats = self.context_manager.get_project_stats()
         
         result = f"\n## Project Analysis Results\n\n"
-        result += f"📊 **Statistics:**\n"
+        result += f"**Statistics:**\n"
         result += f"- Total files: {stats.total_files}\n"
         result += f"- Text files: {stats.text_files}\n"
         result += f"- Total size: {self._format_size(stats.total_size)}\n\n"
         
         if stats.languages:
-            result += f"🔤 **Languages/File Types:**\n"
+            result += f"**Languages/File Types:**\n"
             sorted_langs = sorted(stats.languages.items(), key=lambda x: x[1], reverse=True)
             for ext, count in sorted_langs[:10]:
                 result += f"- {ext}: {count} files\n"
@@ -430,68 +430,68 @@ How can I help you with your code today?"""
         """Handle file editing request."""
         file_path_str = intent.parameters.get("file_path", "")
         if not file_path_str:
-            return "❌ No file path specified for editing."
+            return "No file path specified for editing."
         
         file_path = Path(file_path_str)
         
         # Try to extract new content from LLM response
         new_content = self._extract_code_from_response(llm_response)
         if not new_content:
-            return "❌ Could not extract new file content from response."
+            return "Could not extract new file content from response."
         
         # Propose the edit
         edit = await self.file_editor.propose_edit(file_path, new_content, EditOperation.MODIFY)
         if not edit:
-            return "❌ Failed to propose file edit."
+            return "Failed to propose file edit."
         
         # Apply the edit (will show preview and ask for confirmation)
         success = await self.file_editor.apply_edit(edit)
         
         if success:
             self.files_modified += 1
-            return f"✅ Successfully edited file: {file_path}"
+            return f"Successfully edited file: {file_path}"
         else:
-            return f"❌ Failed to edit file: {file_path}"
+            return f"Failed to edit file: {file_path}"
     
     async def _handle_file_creation(self, intent: ActionIntent, llm_response: str) -> str:
         """Handle file creation request."""
         file_path_str = intent.parameters.get("file_path", "")
         if not file_path_str:
-            return "❌ No file path specified for creation."
+            return "No file path specified for creation."
         
         file_path = Path(file_path_str)
         
         # Extract content from LLM response
         new_content = self._extract_code_from_response(llm_response)
         if not new_content:
-            return "❌ Could not extract file content from response."
+            return "Could not extract file content from response."
         
         # Propose the creation
         edit = await self.file_editor.propose_edit(file_path, new_content, EditOperation.CREATE)
         if not edit:
-            return "❌ Failed to propose file creation."
+            return "Failed to propose file creation."
         
         # Apply the edit
         success = await self.file_editor.apply_edit(edit)
         
         if success:
             self.files_modified += 1
-            return f"✅ Successfully created file: {file_path}"
+            return f"Successfully created file: {file_path}"
         else:
-            return f"❌ Failed to create file: {file_path}"
+            return f"Failed to create file: {file_path}"
     
     async def _handle_file_read(self, intent: ActionIntent) -> str:
         """Handle file reading request."""
         file_path_str = intent.parameters.get("file_path", "")
         if not file_path_str:
-            return "❌ No file path specified for reading."
+            return "No file path specified for reading."
         
         file_path = Path(file_path_str)
         
         # Read file content
         content = await self.context_manager.read_file_content(file_path)
         if content is None:
-            return f"❌ Could not read file: {file_path}"
+            return f"Could not read file: {file_path}"
         
         return f"\n## File Contents: {file_path}\n\n```\n{content}\n```"
     
@@ -499,24 +499,24 @@ How can I help you with your code today?"""
         """Handle file search request."""
         query = intent.parameters.get("query", "")
         if not query:
-            return "❌ No search query specified."
+            return "No search query specified."
         
         # Search for relevant files
         relevant_files = self.context_manager.get_relevant_files(query=query, max_files=10)
         
         if not relevant_files:
-            return f"🔍 No files found matching query: {query}"
+            return f"No files found matching query: {query}"
         
         result = f"\n## Search Results for '{query}':\n\n"
         for file_info in relevant_files:
-            result += f"📄 {file_info.relative_path}\n"
+            result += f"{file_info.relative_path}\n"
         
         return result
     
     async def _handle_code_explanation(self, intent: ActionIntent, user_input: str) -> str:
         """Handle code explanation request."""
         # This is handled by the LLM response itself, just add context
-        return "\n💡 *Code explanation provided in the main response above.*"
+        return "\n*Code explanation provided in the main response above.*"
     
     def _extract_code_from_response(self, response: str) -> Optional[str]:
         """Extract code content from LLM response."""

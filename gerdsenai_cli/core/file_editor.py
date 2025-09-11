@@ -381,7 +381,7 @@ class FileEditor:
             console.print()
             
             # Create header panel
-            header_text = f"📝 File Edit Preview: {edit.operation.value.title()}"
+            header_text = f"File Edit Preview: {edit.operation.value.title()}"
             if edit.operation == EditOperation.CREATE:
                 header_text += f" - {edit.target_path}"
             else:
@@ -391,7 +391,7 @@ class FileEditor:
             
             if edit.operation == EditOperation.CREATE:
                 # Show new file content
-                console.print("\n📄 [bold green]New file content:[/bold green]")
+                console.print("\n[bold green]New file content:[/bold green]")
                 
                 # Syntax highlight based on file extension
                 file_ext = edit.target_path.suffix.lower()
@@ -407,15 +407,15 @@ class FileEditor:
                 console.print(syntax)
                 
             elif edit.operation == EditOperation.DELETE:
-                console.print(f"\n🗑️  [bold red]File will be deleted:[/bold red] {edit.target_path}")
+                console.print(f"\n[bold red]File will be deleted:[/bold red] {edit.target_path}")
                 
             elif edit.operation == EditOperation.MODIFY:
                 # Show diff
                 if edit.original_content == edit.new_content:
-                    console.print("\n ℹ️  [yellow]No changes detected[/yellow]")
+                    console.print("\n[yellow]No changes detected[/yellow]")
                     return
                 
-                console.print("\n🔍 [bold yellow]Changes:[/bold yellow]")
+                console.print("\n[bold yellow]Changes:[/bold yellow]")
                 
                 # Generate diff
                 diff_text = DiffGenerator.generate_unified_diff(
