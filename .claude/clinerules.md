@@ -145,13 +145,17 @@ gerdsenai_cli/
 5. **Logging**: Use structured logging with appropriate levels
 
 ### Development Phases
-Follow TODO.md phase structure:
+Refined implementation based on current state analysis:
 1. **Phase 1**: Project scaffolding (✅ Complete)
-2. **Phase 2**: Configuration and LLM client (✅ Complete)
-3. **Phase 3**: Interactive loop and commands (🚧 In Progress)
-4. **Phase 4**: Core agentic features (📅 Planned)
-5. **Phase 5**: Advanced features (📅 Planned)
-6. **Phase 6**: Testing and documentation (📅 Planned)
+2. **Phase 2**: Configuration and LLM client (✅ Complete)  
+3. **Phase 3**: Basic interactive loop (✅ Complete)
+4. **Phase 4**: Core agentic features (🚧 **PRIORITY NOW**)
+   - Context Manager for project awareness
+   - File Editor for safe code modifications
+   - Agent Logic for orchestrating AI actions
+5. **Phase 5**: Enhanced command system (📅 Planned)
+6. **Phase 6**: Terminal integration and advanced features (📅 Planned)
+7. **Phase 7**: Testing and documentation (📅 Planned)
 
 ## 🔒 Security Rules
 
@@ -184,6 +188,35 @@ Follow TODO.md phase structure:
 3. **Memory Usage**: < 100MB baseline memory footprint
 4. **Model Loading**: < 5 seconds to load model list
 5. **File Scanning**: < 1 second for typical project directories
+6. **Context Building**: < 2 seconds for project analysis
+7. **File Editing**: < 500ms for diff generation and validation
+
+## 🎯 Current Implementation Priority
+
+### Immediate Goals (Core Agentic Features)
+1. **Context Manager** (`gerdsenai_cli/core/context_manager.py`)
+   - Project file structure analysis
+   - Intelligent file filtering (respect gitignore)
+   - Context building for LLM understanding
+   - File content caching and management
+
+2. **File Editor** (`gerdsenai_cli/core/file_editor.py`) 
+   - Safe file modification with validation
+   - Diff preview and user confirmation
+   - Backup management and rollback
+   - Syntax-aware editing capabilities
+
+3. **Agent Logic** (`gerdsenai_cli/core/agent.py`)
+   - Intent parsing from LLM responses
+   - Action orchestration and validation
+   - Context-aware decision making
+   - Safe execution boundaries
+
+### Implementation Strategy
+- **Quality over Speed**: Robust, well-tested components
+- **Safety First**: All file operations require validation/confirmation
+- **Context Awareness**: AI must understand project structure
+- **User Control**: Clear previews and confirmations for all changes
 
 ## 🔄 Maintenance Schedule
 

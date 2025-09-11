@@ -144,7 +144,7 @@ def format_file_size(size_bytes: int) -> str:
 def truncate_text(text: str, max_length: int = 50, suffix: str = "...") -> str:
     """
     Truncate text to a maximum length with optional suffix.
-    
+
     Args:
         text: Text to truncate
         max_length: Maximum length including suffix
@@ -157,3 +157,96 @@ def truncate_text(text: str, max_length: int = 50, suffix: str = "...") -> str:
         return text
         
     return text[:max_length - len(suffix)] + suffix
+
+
+def format_size(size_bytes: int) -> str:
+    """
+    Format size in bytes to human readable format.
+    
+    Args:
+        size_bytes: Size in bytes
+        
+    Returns:
+        Formatted size string
+    """
+    return format_file_size(size_bytes)
+
+
+def format_duration(seconds: float) -> str:
+    """
+    Format duration in seconds to human readable format.
+    
+    Args:
+        seconds: Duration in seconds
+        
+    Returns:
+        Formatted duration string
+    """
+    if seconds < 1:
+        return f"{int(seconds * 1000)}ms"
+    elif seconds < 60:
+        return f"{seconds:.1f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        remaining_seconds = int(seconds % 60)
+        return f"{minutes}m {remaining_seconds}s"
+    else:
+        hours = int(seconds // 3600)
+        remaining_minutes = int((seconds % 3600) // 60)
+        return f"{hours}h {remaining_minutes}m"
+
+
+def get_file_type(file_path: str) -> str:
+    """
+    Get file type based on extension.
+    
+    Args:
+        file_path: Path to the file
+        
+    Returns:
+        File type string
+    """
+    path = Path(file_path)
+    extension = path.suffix.lower()
+    
+    # Common file type mappings
+    type_mapping = {
+        '.py': 'Python',
+        '.js': 'JavaScript',
+        '.ts': 'TypeScript',
+        '.html': 'HTML',
+        '.css': 'CSS',
+        '.json': 'JSON',
+        '.yaml': 'YAML',
+        '.yml': 'YAML',
+        '.toml': 'TOML',
+        '.md': 'Markdown',
+        '.txt': 'Text',
+        '.log': 'Log',
+        '.xml': 'XML',
+        '.sql': 'SQL',
+        '.sh': 'Shell',
+        '.bat': 'Batch',
+        '.ini': 'Config',
+        '.cfg': 'Config',
+        '.conf': 'Config',
+        '.env': 'Environment',
+        '.dockerfile': 'Docker',
+        '.gitignore': 'Git',
+        '.gitattributes': 'Git',
+        '.pyproject': 'Python Project',
+        '.requirements': 'Requirements',
+        '.lock': 'Lock file',
+    }
+    
+    # Special cases for files without extensions or specific names
+    filename = path.name.lower()
+    if not extension:
+        if filename in ['dockerfile', 'makefile', 'readme', 'license', 'changelog']:
+            return filename.title()
+        elif filename.startswith('.'):
+            return 'Hidden'
+        else:
+            return 'Unknown'
+    
+    return type_mapping.get(extension, 'Unknown')
