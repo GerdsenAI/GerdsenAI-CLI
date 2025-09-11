@@ -6,7 +6,7 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
 
 ### Required Commit Format
 - **Format**: `<type>: <description>`
-- **Types**: 
+- **Types**:
   - `feat:` - New features
   - `fix:` - Bug fixes
   - `chore:` - Maintenance tasks
@@ -44,7 +44,7 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # Using specific Python version (recommended)
    /opt/homebrew/bin/python3.11 -m venv .venv --prompt "gerdsenai-cli"
-   
+
    # Or using system python (if 3.11+)
    python3 -m venv .venv --prompt "gerdsenai-cli"
    ```
@@ -53,7 +53,7 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # macOS/Linux
    source .venv/bin/activate
-   
+
    # Windows
    .venv\Scripts\activate
    ```
@@ -62,7 +62,7 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # Check Python version
    python --version  # Should show 3.11+
-   
+
    # Check pip location
    which pip  # Should point to .venv/bin/pip
    ```
@@ -77,7 +77,7 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # Check package installation
    pip list | grep gerdsenai-cli
-   
+
    # Test CLI entry point
    python -m gerdsenai_cli --version
    ```
@@ -87,10 +87,10 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # Verify Rich Console (common issue)
    python -c "from rich.console import Console; print('✅ Rich imported successfully')"
-   
+
    # Verify Typer
    python -c "import typer; print('✅ Typer imported successfully')"
-   
+
    # Verify all core imports
    python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ System commands imported successfully')"
    ```
@@ -114,10 +114,10 @@ Never use emojis in UI.Always think socratically, UI/UX should feel perfect for 
    ```bash
    # Always activate before development
    source .venv/bin/activate
-   
+
    # Install/update dependencies
    pip install -e .
-   
+
    # Run development commands
    python -m gerdsenai_cli
    ```
@@ -235,7 +235,7 @@ pre-commit>=3.5.0    # Git hooks
 
 ### Connection Optimization
 1. **Connection Pooling**: Use httpx.AsyncClient for persistent connections
-2. **Timeout Configuration**: 
+2. **Timeout Configuration**:
    - Default: 30s API timeout
    - Health checks: 5s timeout
    - Model listing: 10s timeout
@@ -300,7 +300,7 @@ gerdsenai_cli/
 ### Development Phases
 Refined implementation based on current state analysis:
 1. **Phase 1**: Project scaffolding (✅ Complete)
-2. **Phase 2**: Configuration and LLM client (✅ Complete)  
+2. **Phase 2**: Configuration and LLM client (✅ Complete)
 3. **Phase 3**: Basic interactive loop (✅ Complete)
 4. **Phase 4**: Core agentic features (🚧 **PRIORITY NOW**)
    - Context Manager for project awareness
@@ -353,7 +353,7 @@ Refined implementation based on current state analysis:
    - Context building for LLM understanding
    - File content caching and management
 
-2. **File Editor** (`gerdsenai_cli/core/file_editor.py`) 
+2. **File Editor** (`gerdsenai_cli/core/file_editor.py`)
    - Safe file modification with validation
    - Diff preview and user confirmation
    - Backup management and rollback
@@ -378,7 +378,7 @@ Refined implementation based on current state analysis:
 - Review open issues and PRs
 - Update development dependencies
 
-### Monthly  
+### Monthly
 - Audit package dependencies
 - Review and update documentation
 - Performance profiling and optimization

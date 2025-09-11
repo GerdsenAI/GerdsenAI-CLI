@@ -4,83 +4,85 @@ System-related commands for GerdsenAI CLI.
 This module contains commands for system status, configuration, and general CLI operations.
 """
 
-from typing import Any, Dict
+import platform
+import sys
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
 
-from .base import BaseCommand, CommandCategory, CommandResult, CommandArgument
 from ..utils.display import show_error, show_info, show_success, show_warning
-
-import sys
-import platform
-import asyncio
-from datetime import datetime
+from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 console = Console()
 
 
 class HelpCommand(BaseCommand):
     """Display help information for commands."""
-    
+
     @property
     def name(self) -> str:
         return "help"
-    
+
     @property
     def description(self) -> str:
         return "Show help for commands"
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
-    
+
     @property
     def aliases(self) -> list[str]:
         return ["h", "?"]
-    
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "command": CommandArgument(
                 name="command",
                 description="Specific command to show help for",
-                required=False
+                required=False,
             )
         }
-    
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute help command."""
         command_name = args.get("command")
         parser = context.get("parser")
-        
+
         if not parser:
             return CommandResult(success=False, message="Command parser not available")
-        
+
         parser.show_help(command_name)
         return CommandResult(success=True)
 
 
 class ExitCommand(BaseCommand):
     """Exit the application."""
-    
+
     @property
     def name(self) -> str:
         return "exit"
-    
+
     @property
     def description(self) -> str:
         return "Exit the application"
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
-    
+
     @property
     def aliases(self) -> list[str]:
         return ["quit", "q"]
-    
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute exit command."""
         console.print("\n👋 [bright_cyan]Goodbye![/bright_cyan]")
         return CommandResult(success=True, should_exit=True)
@@ -88,219 +90,264 @@ class ExitCommand(BaseCommand):
 
 class StatusCommand(BaseCommand):
     """Show system status."""
-    
+
     @property
     def name(self) -> str:
         return "status"
-    
+
     @property
     def description(self) -> str:
         return "Show system status and health information"
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
-    
+
     @property
     def aliases(self) -> list[str]:
         return ["stat"]
-    
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "verbose": CommandArgument(
                 name="verbose",
                 description="Show detailed status information",
                 required=False,
                 arg_type=bool,
-                default=False
+                default=False,
             )
         }
-    
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute status command."""
         verbose = args.get("verbose", False)
-        
+
         console.print("\n📊 [bold cyan]System Status[/bold cyan]\n")
-        
+
         # LLM Client Status
         llm_client = context.get("llm_client")
         if llm_client:
             with console.status("[bold green]Checking LLM status...", spinner="dots"):
                 health = await llm_client.health_check()
-            
+
             status = "✅ Connected" if health["connected"] else "❌ Disconnected"
             console.print(f"  LLM Connection:     [bold]{status}[/bold]")
             console.print(f"  Server URL:         [bold]{health['server_url']}[/bold]")
-            
+
             if health["response_time_ms"]:
-                console.print(f"  Response Time:      [bold]{health['response_time_ms']}ms[/bold]")
-            
-            console.print(f"  Models Available:   [bold]{health['models_available']}[/bold]")
-            
+                console.print(
+                    f"  Response Time:      [bold]{health['response_time_ms']}ms[/bold]"
+                )
+
+            console.print(
+                f"  Models Available:   [bold]{health['models_available']}[/bold]"
+            )
+
             if health["error"]:
-                console.print(f"  Error:              [bold red]{health['error']}[/bold red]")
+                console.print(
+                    f"  Error:              [bold red]{health['error']}[/bold red]"
+                )
         else:
             console.print("  LLM Client:         [bold red]Not initialized[/bold red]")
-        
+
         # Agent Status
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
-            console.print(f"  AI Agent:           [bold green]✅ Ready[/bold green]")
-            console.print(f"  Actions Performed:  [bold]{stats['actions_performed']}[/bold]")
-            console.print(f"  Files Indexed:      [bold]{stats['project_files_indexed']}[/bold]")
-            
+            console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
+            console.print(
+                f"  Actions Performed:  [bold]{stats['actions_performed']}[/bold]"
+            )
+            console.print(
+                f"  Files Indexed:      [bold]{stats['project_files_indexed']}[/bold]"
+            )
+
             if verbose:
-                console.print(f"\n🤖 [bold cyan]Agent Details:[/bold cyan]")
-                console.print(f"  Files Modified:     [bold]{stats['files_modified']}[/bold]")
-                console.print(f"  Context Builds:     [bold]{stats['context_builds']}[/bold]")
-                console.print(f"  Conversation:       [bold]{stats['conversation_length']} messages[/bold]")
-                
-                if stats['last_action']:
-                    console.print(f"  Last Action:        [bold]{stats['last_action']}[/bold]")
+                console.print("\n🤖 [bold cyan]Agent Details:[/bold cyan]")
+                console.print(
+                    f"  Files Modified:     [bold]{stats['files_modified']}[/bold]"
+                )
+                console.print(
+                    f"  Context Builds:     [bold]{stats['context_builds']}[/bold]"
+                )
+                console.print(
+                    f"  Conversation:       [bold]{stats['conversation_length']} messages[/bold]"
+                )
+
+                if stats["last_action"]:
+                    console.print(
+                        f"  Last Action:        [bold]{stats['last_action']}[/bold]"
+                    )
         else:
-            console.print("  AI Agent:           [bold red]❌ Not initialized[/bold red]")
-        
+            console.print(
+                "  AI Agent:           [bold red]❌ Not initialized[/bold red]"
+            )
+
         # Command Parser Status
         parser = context.get("parser")
         if parser and verbose:
             parser_stats = parser.get_status()
-            console.print(f"\n⚙️  [bold cyan]Parser Status:[/bold cyan]")
-            console.print(f"  Commands Loaded:    [bold]{parser_stats['total_commands']}[/bold]")
-            console.print(f"  Aliases Available:  [bold]{parser_stats['total_aliases']}[/bold]")
-        
+            console.print("\n⚙️  [bold cyan]Parser Status:[/bold cyan]")
+            console.print(
+                f"  Commands Loaded:    [bold]{parser_stats['total_commands']}[/bold]"
+            )
+            console.print(
+                f"  Aliases Available:  [bold]{parser_stats['total_aliases']}[/bold]"
+            )
+
         console.print()
         return CommandResult(success=True)
 
 
 class ConfigCommand(BaseCommand):
     """Show or modify configuration."""
-    
+
     @property
     def name(self) -> str:
         return "config"
-    
+
     @property
     def description(self) -> str:
         return "Show current configuration or modify settings"
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
-    
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "action": CommandArgument(
                 name="action",
                 description="Action to perform",
                 required=False,
                 choices=["show", "set", "get"],
-                default="show"
+                default="show",
             ),
             "key": CommandArgument(
-                name="key",
-                description="Configuration key to get/set",
-                required=False
+                name="key", description="Configuration key to get/set", required=False
             ),
             "value": CommandArgument(
-                name="value", 
+                name="value",
                 description="Value to set (for 'set' action)",
-                required=False
-            )
+                required=False,
+            ),
         }
-    
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute config command."""
         action = args.get("action", "show")
         key = args.get("key")
         value = args.get("value")
-        
+
         settings = context.get("settings")
         config_manager = context.get("config_manager")
-        
+
         if not settings:
             return CommandResult(success=False, message="Settings not available")
-        
+
         if action == "show":
             await self._show_config(settings, context)
         elif action == "get":
             if not key:
-                return CommandResult(success=False, message="Key required for 'get' action")
+                return CommandResult(
+                    success=False, message="Key required for 'get' action"
+                )
             await self._get_config_value(settings, key)
         elif action == "set":
             if not key or not value:
-                return CommandResult(success=False, message="Both key and value required for 'set' action")
+                return CommandResult(
+                    success=False,
+                    message="Both key and value required for 'set' action",
+                )
             if not config_manager:
-                return CommandResult(success=False, message="Config manager not available")
+                return CommandResult(
+                    success=False, message="Config manager not available"
+                )
             await self._set_config_value(settings, config_manager, key, value)
-        
+
         return CommandResult(success=True)
-    
-    async def _show_config(self, settings, context: Dict[str, Any]) -> None:
+
+    async def _show_config(self, settings, context: dict[str, Any]) -> None:
         """Show full configuration."""
         console.print("\n⚙️  [bold cyan]Current Configuration[/bold cyan]\n")
-        
+
         # Basic settings
-        console.print(f"  LLM Protocol:       [bold]{getattr(settings, 'protocol', 'http')}[/bold]")
-        console.print(f"  LLM Host:           [bold]{getattr(settings, 'llm_host', 'localhost')}[/bold]")
-        console.print(f"  LLM Port:           [bold]{getattr(settings, 'llm_port', 11434)}[/bold]")
+        console.print(
+            f"  LLM Protocol:       [bold]{getattr(settings, 'protocol', 'http')}[/bold]"
+        )
+        console.print(
+            f"  LLM Host:           [bold]{getattr(settings, 'llm_host', 'localhost')}[/bold]"
+        )
+        console.print(
+            f"  LLM Port:           [bold]{getattr(settings, 'llm_port', 11434)}[/bold]"
+        )
         console.print(f"  LLM Server URL:     [bold]{settings.llm_server_url}[/bold]")
-        console.print(f"  Current Model:      [bold]{settings.current_model or 'Not set'}[/bold]")
+        console.print(
+            f"  Current Model:      [bold]{settings.current_model or 'Not set'}[/bold]"
+        )
         console.print(f"  API Timeout:        [bold]{settings.api_timeout}s[/bold]")
-        
+
         # Connection status
         llm_client = context.get("llm_client")
         if llm_client:
-            status = "✅ Connected" if llm_client.is_connected else "❌ Disconnected" 
+            status = "✅ Connected" if llm_client.is_connected else "❌ Disconnected"
             console.print(f"  Connection:         [bold]{status}[/bold]")
-        
+
         # Agent status
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
             status = "✅ Ready" if agent else "❌ Not initialized"
             console.print(f"  AI Agent:           [bold]{status}[/bold]")
-            console.print(f"  Project Files:      [bold]{stats['project_files_indexed']}[/bold]")
-        
+            console.print(
+                f"  Project Files:      [bold]{stats['project_files_indexed']}[/bold]"
+            )
+
         # User preferences
         if settings.user_preferences:
-            console.print(f"\n  [bold cyan]User Preferences:[/bold cyan]")
+            console.print("\n  [bold cyan]User Preferences:[/bold cyan]")
             for key, value in settings.user_preferences.items():
                 console.print(f"    {key}: [bold]{value}[/bold]")
-        
+
         console.print()
-    
+
     async def _get_config_value(self, settings, key: str) -> None:
         """Get specific configuration value."""
         value = getattr(settings, key, None)
         if value is None and settings.user_preferences:
             value = settings.user_preferences.get(key)
-        
+
         if value is not None:
             console.print(f"\n[bold cyan]{key}:[/bold cyan] {value}\n")
         else:
             show_warning(f"Configuration key '{key}' not found")
-    
-    async def _set_config_value(self, settings, config_manager, key: str, value: str) -> None:
+
+    async def _set_config_value(
+        self, settings, config_manager, key: str, value: str
+    ) -> None:
         """Set configuration value."""
         # Simple implementation - in practice you'd want more validation
         if hasattr(settings, key):
             # Try to convert value to appropriate type
             current_value = getattr(settings, key)
             if isinstance(current_value, bool):
-                value = value.lower() in {'true', '1', 'yes', 'on'}
+                value = value.lower() in {"true", "1", "yes", "on"}
             elif isinstance(current_value, int):
                 value = int(value)
             elif isinstance(current_value, float):
                 value = float(value)
-            
+
             setattr(settings, key, value)
         else:
             # Store in user preferences
             if not settings.user_preferences:
                 settings.user_preferences = {}
             settings.user_preferences[key] = value
-        
+
         # Save settings
         success = await config_manager.save_settings(settings)
         if success:
@@ -311,55 +358,57 @@ class ConfigCommand(BaseCommand):
 
 class DebugCommand(BaseCommand):
     """Toggle debug mode."""
-    
+
     @property
     def name(self) -> str:
         return "debug"
-    
+
     @property
     def description(self) -> str:
         return "Toggle debug mode on/off"
-    
+
     @property
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
-    
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "mode": CommandArgument(
                 name="mode",
                 description="Debug mode state",
                 required=False,
                 choices=["on", "off", "toggle"],
-                default="toggle"
+                default="toggle",
             )
         }
-    
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute debug command."""
         mode = args.get("mode", "toggle")
-        
+
         # Get current debug state from context
         current_debug = context.get("debug", False)
-        
+
         if mode == "on":
             new_debug = True
         elif mode == "off":
             new_debug = False
         else:  # toggle
             new_debug = not current_debug
-        
+
         # Update context
         context["debug"] = new_debug
-        
+
         # Update app debug state if available
         app = context.get("app")
         if app:
             app.debug = new_debug
-        
+
         status = "enabled" if new_debug else "disabled"
         show_success(f"Debug mode {status}")
-        
+
         return CommandResult(success=True, data={"debug": new_debug})
 
 
@@ -382,21 +431,23 @@ class AboutCommand(BaseCommand):
     def aliases(self) -> list[str]:
         return ["version", "info"]
 
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "detailed": CommandArgument(
                 name="detailed",
                 description="Show detailed system and environment information",
                 required=False,
                 arg_type=bool,
-                default=False
+                default=False,
             )
         }
 
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute about command."""
         detailed = args.get("detailed", False)
-        
+
         # Get version info
         try:
             from .. import __version__
@@ -404,119 +455,166 @@ class AboutCommand(BaseCommand):
             __version__ = "0.1.0-dev"
 
         console.print("\n🔧 [bold cyan]GerdsenAI CLI - About[/bold cyan]\n")
-        
+
         # Basic version information
         console.print(f"  Version:            [bold green]{__version__}[/bold green]")
         console.print(f"  Python Version:     [bold]{sys.version.split()[0]}[/bold]")
-        console.print(f"  Platform:           [bold]{platform.system()} {platform.release()}[/bold]")
+        console.print(
+            f"  Platform:           [bold]{platform.system()} {platform.release()}[/bold]"
+        )
         console.print(f"  Architecture:       [bold]{platform.machine()}[/bold]")
-        
+
         # Current timestamp
-        console.print(f"  Current Time:       [bold]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/bold]")
-        
+        console.print(
+            f"  Current Time:       [bold]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/bold]"
+        )
+
         if detailed:
-            console.print(f"\n📋 [bold cyan]Detailed System Information[/bold cyan]")
-            
+            console.print("\n📋 [bold cyan]Detailed System Information[/bold cyan]")
+
             # Python details
             console.print(f"  Python Executable:  [bold]{sys.executable}[/bold]")
             console.print(f"  Python Path:        [dim]{sys.path[0]}[/dim]")
-            
+
             # Platform details
             console.print(f"  Platform Details:   [bold]{platform.platform()}[/bold]")
-            console.print(f"  Processor:          [bold]{platform.processor() or 'Unknown'}[/bold]")
-            
+            console.print(
+                f"  Processor:          [bold]{platform.processor() or 'Unknown'}[/bold]"
+            )
+
             # Memory and environment
             try:
                 import psutil
+
                 memory = psutil.virtual_memory()
-                console.print(f"  Memory (Total):     [bold]{memory.total / (1024**3):.1f} GB[/bold]")
-                console.print(f"  Memory (Available): [bold]{memory.available / (1024**3):.1f} GB[/bold]")
+                console.print(
+                    f"  Memory (Total):     [bold]{memory.total / (1024**3):.1f} GB[/bold]"
+                )
+                console.print(
+                    f"  Memory (Available): [bold]{memory.available / (1024**3):.1f} GB[/bold]"
+                )
             except ImportError:
                 console.print("  Memory Info:        [dim]psutil not available[/dim]")
-            
+
             # Environment variables
             import os
+
             home_dir = os.path.expanduser("~")
             config_dir = Path(home_dir) / ".config" / "gerdsenai-cli"
             console.print(f"  Home Directory:     [bold]{home_dir}[/bold]")
             console.print(f"  Config Directory:   [bold]{config_dir}[/bold]")
-            console.print(f"  Config Exists:      [bold]{'✅ Yes' if config_dir.exists() else '❌ No'}[/bold]")
-        
+            console.print(
+                f"  Config Exists:      [bold]{'✅ Yes' if config_dir.exists() else '❌ No'}[/bold]"
+            )
+
         # Component status
-        console.print(f"\n🔧 [bold cyan]Component Status[/bold cyan]")
-        
+        console.print("\n🔧 [bold cyan]Component Status[/bold cyan]")
+
         # LLM Client
         llm_client = context.get("llm_client")
         if llm_client:
             try:
                 health = await llm_client.health_check()
-                status = "✅ Connected" if health.get("connected") else "❌ Disconnected"
+                status = (
+                    "✅ Connected" if health.get("connected") else "❌ Disconnected"
+                )
                 console.print(f"  LLM Client:         [bold]{status}[/bold]")
                 if health.get("server_url"):
-                    console.print(f"  Server URL:         [bold]{health['server_url']}[/bold]")
+                    console.print(
+                        f"  Server URL:         [bold]{health['server_url']}[/bold]"
+                    )
                 if health.get("models_available"):
-                    console.print(f"  Models Available:   [bold]{health['models_available']}[/bold]")
+                    console.print(
+                        f"  Models Available:   [bold]{health['models_available']}[/bold]"
+                    )
                 if health.get("error"):
-                    console.print(f"  Error:              [bold red]{health['error']}[/bold red]")
+                    console.print(
+                        f"  Error:              [bold red]{health['error']}[/bold red]"
+                    )
             except Exception as e:
-                console.print(f"  LLM Client:         [bold red]❌ Error: {str(e)}[/bold red]")
+                console.print(
+                    f"  LLM Client:         [bold red]❌ Error: {str(e)}[/bold red]"
+                )
         else:
-            console.print("  LLM Client:         [bold yellow]⚠️  Not initialized[/bold yellow]")
-        
+            console.print(
+                "  LLM Client:         [bold yellow]⚠️  Not initialized[/bold yellow]"
+            )
+
         # Agent
         agent = context.get("agent")
         if agent:
             try:
                 stats = agent.get_agent_stats()
-                console.print(f"  AI Agent:           [bold green]✅ Ready[/bold green]")
-                console.print(f"  Files Indexed:      [bold]{stats.get('project_files_indexed', 0)}[/bold]")
-                console.print(f"  Actions Performed:  [bold]{stats.get('actions_performed', 0)}[/bold]")
+                console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
+                console.print(
+                    f"  Files Indexed:      [bold]{stats.get('project_files_indexed', 0)}[/bold]"
+                )
+                console.print(
+                    f"  Actions Performed:  [bold]{stats.get('actions_performed', 0)}[/bold]"
+                )
             except Exception as e:
-                console.print(f"  AI Agent:           [bold red]❌ Error: {str(e)}[/bold red]")
+                console.print(
+                    f"  AI Agent:           [bold red]❌ Error: {str(e)}[/bold red]"
+                )
         else:
-            console.print("  AI Agent:           [bold yellow]⚠️  Not initialized[/bold yellow]")
-        
+            console.print(
+                "  AI Agent:           [bold yellow]⚠️  Not initialized[/bold yellow]"
+            )
+
         # Command Parser
         parser = context.get("parser")
         if parser:
             try:
                 parser_stats = parser.get_status()
-                console.print(f"  Command Parser:     [bold green]✅ Ready[/bold green]")
-                console.print(f"  Commands Loaded:    [bold]{parser_stats.get('total_commands', 0)}[/bold]")
-                console.print(f"  Aliases Available:  [bold]{parser_stats.get('total_aliases', 0)}[/bold]")
+                console.print("  Command Parser:     [bold green]✅ Ready[/bold green]")
+                console.print(
+                    f"  Commands Loaded:    [bold]{parser_stats.get('total_commands', 0)}[/bold]"
+                )
+                console.print(
+                    f"  Aliases Available:  [bold]{parser_stats.get('total_aliases', 0)}[/bold]"
+                )
             except Exception as e:
-                console.print(f"  Command Parser:     [bold red]❌ Error: {str(e)}[/bold red]")
+                console.print(
+                    f"  Command Parser:     [bold red]❌ Error: {str(e)}[/bold red]"
+                )
         else:
-            console.print("  Command Parser:     [bold yellow]⚠️  Not initialized[/bold yellow]")
-        
+            console.print(
+                "  Command Parser:     [bold yellow]⚠️  Not initialized[/bold yellow]"
+            )
+
         # Installation path
-        console.print(f"\n📦 [bold cyan]Installation Information[/bold cyan]")
+        console.print("\n📦 [bold cyan]Installation Information[/bold cyan]")
         try:
             import gerdsenai_cli
+
             install_path = Path(gerdsenai_cli.__file__).parent
             console.print(f"  Installation Path:  [bold]{install_path}[/bold]")
-            console.print(f"  Package Mode:       [bold]{'Development' if 'site-packages' not in str(install_path) else 'Installed'}[/bold]")
+            console.print(
+                f"  Package Mode:       [bold]{'Development' if 'site-packages' not in str(install_path) else 'Installed'}[/bold]"
+            )
         except Exception:
             console.print("  Installation Path:  [dim]Unable to determine[/dim]")
-        
+
         # Troubleshooting tips
-        console.print(f"\n💡 [bold cyan]Troubleshooting Tips[/bold cyan]")
+        console.print("\n💡 [bold cyan]Troubleshooting Tips[/bold cyan]")
         console.print("  • If LLM connection fails, check your server is running")
         console.print("  • Use '/setup' to reconfigure LLM server settings")
         console.print("  • Use '/status --verbose' for detailed component status")
         console.print("  • Check logs in ~/.config/gerdsenai-cli/logs/ if available")
-        console.print("  • Report issues at: https://github.com/GerdsenAI-Admin/GerdsenAI-CLI/issues")
-        
+        console.print(
+            "  • Report issues at: https://github.com/GerdsenAI-Admin/GerdsenAI-CLI/issues"
+        )
+
         console.print()
         return CommandResult(
-            success=True, 
+            success=True,
             message="About information displayed",
             data={
                 "version": __version__,
                 "python_version": sys.version.split()[0],
                 "platform": platform.system(),
-                "detailed": detailed
-            }
+                "detailed": detailed,
+            },
         )
 
 
@@ -539,63 +637,71 @@ class InitCommand(BaseCommand):
     def aliases(self) -> list[str]:
         return ["initialize", "setup-project"]
 
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "force": CommandArgument(
                 name="force",
                 description="Overwrite existing GerdsenAI.md file if it exists",
                 required=False,
                 arg_type=bool,
-                default=False
+                default=False,
             ),
             "template": CommandArgument(
                 name="template",
                 description="Project template type (python, web, general)",
                 required=False,
                 choices=["python", "web", "general"],
-                default="general"
-            )
+                default="general",
+            ),
         }
 
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute init command."""
         force = args.get("force", False)
         template = args.get("template", "general")
-        
+
         # Check if GerdsenAI.md already exists
         guide_path = Path("GerdsenAI.md")
         if guide_path.exists() and not force:
-            console.print(f"[yellow]⚠️  GerdsenAI.md already exists in current directory.[/yellow]")
-            console.print(f"[dim]Use --force to overwrite or choose a different directory.[/dim]\n")
+            console.print(
+                "[yellow]⚠️  GerdsenAI.md already exists in current directory.[/yellow]"
+            )
+            console.print(
+                "[dim]Use --force to overwrite or choose a different directory.[/dim]\n"
+            )
             return CommandResult(success=False, message="GerdsenAI.md already exists")
-        
+
         # Generate content based on template
         content = self._generate_guide_content(template)
-        
+
         try:
             # Write the guide file
-            with open(guide_path, 'w', encoding='utf-8') as f:
+            with open(guide_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            
-            console.print(f"[green]✅ Successfully created GerdsenAI.md![/green]")
+
+            console.print("[green]✅ Successfully created GerdsenAI.md![/green]")
             console.print(f"[dim]Location: {guide_path.absolute()}[/dim]\n")
-            
+
             # Show quick tips
             self._show_quick_tips(template)
-            
+
             return CommandResult(
-                success=True, 
+                success=True,
                 message="Project initialized with GerdsenAI.md",
-                data={"guide_path": str(guide_path), "template": template}
+                data={"guide_path": str(guide_path), "template": template},
             )
-            
+
         except Exception as e:
             console.print(f"[red]❌ Failed to create GerdsenAI.md: {str(e)}[/red]\n")
-            return CommandResult(success=False, message=f"Failed to create guide: {str(e)}")
-    
+            return CommandResult(
+                success=False, message=f"Failed to create guide: {str(e)}"
+            )
+
     def _generate_guide_content(self, template: str) -> str:
         """Generate guide content based on template."""
-        
+
         base_content = """# GerdsenAI CLI - Project Guide
 
 Welcome to your GerdsenAI-enabled project! This guide will help you work effectively with the AI coding assistant.
@@ -744,7 +850,6 @@ your-project/
 - Use type hints for better code clarity
 - Implement proper error handling
 """,
-            
             "web": """
 
 ## 🌐 Web Development Tips
@@ -779,7 +884,6 @@ your-web-project/
 - Accessibility considerations (ARIA labels, keyboard navigation)
 - Performance optimization (lazy loading, code splitting)
 """,
-            
             "general": """
 
 ## 📁 General Development Tips
@@ -796,31 +900,39 @@ your-web-project/
 - Test your changes before committing
 - Keep dependencies up to date
 - Regular backups and version control
-"""
+""",
         }
-        
+
         # Add timestamp and template-specific content
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        full_content = base_content.format(timestamp=timestamp) + template_additions.get(template, template_additions["general"])
-        
+        full_content = base_content.format(
+            timestamp=timestamp
+        ) + template_additions.get(template, template_additions["general"])
+
         return full_content
-    
+
     def _show_quick_tips(self, template: str):
         """Show quick tips after initialization."""
-        console.print(f"[bold cyan]🎯 Quick Start Tips:[/bold cyan]")
-        console.print(f"  1. Start chatting: Type your coding question or request")
-        console.print(f"  2. Explore files: `/ls` to see project structure")
-        console.print(f"  3. Get help: `/help` for all available commands")
-        console.print(f"  4. Check status: `/status` to verify AI connection")
-        
+        console.print("[bold cyan]🎯 Quick Start Tips:[/bold cyan]")
+        console.print("  1. Start chatting: Type your coding question or request")
+        console.print("  2. Explore files: `/ls` to see project structure")
+        console.print("  3. Get help: `/help` for all available commands")
+        console.print("  4. Check status: `/status` to verify AI connection")
+
         if template == "python":
-            console.print(f"  5. Python-specific: Try 'Create a main.py with argument parsing'")
+            console.print(
+                "  5. Python-specific: Try 'Create a main.py with argument parsing'"
+            )
         elif template == "web":
-            console.print(f"  5. Web-specific: Try 'Create an index.html with modern CSS'")
+            console.print(
+                "  5. Web-specific: Try 'Create an index.html with modern CSS'"
+            )
         else:
-            console.print(f"  5. Try this: 'Help me organize this project structure'")
-        
-        console.print(f"\n[dim]💡 Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n")
+            console.print("  5. Try this: 'Help me organize this project structure'")
+
+        console.print(
+            "\n[dim]💡 Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n"
+        )
 
 
 class SetupCommand(BaseCommand):
@@ -838,23 +950,28 @@ class SetupCommand(BaseCommand):
     def category(self) -> CommandCategory:
         return CommandCategory.SYSTEM
 
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "apply": CommandArgument(
                 name="apply",
                 description="Automatically apply defaults without prompts",
                 required=False,
                 arg_type=bool,
-                default=False
+                default=False,
             )
         }
 
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         from rich.prompt import Prompt
+
         settings = context.get("settings")
         config_manager = context.get("config_manager")
         if not settings or not config_manager:
-            return CommandResult(success=False, message="Settings or config manager unavailable")
+            return CommandResult(
+                success=False, message="Settings or config manager unavailable"
+            )
 
         auto_apply = args.get("apply", False)
 
@@ -864,7 +981,11 @@ class SetupCommand(BaseCommand):
                 host = settings.llm_host
                 port = settings.llm_port
             else:
-                protocol = Prompt.ask("Protocol (http/https)", choices=["http", "https"], default=settings.protocol)
+                protocol = Prompt.ask(
+                    "Protocol (http/https)",
+                    choices=["http", "https"],
+                    default=settings.protocol,
+                )
                 host = Prompt.ask("Host", default=settings.llm_host)
                 port_str = Prompt.ask("Port", default=str(settings.llm_port))
                 try:
@@ -922,52 +1043,53 @@ class CopyCommand(BaseCommand):
     def aliases(self) -> list[str]:
         return ["cp", "clip", "clipboard"]
 
-    def _define_arguments(self) -> Dict[str, CommandArgument]:
+    def _define_arguments(self) -> dict[str, CommandArgument]:
         return {
             "text": CommandArgument(
                 name="text",
                 description="Direct text to copy to clipboard",
-                required=False
+                required=False,
             ),
             "file": CommandArgument(
                 name="file",
                 description="Path to file whose contents should be copied",
-                required=False
+                required=False,
             ),
             "lines": CommandArgument(
                 name="lines",
                 description="Specific line range to copy (e.g., '1-10' or '5')",
-                required=False
+                required=False,
             ),
             "format": CommandArgument(
                 name="format",
                 description="Output format for file contents",
                 required=False,
                 choices=["raw", "code", "markdown"],
-                default="raw"
-            )
+                default="raw",
+            ),
         }
 
-    async def execute(self, args: Dict[str, Any], context: Dict[str, Any]) -> CommandResult:
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
         """Execute copy command."""
         text_arg = args.get("text")
         file_arg = args.get("file")
         lines_arg = args.get("lines")
         format_type = args.get("format", "raw")
-        
+
         # Validate arguments
         if not text_arg and not file_arg:
             return CommandResult(
-                success=False, 
-                message="Either --text or --file argument is required"
+                success=False, message="Either --text or --file argument is required"
             )
-        
+
         if text_arg and file_arg:
             return CommandResult(
-                success=False, 
-                message="Cannot use both --text and --file arguments simultaneously"
+                success=False,
+                message="Cannot use both --text and --file arguments simultaneously",
             )
-        
+
         try:
             # Determine what to copy
             if text_arg:
@@ -978,137 +1100,142 @@ class CopyCommand(BaseCommand):
                 file_path = Path(file_arg)
                 if not file_path.exists():
                     return CommandResult(
-                        success=False, 
-                        message=f"File not found: {file_arg}"
+                        success=False, message=f"File not found: {file_arg}"
                     )
-                
+
                 if not file_path.is_file():
                     return CommandResult(
-                        success=False, 
-                        message=f"Path is not a file: {file_arg}"
+                        success=False, message=f"Path is not a file: {file_arg}"
                     )
-                
+
                 # Read file contents
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, encoding="utf-8") as f:
                         content = f.read()
                     source_info = f"file: {file_arg}"
                 except UnicodeDecodeError:
                     # Try binary files with basic encoding
                     try:
-                        with open(file_path, 'r', encoding='latin1') as f:
+                        with open(file_path, encoding="latin1") as f:
                             content = f.read()
-                        show_warning(f"File may contain binary data - using latin1 encoding")
+                        show_warning(
+                            "File may contain binary data - using latin1 encoding"
+                        )
                         source_info = f"file: {file_arg} (binary)"
                     except Exception as e:
                         return CommandResult(
-                            success=False, 
-                            message=f"Failed to read file: {str(e)}"
+                            success=False, message=f"Failed to read file: {str(e)}"
                         )
                 except Exception as e:
                     return CommandResult(
-                        success=False, 
-                        message=f"Failed to read file: {str(e)}"
+                        success=False, message=f"Failed to read file: {str(e)}"
                     )
-                
+
                 # Handle line range selection
                 if lines_arg:
                     content = self._extract_lines(content, lines_arg)
                     if content is None:
                         return CommandResult(
-                            success=False, 
-                            message=f"Invalid line range: {lines_arg}"
+                            success=False, message=f"Invalid line range: {lines_arg}"
                         )
-                
+
                 # Apply formatting if requested and copying a file
-                content = self._apply_formatting(content, format_type, file_arg if file_arg else "text")
-            
+                content = self._apply_formatting(
+                    content, format_type, file_arg if file_arg else "text"
+                )
+
             # Copy to clipboard
             success, error_msg = await self._copy_to_clipboard(content)
-            
+
             if success:
                 # Show success message with preview
                 preview = content[:100] + "..." if len(content) > 100 else content
-                preview_lines = preview.split('\n')
+                preview_lines = preview.split("\n")
                 if len(preview_lines) > 3:
-                    preview = '\n'.join(preview_lines[:3]) + "\n..."
-                
-                console.print(f"[green]✅ Copied to clipboard![/green]")
+                    preview = "\n".join(preview_lines[:3]) + "\n..."
+
+                console.print("[green]✅ Copied to clipboard![/green]")
                 console.print(f"[dim]Source: {source_info}[/dim]")
                 console.print(f"[dim]Length: {len(content)} characters[/dim]")
-                
-                if len(content.split('\n')) > 1:
-                    line_count = len(content.split('\n'))
+
+                if len(content.split("\n")) > 1:
+                    line_count = len(content.split("\n"))
                     console.print(f"[dim]Lines: {line_count}[/dim]")
-                
+
                 # Show preview
-                console.print(f"\n[bold cyan]Preview:[/bold cyan]")
+                console.print("\n[bold cyan]Preview:[/bold cyan]")
                 console.print(Panel(preview, border_style="dim"))
-                
+
                 return CommandResult(
-                    success=True, 
+                    success=True,
                     message="Content copied to clipboard",
                     data={
                         "source": source_info,
                         "length": len(content),
-                        "lines": len(content.split('\n')),
-                        "format": format_type
-                    }
+                        "lines": len(content.split("\n")),
+                        "format": format_type,
+                    },
                 )
             else:
                 return CommandResult(
-                    success=False, 
-                    message=f"Failed to copy to clipboard: {error_msg}"
+                    success=False, message=f"Failed to copy to clipboard: {error_msg}"
                 )
-                
+
         except Exception as e:
             return CommandResult(
-                success=False, 
-                message=f"Copy operation failed: {str(e)}"
+                success=False, message=f"Copy operation failed: {str(e)}"
             )
-    
+
     def _extract_lines(self, content: str, lines_spec: str) -> str:
         """Extract specific lines from content based on line specification."""
-        lines = content.split('\n')
+        lines = content.split("\n")
         total_lines = len(lines)
-        
+
         try:
-            if '-' in lines_spec:
+            if "-" in lines_spec:
                 # Range specification (e.g., "5-10")
-                start_str, end_str = lines_spec.split('-', 1)
+                start_str, end_str = lines_spec.split("-", 1)
                 start_line = int(start_str.strip()) - 1  # Convert to 0-based index
-                end_line = int(end_str.strip()) - 1      # Convert to 0-based index
-                
+                end_line = int(end_str.strip()) - 1  # Convert to 0-based index
+
                 # Validate range
                 if start_line < 0 or end_line >= total_lines or start_line > end_line:
                     return None
-                
-                return '\n'.join(lines[start_line:end_line + 1])
+
+                return "\n".join(lines[start_line : end_line + 1])
             else:
                 # Single line specification (e.g., "5")
                 line_num = int(lines_spec.strip()) - 1  # Convert to 0-based index
-                
+
                 # Validate line number
                 if line_num < 0 or line_num >= total_lines:
                     return None
-                
+
                 return lines[line_num]
         except (ValueError, IndexError):
             return None
-    
+
     def _apply_formatting(self, content: str, format_type: str, source: str) -> str:
         """Apply formatting to content based on format type."""
         if format_type == "raw":
             return content
         elif format_type == "code":
             # Detect file extension for syntax highlighting hint
-            if source != "text" and '.' in source:
-                ext = Path(source).suffix.lstrip('.')
+            if source != "text" and "." in source:
+                ext = Path(source).suffix.lstrip(".")
                 language_map = {
-                    'py': 'python', 'js': 'javascript', 'ts': 'typescript',
-                    'html': 'html', 'css': 'css', 'json': 'json',
-                    'md': 'markdown', 'sql': 'sql', 'sh': 'bash',
-                    'yml': 'yaml', 'yaml': 'yaml', 'xml': 'xml'
+                    "py": "python",
+                    "js": "javascript",
+                    "ts": "typescript",
+                    "html": "html",
+                    "css": "css",
+                    "json": "json",
+                    "md": "markdown",
+                    "sql": "sql",
+                    "sh": "bash",
+                    "yml": "yaml",
+                    "yaml": "yaml",
+                    "xml": "xml",
                 }
                 language = language_map.get(ext, ext)
                 return f"```{language}\n{content}\n```"
@@ -1120,15 +1247,16 @@ class CopyCommand(BaseCommand):
                 return f"**File:** `{source}`\n\n```\n{content}\n```"
             else:
                 return f"```\n{content}\n```"
-        
+
         return content
-    
+
     async def _copy_to_clipboard(self, content: str) -> tuple[bool, str]:
         """Copy content to system clipboard with cross-platform support."""
         try:
             # Try to import and use pyperclip (most reliable cross-platform solution)
             try:
                 import pyperclip
+
                 pyperclip.copy(content)
                 return True, None
             except ImportError:
@@ -1136,59 +1264,84 @@ class CopyCommand(BaseCommand):
                 return await self._system_clipboard_fallback(content)
             except Exception as e:
                 # If pyperclip fails, try system fallback
-                fallback_success, fallback_error = await self._system_clipboard_fallback(content)
+                (
+                    fallback_success,
+                    fallback_error,
+                ) = await self._system_clipboard_fallback(content)
                 if fallback_success:
                     return True, None
                 else:
-                    return False, f"pyperclip failed ({str(e)}) and system fallback failed ({fallback_error})"
-        
+                    return (
+                        False,
+                        f"pyperclip failed ({str(e)}) and system fallback failed ({fallback_error})",
+                    )
+
         except Exception as e:
             return False, str(e)
-    
+
     async def _system_clipboard_fallback(self, content: str) -> tuple[bool, str]:
         """Fallback clipboard method using system commands."""
         import subprocess
-        
+
         try:
             # Determine system and appropriate command
             system = platform.system().lower()
-            
+
             if system == "darwin":  # macOS
-                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE, text=True)
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE, text=True)
                 process.communicate(input=content)
-                return process.returncode == 0, None if process.returncode == 0 else "pbcopy failed"
-            
+                return (
+                    process.returncode == 0,
+                    None if process.returncode == 0 else "pbcopy failed",
+                )
+
             elif system == "linux":
                 # Try xclip first, then xsel
                 try:
-                    process = subprocess.Popen(['xclip', '-selection', 'clipboard'], 
-                                               stdin=subprocess.PIPE, text=True, 
-                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    process = subprocess.Popen(
+                        ["xclip", "-selection", "clipboard"],
+                        stdin=subprocess.PIPE,
+                        text=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                     process.communicate(input=content)
                     if process.returncode == 0:
                         return True, None
                 except FileNotFoundError:
                     pass
-                
+
                 try:
-                    process = subprocess.Popen(['xsel', '--clipboard', '--input'], 
-                                               stdin=subprocess.PIPE, text=True,
-                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    process = subprocess.Popen(
+                        ["xsel", "--clipboard", "--input"],
+                        stdin=subprocess.PIPE,
+                        text=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                     process.communicate(input=content)
                     if process.returncode == 0:
                         return True, None
                 except FileNotFoundError:
                     pass
-                
-                return False, "Neither xclip nor xsel found - install one of them for clipboard support"
-            
+
+                return (
+                    False,
+                    "Neither xclip nor xsel found - install one of them for clipboard support",
+                )
+
             elif system == "windows":
-                process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, text=True, shell=True)
+                process = subprocess.Popen(
+                    ["clip"], stdin=subprocess.PIPE, text=True, shell=True
+                )
                 process.communicate(input=content)
-                return process.returncode == 0, None if process.returncode == 0 else "clip.exe failed"
-            
+                return (
+                    process.returncode == 0,
+                    None if process.returncode == 0 else "clip.exe failed",
+                )
+
             else:
                 return False, f"Unsupported system: {system}"
-        
+
         except Exception as e:
             return False, str(e)

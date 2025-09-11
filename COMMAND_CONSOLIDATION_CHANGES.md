@@ -23,7 +23,7 @@ def name(self) -> str:
 def aliases(self) -> list[str]:
     return ["conv"]  # remove "chat-history"
 
-# ResetCommand (formerly ClearSessionCommand)  
+# ResetCommand (formerly ClearSessionCommand)
 @property
 def name(self) -> str:
     return "reset"  # was "clear"
@@ -85,7 +85,7 @@ from .commands.files import FilesCommand, ReadCommand, EditFileCommand, CreateFi
 # Replace old registrations with new ones
 await self.command_parser.register_command(ChatCommand(**command_deps))          # was ConversationCommand
 await self.command_parser.register_command(ResetCommand(**command_deps))         # was ClearSessionCommand
-await self.command_parser.register_command(FilesCommand(**command_deps))         # was ListFilesCommand  
+await self.command_parser.register_command(FilesCommand(**command_deps))         # was ListFilesCommand
 await self.command_parser.register_command(ReadCommand(**command_deps))          # was ReadFileCommand
 ```
 
@@ -115,7 +115,7 @@ await self.command_parser.register_command(ReadCommand(**command_deps))         
 # Ensure these aliases work correctly:
 COMMAND_ALIASES = {
     "?": "help",
-    "q": "quit", 
+    "q": "quit",
     "ls": "files",
     "cat": "read",
     "find": "search"

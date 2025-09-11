@@ -6,7 +6,6 @@ This module serves as the main entry point for the CLI application.
 """
 
 import sys
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -25,7 +24,7 @@ app = typer.Typer(
 
 @app.command()
 def main(
-    config_path: Optional[str] = typer.Option(
+    config_path: str | None = typer.Option(
         None,
         "--config",
         "-c",
@@ -49,17 +48,18 @@ def main(
     """
     if version:
         from . import __version__
+
         console.print(f"GerdsenAI CLI v{__version__}")
         return
 
     try:
         # Show startup sequence
         show_startup_sequence()
-        
+
         # Initialize and run the CLI
         cli = GerdsenAICLI(config_path=config_path, debug=debug)
         cli.run()
-        
+
     except KeyboardInterrupt:
         console.print("\nGoodbye!", style="bright_cyan")
         sys.exit(0)

@@ -187,7 +187,7 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 - [x] Create consolidated command structure
 - [x] Update SLASH_COMMANDS.MD with clean structure
 - [x] Add `/about` command - Show version info for troubleshooting
-- [x] Add `/init` command - Initialize project with GerdsenAI.md guide  
+- [x] Add `/init` command - Initialize project with GerdsenAI.md guide
 - [x] Add `/copy` command - Copy last output to clipboard
 
 **Commit Point 5.5: `feat: add essential user commands` ✅ COMPLETE**
@@ -216,7 +216,7 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 ### Task 17: Command System Consistency
 - [ ] Rename command classes for consistency:
   - [ ] `ConversationCommand` → `ChatCommand` (agent.py)
-  - [ ] `ClearSessionCommand` → `ResetCommand` (agent.py)  
+  - [ ] `ClearSessionCommand` → `ResetCommand` (agent.py)
   - [ ] `ListFilesCommand` → `FilesCommand` (files.py)
   - [ ] `ReadFileCommand` → `ReadCommand` (files.py)
 - [ ] Update command registration in main.py

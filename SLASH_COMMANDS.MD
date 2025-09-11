@@ -87,7 +87,7 @@ Here's the consolidated list of GerdsenAI CLI commands with clear, single-purpos
 
 ## Command Aliases Summary
 * `/?` → `/help`
-* `/q` → `/quit`  
+* `/q` → `/quit`
 * `/ls` → `/files`
 * `/cat` → `/read`
 * `/find` → `/search`

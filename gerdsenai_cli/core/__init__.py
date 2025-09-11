@@ -11,6 +11,6 @@ __all__ = ["LLMClient"]
 
 # TODO: Add imports as we implement additional modules:
 # from .agent import Agent
-# from .context_manager import ProjectContext  
+# from .context_manager import ProjectContext
 # from .file_editor import FileEditor
 # from .terminal import TerminalExecutor

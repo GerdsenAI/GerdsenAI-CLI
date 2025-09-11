@@ -70,3 +70,15 @@ Thumbs.db
 
 # Project specific
 .claude/
+
+# Config backups
+config_backup_*.json
+corrupted_config_*.json
+
+# Performance profiling
+*.prof
+profile_*.txt
+
+# Temporary files
+.temp/
+tmp/
