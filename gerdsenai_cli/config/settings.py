@@ -6,16 +6,34 @@ This module contains Pydantic models for configuration validation and management
 
 from typing import Any, Dict, Optional
 from pathlib import Path
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, model_validator
+from urllib.parse import urlparse
 
 
 class Settings(BaseModel):
     """Main settings configuration for GerdsenAI CLI."""
     
     # LLM Server Configuration
+    # Backward compatible full server URL (derived from protocol/host/port if not explicitly overridden)
     llm_server_url: str = Field(
         default="http://localhost:11434",
-        description="URL of the local LLM server"
+        description="Full URL of the local LLM server (auto-derived from protocol/host/port if those are changed)"
+    )
+
+    # New granular server components
+    protocol: str = Field(
+        default="http",
+        description="Protocol used to access the local LLM server (http or https)"
+    )
+    llm_host: str = Field(
+        default="localhost",
+        description="Hostname or IP address of the local LLM server"
+    )
+    llm_port: int = Field(
+        default=11434,
+        ge=1,
+        le=65535,
+        description="Port number of the local LLM server"
     )
     
     current_model: str = Field(
@@ -48,16 +66,39 @@ class Settings(BaseModel):
     debug_mode: bool = Field(default=False)
     log_level: str = Field(default="INFO")
     
-    @validator('llm_server_url')
-    def validate_server_url(cls, v):
-        """Validate the LLM server URL format."""
-        if not v:
-            raise ValueError("LLM server URL cannot be empty")
-        
-        if not (v.startswith('http://') or v.startswith('https://')):
-            raise ValueError("LLM server URL must start with http:// or https://")
-            
-        return v.rstrip('/')
+    @validator('protocol')
+    def validate_protocol(cls, v):
+        v = v.lower().strip()
+        if v not in {"http", "https"}:
+            raise ValueError("Protocol must be 'http' or 'https'")
+        return v
+
+    @validator('llm_host')
+    def validate_host(cls, v):
+        if not v or not v.strip():
+            raise ValueError("LLM host cannot be empty")
+        return v.strip()
+
+    @model_validator(mode='after')
+    def sync_url_components(self):  # type: ignore
+        """Synchronize llm_server_url with protocol/host/port (both directions)."""
+        try:
+            # If llm_server_url was provided explicitly and differs from constructed, parse it
+            parsed = urlparse(self.llm_server_url)
+            if parsed.scheme and parsed.hostname and parsed.port:
+                constructed = f"{self.protocol}://{self.llm_host}:{self.llm_port}"
+                if self.llm_server_url.rstrip('/') != constructed.rstrip('/'):
+                    # Update granular fields from provided URL (prefer explicit URL)
+                    self.protocol = parsed.scheme
+                    self.llm_host = parsed.hostname
+                    if parsed.port:
+                        self.llm_port = parsed.port
+            # Always regenerate canonical URL from granular components to ensure consistency
+            self.llm_server_url = f"{self.protocol}://{self.llm_host}:{self.llm_port}"
+        except Exception:
+            # Fallback: ensure trailing components removed
+            self.llm_server_url = self.llm_server_url.rstrip('/')
+        return self
     
     @validator('current_model')
     def validate_model_name(cls, v):

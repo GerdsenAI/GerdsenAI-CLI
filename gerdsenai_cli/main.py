@@ -15,7 +15,15 @@ from rich.text import Text
 from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.llm_client import LLMClient, ChatMessage
-from .utils.display import show_error, show_info, show_success, show_warning
+from .core.agent import Agent
+from .utils.display import show_error, show_info, show_success, show_warning, show_startup_sequence
+
+# Import command system
+from .commands.parser import CommandParser
+from .commands.system import HelpCommand, ExitCommand, StatusCommand, ConfigCommand, DebugCommand, SetupCommand
+from .commands.model import ListModelsCommand, SwitchModelCommand, ModelInfoCommand, ModelStatsCommand
+from .commands.agent import AgentStatusCommand, ConversationCommand, RefreshContextCommand, ClearSessionCommand, AgentConfigCommand
+from .commands.files import ListFilesCommand, ReadFileCommand, EditFileCommand, CreateFileCommand, SearchFilesCommand, SessionCommand
 
 console = Console()
 
@@ -38,8 +46,8 @@ class GerdsenAICLI:
         
         # Initialize components
         self.llm_client: Optional[LLMClient] = None
-        self.agent = None
-        self.context_manager = None
+        self.agent: Optional[Agent] = None
+        self.command_parser: Optional[CommandParser] = None
         
     async def initialize(self) -> bool:
         """
@@ -83,8 +91,15 @@ class GerdsenAICLI:
                     await self.config_manager.save_settings(self.settings)
                     show_info(f"Set default model to: {models[0].id}")
             
-            # TODO: Initialize agent and context manager
-            # This will be implemented in Phase 4
+            # Initialize AI agent with agentic capabilities
+            self.agent = Agent(self.llm_client, self.settings)
+            agent_ready = await self.agent.initialize()
+            
+            if not agent_ready:
+                show_warning("Agent initialization failed, some features may be limited")
+            
+            # Initialize command system
+            await self._initialize_commands()
             
             show_success("GerdsenAI CLI initialized successfully!")
             return True
@@ -95,6 +110,48 @@ class GerdsenAICLI:
                 console.print_exception()
             return False
     
+    async def _initialize_commands(self) -> None:
+        """Initialize the command parser and register all commands."""
+        self.command_parser = CommandParser()
+        
+        # Create command dependencies
+        command_deps = {
+            'llm_client': self.llm_client,
+            'agent': self.agent,
+            'settings': self.settings,
+            'config_manager': self.config_manager,
+            'console': console
+        }
+        
+        # Register system commands
+        await self.command_parser.register_command(HelpCommand(**command_deps))
+        await self.command_parser.register_command(ExitCommand(**command_deps))
+        await self.command_parser.register_command(StatusCommand(**command_deps))
+        await self.command_parser.register_command(ConfigCommand(**command_deps))
+    await self.command_parser.register_command(DebugCommand(**command_deps))
+    await self.command_parser.register_command(SetupCommand(**command_deps))
+        
+        # Register model commands
+        await self.command_parser.register_command(ListModelsCommand(**command_deps))
+        await self.command_parser.register_command(SwitchModelCommand(**command_deps))
+        await self.command_parser.register_command(ModelInfoCommand(**command_deps))
+        await self.command_parser.register_command(ModelStatsCommand(**command_deps))
+        
+        # Register agent commands
+        await self.command_parser.register_command(AgentStatusCommand(**command_deps))
+        await self.command_parser.register_command(ConversationCommand(**command_deps))
+        await self.command_parser.register_command(RefreshContextCommand(**command_deps))
+        await self.command_parser.register_command(ClearSessionCommand(**command_deps))
+        await self.command_parser.register_command(AgentConfigCommand(**command_deps))
+        
+        # Register file commands
+        await self.command_parser.register_command(ListFilesCommand(**command_deps))
+        await self.command_parser.register_command(ReadFileCommand(**command_deps))
+        await self.command_parser.register_command(EditFileCommand(**command_deps))
+        await self.command_parser.register_command(CreateFileCommand(**command_deps))
+        await self.command_parser.register_command(SearchFilesCommand(**command_deps))
+        await self.command_parser.register_command(SessionCommand(**command_deps))
+
     async def _first_time_setup(self) -> Optional[Settings]:
         """
         Handle first-time setup process.
@@ -105,18 +162,35 @@ class GerdsenAICLI:
         try:
             console.print("\n🔧 [bold cyan]GerdsenAI CLI Setup[/bold cyan]\n")
             
-            # Get LLM server URL
-            default_url = "http://localhost:11434"
-            llm_url = Prompt.ask(
-                "Enter your local LLM server URL",
-                default=default_url,
+            # Gather granular server configuration
+            protocol = Prompt.ask(
+                "Protocol (http/https)",
+                choices=["http", "https"],
+                default="http",
                 console=console
             )
-            
+            host = Prompt.ask(
+                "LLM server host or IP",
+                default="localhost",
+                console=console
+            )
+            port_str = Prompt.ask(
+                "Port",
+                default="11434",
+                console=console
+            )
+            try:
+                port = int(port_str)
+            except ValueError:
+                show_warning("Invalid port provided, falling back to 11434")
+                port = 11434
+
+            llm_url = f"{protocol}://{host}:{port}"
+
             # Test connection to LLM server
             show_info("Testing connection to LLM server...")
             
-            temp_client = LLMClient(Settings(llm_server_url=llm_url))
+            temp_client = LLMClient(Settings(protocol=protocol, llm_host=host, llm_port=port))
             connected = await temp_client.connect()
             
             if not connected:
@@ -153,7 +227,9 @@ class GerdsenAICLI:
                 show_warning("No models found, but connection successful.")
             
             settings = Settings(
-                llm_server_url=llm_url,
+                protocol=protocol,
+                llm_host=host,
+                llm_port=port,
                 current_model=default_model,
                 api_timeout=30.0,
                 user_preferences={
@@ -216,206 +292,91 @@ class GerdsenAICLI:
     
     async def _handle_command(self, command: str) -> bool:
         """
-        Handle slash commands.
-        
+        Handle slash commands using the command parser.
+
         Args:
             command: The command string starting with '/'
-            
+
         Returns:
             True to continue running, False to exit
         """
-        # TODO: Implement command parser and routing
-        # For now, handle basic commands manually
+        if not self.command_parser:
+            show_error("Command parser not initialized")
+            return True
         
-        if command.strip() == '/exit' or command.strip() == '/quit':
-            return False
-        elif command.strip() == '/help':
-            self._show_help()
-        elif command.strip() == '/config':
-            await self._show_config()
-        elif command.strip() == '/models':
-            await self._show_models()
-        elif command.strip().startswith('/model '):
-            await self._select_model(command.strip()[7:])
-        elif command.strip() == '/status':
-            await self._show_status()
-        else:
-            show_warning(f"Unknown command: {command}")
-            show_info("Type /help to see available commands.")
-        
-        return True
+        try:
+            # Parse and execute the command
+            result = await self.command_parser.parse_and_execute(command)
+            
+            # Handle exit command result
+            if result and result.get('exit', False):
+                return False
+                
+            return True
+            
+        except Exception as e:
+            show_error(f"Command error: {e}")
+            if self.debug:
+                console.print_exception()
+            return True
     
     async def _handle_chat(self, message: str) -> bool:
         """
         Handle chat messages (non-command input).
-        
+
         Args:
             message: The chat message
-            
+
         Returns:
             True to continue running, False to exit
         """
-        if not self.llm_client:
-            show_error("LLM client not initialized")
+        if not self.agent:
+            show_error("AI agent not initialized")
             return True
-        
+
         try:
-            # Prepare chat messages
-            messages = [
-                ChatMessage(role="user", content=message)
-            ]
-            
-            # Show thinking indicator
-            with console.status("[bold green]Thinking...", spinner="dots"):
-                response = await self.llm_client.chat(messages)
-            
+            # Use the agent to process user input with full agentic capabilities
+            response = await self.agent.process_user_input(message)
+
             if response:
-                console.print("\n🤖 [bold cyan]Assistant[/bold cyan]:")
+                console.print("\n🤖 [bold cyan]GerdsenAI[/bold cyan]:")
                 console.print(response)
                 console.print()
             else:
-                show_error("Failed to get response from LLM")
-                
+                show_error("Failed to get response from AI agent")
+
         except Exception as e:
-            show_error(f"Chat error: {e}")
+            show_error(f"Agent error: {e}")
             if self.debug:
                 console.print_exception()
-        
+
         return True
     
-    def _show_help(self) -> None:
-        """Display help information."""
-        console.print("\n📚 [bold cyan]Available Commands[/bold cyan]\n")
-        
-        commands = [
-            ("/help", "Show this help message"),
-            ("/config", "Show current configuration"),
-            ("/models", "List available models"),
-            ("/model <name>", "Switch to a specific model"),
-            ("/status", "Show system status"),
-            ("/exit, /quit", "Exit the application"),
-        ]
-        
-        for cmd, desc in commands:
-            console.print(f"  [bold cyan]{cmd:15}[/bold cyan] {desc}")
-        
-        console.print("\n💬 [dim]Or just start typing to chat with your AI assistant![/dim]\n")
-    
-    async def _show_config(self) -> None:
-        """Display current configuration."""
-        if not self.settings:
-            show_warning("No configuration loaded.")
-            return
-            
-        console.print("\n⚙️  [bold cyan]Current Configuration[/bold cyan]\n")
-        console.print(f"  LLM Server URL: [bold]{self.settings.llm_server_url}[/bold]")
-        console.print(f"  Current Model:  [bold]{self.settings.current_model or 'Not set'}[/bold]")
-        console.print(f"  API Timeout:    [bold]{self.settings.api_timeout}s[/bold]")
-        
-        # Show connection status
-        if self.llm_client:
-            status = "✅ Connected" if self.llm_client.is_connected else "❌ Disconnected"
-            console.print(f"  Connection:     [bold]{status}[/bold]")
-        
-        console.print()
-    
-    async def _show_models(self) -> None:
-        """Display available models."""
-        if not self.llm_client:
-            show_error("LLM client not initialized")
-            return
-        
-        try:
-            with console.status("[bold green]Loading models...", spinner="dots"):
-                models = await self.llm_client.list_models()
-            
-            if not models:
-                show_warning("No models available")
-                return
-            
-            console.print("\n📋 [bold cyan]Available Models[/bold cyan]\n")
-            
-            for i, model in enumerate(models, 1):
-                current = " [bold green]← current[/bold green]" if model.id == self.settings.current_model else ""
-                console.print(f"  {i:2d}. [bold]{model.id}[/bold]{current}")
-                if model.description:
-                    console.print(f"      {model.description}", style="dim")
-            
-            console.print()
-            
-        except Exception as e:
-            show_error(f"Failed to list models: {e}")
-    
-    async def _select_model(self, model_name: str) -> None:
-        """Select a specific model."""
-        if not self.llm_client:
-            show_error("LLM client not initialized")
-            return
-        
-        try:
-            models = await self.llm_client.list_models()
-            model_ids = [model.id for model in models]
-            
-            if model_name not in model_ids:
-                show_error(f"Model '{model_name}' not found")
-                show_info(f"Available models: {', '.join(model_ids)}")
-                return
-            
-            # Update settings
-            self.settings.current_model = model_name
-            await self.config_manager.save_settings(self.settings)
-            
-            show_success(f"Switched to model: {model_name}")
-            
-        except Exception as e:
-            show_error(f"Failed to select model: {e}")
-    
-    async def _show_status(self) -> None:
-        """Display system status."""
-        console.print("\n📊 [bold cyan]System Status[/bold cyan]\n")
-        
-        if self.llm_client:
-            with console.status("[bold green]Checking status...", spinner="dots"):
-                health = await self.llm_client.health_check()
-            
-            # Connection status
-            status = "✅ Connected" if health["connected"] else "❌ Disconnected"
-            console.print(f"  Connection:     [bold]{status}[/bold]")
-            console.print(f"  Server URL:     [bold]{health['server_url']}[/bold]")
-            
-            if health["response_time_ms"]:
-                console.print(f"  Response Time:  [bold]{health['response_time_ms']}ms[/bold]")
-            
-            console.print(f"  Models Found:   [bold]{health['models_available']}[/bold]")
-            
-            if health["error"]:
-                console.print(f"  Error:          [bold red]{health['error']}[/bold red]")
-        else:
-            console.print("  LLM Client:     [bold red]Not initialized[/bold red]")
-        
-        console.print()
-    
+
     async def run_async(self) -> None:
         """Run the async main loop."""
+        # Show startup sequence with ASCII art
+        show_startup_sequence()
+        
         # Initialize the application
         if not await self.initialize():
             return
-        
+
         self.running = True
-        
+
         try:
             while self.running:
                 # Create and display prompt
                 prompt_text = self._create_prompt()
-                
+
                 # Get user input
                 user_input = Prompt.ask(prompt_text, console=console)
-                
+
                 # Handle the input
                 continue_running = await self._handle_user_input(user_input)
                 if not continue_running:
                     self.running = False
-                    
+
         except KeyboardInterrupt:
             console.print("\n👋 Goodbye!", style="bright_cyan")
         except Exception as e:
