@@ -31,7 +31,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.0",
     "colorama>=0.4.6",
-    "asyncio-compat>=0.2.0",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]

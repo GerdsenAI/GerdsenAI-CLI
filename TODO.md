@@ -2,6 +2,20 @@
 
 This document outlines the development plan for the GerdsenAI CLI, a terminal-based agentic coding tool that connects to local AI models.
 
+## Installation Strategy
+
+**Primary Installation Method**: pipx (Isolated Python Apps)
+- **Recommended**: `pipx install gerdsenai-cli`
+- **Benefits**: Isolated environment, automatic PATH management, easy updates
+- **Fallback**: `pip install gerdsenai-cli` for systems without pipx
+- **Development**: `pip install -e .` for local development
+
+**Package Distribution**: PyPI (Python Package Index)
+- Leverages existing Python ecosystem
+- Cross-platform compatibility (Windows, macOS, Linux)
+- Automatic dependency management
+- Version control and updates via standard Python tools
+
 ## Phase 1: Project Scaffolding & Core Setup ✅ COMPLETE
 
 ### Task 1: Initialize Python Project ✅ COMPLETE
@@ -144,30 +158,66 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 
 **Commit Point 4: `feat: add core agentic features (context, editing, agent)` ✅ COMPLETE**
 
-## Phase 5: Enhanced Command System 🚧 **IN PROGRESS - PRIORITY**
+## Phase 5: Enhanced Command System ✅ **COMPLETE**
 
-### Task 12: Structured Command Parser System 🚧 **NEXT**
-- [ ] Create `gerdsenai_cli/commands/parser.py`
-- [ ] Implement command detection and routing system
-- [ ] Create base command class in `gerdsenai_cli/commands/base.py`
-- [ ] Refactor existing commands to use new parser
-- [ ] Add command validation and argument parsing
-- [ ] Implement plugin-like architecture for extensible commands
+### Task 12: Structured Command Parser System ✅ **COMPLETE**
+- [x] Create `gerdsenai_cli/commands/parser.py`
+- [x] Implement command detection and routing system
+- [x] Create base command class in `gerdsenai_cli/commands/base.py`
+- [x] Refactor existing commands to use new parser
+- [x] Add command validation and argument parsing
+- [x] Implement plugin-like architecture for extensible commands
 
-### Task 13: Enhanced Command Set 🚧 **NEXT**
-- [ ] Add `/history` - Show conversation history
-- [x] Add `/clear` - Clear current session (basic implementation exists)
-- [ ] Add `/save` - Save conversation to file
-- [ ] Add `/load` - Load previous conversation
-- [ ] Add `/debug` - Toggle debug mode
+### Task 13: Enhanced Command Set ✅ **COMPLETE**
+- [x] Add `/debug` - Toggle debug mode
 - [x] Add `/agent` - Show agent statistics (implemented)
 - [x] Add `/refresh` - Refresh project context (implemented)
-- [ ] Add `/context` - Show/manage project context details
-- [ ] Add `/edit <file>` - Direct file editing command
-- [ ] Add `/create <file>` - Direct file creation command
-- [ ] Add `/search <term>` - Search across project files
+- [x] Add `/edit <file>` - Direct file editing command
+- [x] Add `/create <file>` - Direct file creation command
+- [x] Add `/search <term>` - Search across project files
+- [x] Add `/session` - Session management
+- [x] Add `/ls`, `/cat` - File operations
 
-**Commit Point 5: `feat: add enhanced command system`**
+**Commit Point 5: `feat: add enhanced command system` ✅ COMPLETE**
+
+## Phase 5.5: Command Consolidation & Cleanup 🚧 **PRIORITY**
+
+### Task 14: Command Consolidation 🚧 **NEXT**
+- [x] Audit existing vs documented commands
+- [x] Create consolidated command structure
+- [x] Update SLASH_COMMANDS.MD with clean structure
+- [ ] Rename command classes for consistency:
+  - [ ] `ConversationCommand` → `ChatCommand` (agent.py)
+  - [ ] `ClearSessionCommand` → `ResetCommand` (agent.py)  
+  - [ ] `ListFilesCommand` → `FilesCommand` (files.py)
+  - [ ] `ReadFileCommand` → `ReadCommand` (files.py)
+- [ ] Update command registration in main.py
+- [ ] Update aliases in parser.py
+- [ ] Remove duplicate/conflicting commands
+- [ ] Test command consolidation changes
+
+### Task 15: Missing High-Priority Commands 🚧 **NEXT**
+- [ ] Add `/init` - Initialize project with GerdsenAI.md guide
+- [ ] Add `/about` - Show version info for troubleshooting
+- [ ] Add `/tools` - List available tools in CLI
+- [ ] Add `/mcp` - Manage Model Context Protocol server connections
+- [ ] Add `/memory` - Manage AI's instructional memory
+- [ ] Add `/settings` - Open settings editor (different from /config)
+- [ ] Add `/compress` - Replace current chat context with a summary
+- [ ] Add `/copy` - Copy last output to clipboard
+
+### Task 16: Medium-Priority Missing Commands
+- [ ] Add `/auth` - Change authentication method
+- [ ] Add `/restore` - Restore project files to previous state
+- [ ] Add `/extensions` - List active extensions
+- [ ] Add `/permissions` - View or update permissions
+- [ ] Add `/pr_comments` - View pull request comments
+- [ ] Add `/vim` - Toggle vim mode for editing
+- [ ] Add `/stats` - Show session statistics (different from /cost)
+- [ ] Add `/checkup` - Check health of installation
+- [ ] Add `/theme` - Change CLI visual theme
+
+**Commit Point 5.5: `feat: consolidate and complete command system`**
 
 ## Phase 6: Terminal Integration and Advanced Features
 
@@ -211,7 +261,10 @@ This document outlines the development plan for the GerdsenAI CLI, a terminal-ba
 ### Task 19: Packaging and Distribution
 - [ ] Configure `pyproject.toml` for PyPI distribution (already done)
 - [ ] Add console entry points (already done)
-- [ ] Create installation scripts
+- [ ] Create installation scripts for pipx (Isolated Python Apps):
+  - [ ] Primary method: `pipx install gerdsenai-cli`
+  - [ ] Alternative: `pip install gerdsenai-cli`
+  - [ ] Development: `pip install -e .`
 - [ ] Add version management automation
 - [ ] Test installation on different platforms
 

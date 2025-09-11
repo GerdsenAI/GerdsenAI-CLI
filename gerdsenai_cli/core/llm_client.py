@@ -7,6 +7,8 @@ This module handles communication with local AI models via OpenAI-compatible API
 import asyncio
 import json
 import logging
+import random
+import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 
@@ -17,6 +19,28 @@ from ..config.settings import Settings
 from ..utils.display import show_error, show_info, show_warning
 
 logger = logging.getLogger(__name__)
+
+# Per-operation timeout configurations (in seconds)
+OPERATION_TIMEOUTS = {
+    "health": 5.0,
+    "models": 10.0, 
+    "chat": 30.0,
+    "stream": 30.0,
+    "default": 30.0
+}
+
+# Retry configuration
+MAX_RETRIES = 3
+BASE_DELAY = 1.0  # Base delay in seconds
+MAX_DELAY = 8.0   # Maximum delay in seconds
+RETRY_EXCEPTIONS = (
+    httpx.RequestError,
+    httpx.TimeoutException,
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.ReadTimeout,
+    httpx.WriteTimeout,
+)
 
 
 class ModelInfo(BaseModel):
@@ -68,18 +92,30 @@ class LLMClient:
         self.settings = settings
         self.base_url = settings.llm_server_url.rstrip('/')
         
-        # Configure HTTP client
+        # Configure HTTP client with connection pooling and limits
+        limits = httpx.Limits(
+            max_keepalive_connections=10,
+            max_connections=20,
+            keepalive_expiry=30.0
+        )
+        
         self.client = httpx.AsyncClient(
-            timeout=httpx.Timeout(settings.api_timeout),
+            timeout=httpx.Timeout(OPERATION_TIMEOUTS["default"]),
             headers={
                 "Content-Type": "application/json",
                 "User-Agent": "GerdsenAI-CLI/0.1.0"
             },
-            follow_redirects=True
+            follow_redirects=True,
+            limits=limits
         )
         
         self._is_connected = False
         self._available_models: List[ModelInfo] = []
+        
+        # Performance tracking
+        self._request_count = 0
+        self._retry_count = 0
+        self._total_request_time = 0.0
         
     async def __aenter__(self):
         """Async context manager entry."""
@@ -105,6 +141,74 @@ class LLMClient:
         """
         return urljoin(self.base_url + "/", path.lstrip("/"))
     
+    async def _execute_with_retry(
+        self,
+        operation_name: str,
+        operation_func,
+        *args,
+        max_retries: int = MAX_RETRIES,
+        **kwargs
+    ) -> Any:
+        """
+        Execute an operation with retry logic and exponential backoff.
+        
+        Args:
+            operation_name: Name of the operation for logging
+            operation_func: The async function to execute
+            max_retries: Maximum number of retries
+            *args, **kwargs: Arguments to pass to the operation function
+            
+        Returns:
+            Result of the operation function
+            
+        Raises:
+            The last exception if all retries fail
+        """
+        last_exception = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                start_time = time.time()
+                result = await operation_func(*args, **kwargs)
+                
+                # Track performance
+                self._request_count += 1
+                self._total_request_time += time.time() - start_time
+                
+                if attempt > 0:
+                    logger.info(f"{operation_name} succeeded on attempt {attempt + 1}")
+                
+                return result
+                
+            except RETRY_EXCEPTIONS as e:
+                last_exception = e
+                self._retry_count += 1
+                
+                if attempt < max_retries:
+                    # Calculate delay with exponential backoff and jitter
+                    delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                    jitter = random.uniform(0, delay * 0.1)  # 10% jitter
+                    total_delay = delay + jitter
+                    
+                    logger.warning(
+                        f"{operation_name} failed on attempt {attempt + 1}/{max_retries + 1}: {e}. "
+                        f"Retrying in {total_delay:.2f}s..."
+                    )
+                    
+                    await asyncio.sleep(total_delay)
+                else:
+                    logger.error(f"{operation_name} failed after {max_retries + 1} attempts: {e}")
+                    raise
+            
+            except Exception as e:
+                # Don't retry on non-network errors
+                logger.error(f"{operation_name} failed with non-retryable error: {e}")
+                raise
+        
+        # This should never be reached, but just in case
+        if last_exception:
+            raise last_exception
+
     async def connect(self) -> bool:
         """
         Test connection to the LLM server.
@@ -112,14 +216,17 @@ class LLMClient:
         Returns:
             True if connection successful, False otherwise
         """
-        try:
+        async def _connect_impl() -> bool:
             # Try to get server health/status
             health_endpoints = ["/health", "/v1/models", "/api/health", "/"]
+            
+            # Use health-specific timeout
+            timeout = httpx.Timeout(OPERATION_TIMEOUTS["health"])
             
             for endpoint in health_endpoints:
                 try:
                     url = self._get_endpoint(endpoint)
-                    response = await self.client.get(url)
+                    response = await self.client.get(url, timeout=timeout)
                     
                     if response.status_code == 200:
                         logger.info(f"Successfully connected to LLM server at {self.base_url}")
@@ -129,13 +236,14 @@ class LLMClient:
                 except (httpx.RequestError, httpx.HTTPStatusError):
                     continue
             
-            # If none of the health endpoints work, the server might be down
-            show_error(f"Unable to connect to LLM server at {self.base_url}")
-            return False
-            
+            # If none of the health endpoints work, raise an exception to trigger retry
+            raise httpx.ConnectError(f"Unable to connect to LLM server at {self.base_url}")
+        
+        try:
+            return await self._execute_with_retry("Connection test", _connect_impl)
         except Exception as e:
-            logger.error(f"Connection test failed: {e}")
-            show_error(f"Connection test failed: {e}")
+            logger.error(f"Connection test failed after retries: {e}")
+            show_error(f"Unable to connect to LLM server at {self.base_url}")
             return False
     
     async def list_models(self) -> List[ModelInfo]:
@@ -145,85 +253,79 @@ class LLMClient:
         Returns:
             List of available models
         """
-        try:
+        async def _list_models_impl() -> List[ModelInfo]:
+            # Use models-specific timeout
+            timeout = httpx.Timeout(OPERATION_TIMEOUTS["models"])
+            
+            # Try primary endpoint first
             url = self._get_endpoint("/v1/models")
-            response = await self.client.get(url)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Handle different response formats
-            if "data" in data:
-                models_data = data["data"]
-            elif "models" in data:
-                models_data = data["models"]
-            elif isinstance(data, list):
-                models_data = data
-            else:
-                # Fallback for non-standard responses
-                models_data = [{"id": "default", "object": "model"}]
-            
-            models = []
-            for model_data in models_data:
-                try:
-                    if isinstance(model_data, str):
-                        # Handle simple string lists
-                        model = ModelInfo(id=model_data)
-                    else:
-                        # Handle object format
-                        model = ModelInfo(**model_data)
-                    models.append(model)
-                except Exception as e:
-                    logger.warning(f"Failed to parse model data: {model_data}, error: {e}")
-                    continue
-            
+            try:
+                response = await self.client.get(url, timeout=timeout)
+                response.raise_for_status()
+                
+                data = response.json()
+                return self._parse_models_response(data)
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Try alternative endpoints
+                    alternative_endpoints = ["/api/models", "/models", "/api/v1/models"]
+                    for endpoint in alternative_endpoints:
+                        try:
+                            url = self._get_endpoint(endpoint)
+                            response = await self.client.get(url, timeout=timeout)
+                            response.raise_for_status()
+                            
+                            data = response.json()
+                            return self._parse_models_response(data)
+                            
+                        except Exception:
+                            continue
+                    
+                    # If all endpoints fail, return empty list
+                    logger.warning("Could not retrieve model list from any endpoint")
+                    return []
+                else:
+                    raise
+        
+        try:
+            models = await self._execute_with_retry("List models", _list_models_impl)
             self._available_models = models
             logger.info(f"Found {len(models)} available models")
             return models
-            
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                # Try alternative endpoints
-                alternative_endpoints = ["/api/models", "/models", "/api/v1/models"]
-                for endpoint in alternative_endpoints:
-                    try:
-                        url = self._get_endpoint(endpoint)
-                        response = await self.client.get(url)
-                        response.raise_for_status()
-                        
-                        data = response.json()
-                        # Process similar to above...
-                        if "data" in data:
-                            models_data = data["data"]
-                        elif isinstance(data, list):
-                            models_data = data
-                        else:
-                            continue
-                        
-                        models = []
-                        for model_data in models_data:
-                            if isinstance(model_data, str):
-                                model = ModelInfo(id=model_data)
-                            else:
-                                model = ModelInfo(**model_data)
-                            models.append(model)
-                        
-                        self._available_models = models
-                        return models
-                        
-                    except Exception:
-                        continue
-                
-                # If all endpoints fail, return empty list
-                show_warning("Could not retrieve model list from server")
-                return []
-            else:
-                raise
-                
         except Exception as e:
-            logger.error(f"Failed to list models: {e}")
+            logger.error(f"Failed to list models after retries: {e}")
             show_error(f"Failed to list models: {e}")
             return []
+    
+    def _parse_models_response(self, data: Dict[str, Any]) -> List[ModelInfo]:
+        """Parse models response data into ModelInfo objects."""
+        # Handle different response formats
+        if "data" in data:
+            models_data = data["data"]
+        elif "models" in data:
+            models_data = data["models"]
+        elif isinstance(data, list):
+            models_data = data
+        else:
+            # Fallback for non-standard responses
+            models_data = [{"id": "default", "object": "model"}]
+        
+        models = []
+        for model_data in models_data:
+            try:
+                if isinstance(model_data, str):
+                    # Handle simple string lists
+                    model = ModelInfo(id=model_data)
+                else:
+                    # Handle object format
+                    model = ModelInfo(**model_data)
+                models.append(model)
+            except Exception as e:
+                logger.warning(f"Failed to parse model data: {model_data}, error: {e}")
+                continue
+        
+        return models
     
     async def chat(
         self,
@@ -246,22 +348,24 @@ class LLMClient:
         Returns:
             Generated response text, or None if failed
         """
-        try:
+        async def _chat_impl() -> Optional[str]:
             # Use current model if not specified
             if not model:
-                model = self.settings.current_model
-                if not model:
+                current_model = self.settings.current_model
+                if not current_model:
                     # Try to get first available model
                     models = await self.list_models()
                     if models:
-                        model = models[0].id
+                        current_model = models[0].id
                     else:
                         show_error("No model specified and no models available")
                         return None
+            else:
+                current_model = model
             
             # Prepare request
             request_data = ChatCompletionRequest(
-                model=model,
+                model=current_model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -269,34 +373,30 @@ class LLMClient:
                 stream=False
             )
             
+            # Use chat-specific timeout
+            timeout = httpx.Timeout(OPERATION_TIMEOUTS["chat"])
+            
+            # Try primary endpoint
             url = self._get_endpoint("/v1/chat/completions")
-            response = await self.client.post(
-                url,
-                json=request_data.model_dump()
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Extract response text
-            if "choices" in data and len(data["choices"]) > 0:
-                choice = data["choices"][0]
-                if "message" in choice:
-                    return choice["message"].get("content", "")
-                elif "text" in choice:
-                    return choice["text"]
-            
-            show_error("Invalid response format from LLM server")
-            return None
-            
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                # Try alternative endpoint
-                try:
+            try:
+                response = await self.client.post(
+                    url,
+                    json=request_data.model_dump(),
+                    timeout=timeout
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                return self._parse_chat_response(data)
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    # Try alternative endpoint
                     url = self._get_endpoint("/api/chat")
                     response = await self.client.post(
                         url,
-                        json=request_data.model_dump()
+                        json=request_data.model_dump(),
+                        timeout=timeout
                     )
                     response.raise_for_status()
                     data = response.json()
@@ -307,17 +407,29 @@ class LLMClient:
                     elif "message" in data:
                         return data["message"]
                     
-                except Exception:
-                    pass
-            
-            logger.error(f"Chat request failed: {e}")
-            show_error(f"Chat request failed: HTTP {e.response.status_code}")
-            return None
-            
+                    return self._parse_chat_response(data)
+                else:
+                    raise
+        
+        try:
+            return await self._execute_with_retry("Chat completion", _chat_impl)
         except Exception as e:
-            logger.error(f"Chat request failed: {e}")
+            logger.error(f"Chat request failed after retries: {e}")
             show_error(f"Chat request failed: {e}")
             return None
+    
+    def _parse_chat_response(self, data: Dict[str, Any]) -> Optional[str]:
+        """Parse chat completion response data."""
+        # Extract response text
+        if "choices" in data and len(data["choices"]) > 0:
+            choice = data["choices"][0]
+            if "message" in choice:
+                return choice["message"].get("content", "")
+            elif "text" in choice:
+                return choice["text"]
+        
+        logger.warning("Invalid response format from LLM server")
+        return None
     
     async def stream_chat(
         self,
@@ -419,11 +531,12 @@ class LLMClient:
             "connected": False,
             "models_available": 0,
             "response_time_ms": None,
-            "error": None
+            "error": None,
+            "retry_count": self._retry_count,
+            "avg_response_time_ms": self._get_avg_response_time_ms()
         }
         
         try:
-            import time
             start_time = time.time()
             
             # Test connection
@@ -443,3 +556,20 @@ class LLMClient:
             health_info["error"] = str(e)
         
         return health_info
+    
+    def _get_avg_response_time_ms(self) -> Optional[int]:
+        """Get average response time in milliseconds."""
+        if self._request_count > 0:
+            avg_time_s = self._total_request_time / self._request_count
+            return int(avg_time_s * 1000)
+        return None
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get performance statistics for the LLM client."""
+        return {
+            "total_requests": self._request_count,
+            "total_retries": self._retry_count,
+            "avg_response_time_ms": self._get_avg_response_time_ms(),
+            "retry_rate_percent": (self._retry_count / max(self._request_count, 1)) * 100,
+            "total_request_time_s": self._total_request_time
+        }
