@@ -61,7 +61,7 @@ def main(
         cli.run()
         
     except KeyboardInterrupt:
-        console.print("\n👋 Goodbye!", style="bright_cyan")
+        console.print("\nGoodbye!", style="bright_cyan")
         sys.exit(0)
     except Exception as e:
         if debug:

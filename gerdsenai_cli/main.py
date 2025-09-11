@@ -20,10 +20,11 @@ from .utils.display import show_error, show_info, show_success, show_warning, sh
 
 # Import command system
 from .commands.parser import CommandParser
-from .commands.system import HelpCommand, ExitCommand, StatusCommand, ConfigCommand, DebugCommand, SetupCommand
+from .commands.system import HelpCommand, ExitCommand, StatusCommand, ConfigCommand, DebugCommand, SetupCommand, AboutCommand, InitCommand, CopyCommand
 from .commands.model import ListModelsCommand, SwitchModelCommand, ModelInfoCommand, ModelStatsCommand
 from .commands.agent import AgentStatusCommand, ConversationCommand, RefreshContextCommand, ClearSessionCommand, AgentConfigCommand
 from .commands.files import ListFilesCommand, ReadFileCommand, EditFileCommand, CreateFileCommand, SearchFilesCommand, SessionCommand
+from .commands.terminal import RunCommand, HistoryCommand, ClearHistoryCommand, WorkingDirectoryCommand, TerminalStatusCommand
 
 console = Console()
 
@@ -131,6 +132,11 @@ class GerdsenAICLI:
         await self.command_parser.register_command(DebugCommand(**command_deps))
         await self.command_parser.register_command(SetupCommand(**command_deps))
         
+        # Register Phase 5.5 Essential Commands
+        await self.command_parser.register_command(AboutCommand(**command_deps))
+        await self.command_parser.register_command(InitCommand(**command_deps))
+        await self.command_parser.register_command(CopyCommand(**command_deps))
+        
         # Register model commands
         await self.command_parser.register_command(ListModelsCommand(**command_deps))
         await self.command_parser.register_command(SwitchModelCommand(**command_deps))
@@ -151,6 +157,13 @@ class GerdsenAICLI:
         await self.command_parser.register_command(CreateFileCommand(**command_deps))
         await self.command_parser.register_command(SearchFilesCommand(**command_deps))
         await self.command_parser.register_command(SessionCommand(**command_deps))
+        
+        # Register terminal commands (Phase 6)
+        await self.command_parser.register_command(RunCommand(**command_deps))
+        await self.command_parser.register_command(HistoryCommand(**command_deps))
+        await self.command_parser.register_command(ClearHistoryCommand(**command_deps))
+        await self.command_parser.register_command(WorkingDirectoryCommand(**command_deps))
+        await self.command_parser.register_command(TerminalStatusCommand(**command_deps))
 
     async def _first_time_setup(self) -> Optional[Settings]:
         """
@@ -160,7 +173,7 @@ class GerdsenAICLI:
             Settings object if setup successful, None otherwise
         """
         try:
-            console.print("\n🔧 [bold cyan]GerdsenAI CLI Setup[/bold cyan]\n")
+            console.print("\n[SETUP] [bold cyan]GerdsenAI CLI Setup[/bold cyan]\n")
             
             # Gather granular server configuration
             protocol = Prompt.ask(
@@ -265,7 +278,7 @@ class GerdsenAICLI:
             Rich Text object for the prompt
         """
         prompt_text = Text()
-        prompt_text.append("🤖 ", style="bright_cyan")
+        prompt_text.append("[AI] ", style="bright_cyan")
         prompt_text.append("GerdsenAI", style="bold bright_cyan")
         prompt_text.append(" > ", style="white")
         return prompt_text
@@ -339,7 +352,7 @@ class GerdsenAICLI:
             response = await self.agent.process_user_input(message)
 
             if response:
-                console.print("\n🤖 [bold cyan]GerdsenAI[/bold cyan]:")
+                console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
                 console.print(response)
                 console.print()
             else:
@@ -378,7 +391,7 @@ class GerdsenAICLI:
                     self.running = False
 
         except KeyboardInterrupt:
-            console.print("\n👋 Goodbye!", style="bright_cyan")
+            console.print("\n[INFO] Goodbye!", style="bright_cyan")
         except Exception as e:
             show_error(f"An error occurred: {e}")
             if self.debug:

@@ -83,7 +83,7 @@ def show_ascii_art() -> None:
     try:
         art_path = get_ascii_art_path()
         if not art_path.exists():
-            console.print("⚠️  ASCII art file not found", style="yellow")
+            console.print("[WARNING] ASCII art file not found", style="yellow")
             return
             
         with open(art_path, 'r', encoding='utf-8') as f:
@@ -101,7 +101,7 @@ def show_ascii_art() -> None:
         console.print()
         
     except Exception as e:
-        console.print(f"⚠️  Error loading ASCII art: {e}", style="red")
+        console.print(f"[ERROR] Error loading ASCII art: {e}", style="red")
 
 
 def show_welcome_message() -> None:
@@ -118,7 +118,7 @@ def show_welcome_message() -> None:
         Align.center(Text.assemble(welcome_text, "\n", subtitle)),
         border_style="bright_cyan",
         padding=(1, 2),
-        title="🤖 AI Assistant Ready",
+        title="[AI Assistant Ready]",
         title_align="center"
     )
     
@@ -139,7 +139,7 @@ def show_startup_sequence() -> None:
     
     # Show getting started hint
     console.print(
-        "💡 Type [bold cyan]/help[/bold cyan] to see available commands or start chatting with your AI assistant!",
+        "[INFO] Type [bold cyan]/help[/bold cyan] to see available commands or start chatting with your AI assistant!",
         style="dim"
     )
     console.print()
@@ -147,24 +147,24 @@ def show_startup_sequence() -> None:
 
 def show_loading_spinner(message: str = "Loading...") -> None:
     """Show a loading message (placeholder for rich.spinner if needed)."""
-    console.print(f"⏳ {message}", style="yellow")
+    console.print(f"[LOADING] {message}", style="yellow")
 
 
 def show_error(message: str) -> None:
     """Display an error message."""
-    console.print(f"❌ [bold red]Error:[/bold red] {message}")
+    console.print(f"[ERROR] {message}", style="bold red")
 
 
 def show_success(message: str) -> None:
     """Display a success message."""
-    console.print(f"✅ [bold green]Success:[/bold green] {message}")
+    console.print(f"[SUCCESS] {message}", style="bold green")
 
 
 def show_info(message: str) -> None:
     """Display an info message."""
-    console.print(f"ℹ️  [bold blue]Info:[/bold blue] {message}")
+    console.print(f"[INFO] {message}", style="bold blue")
 
 
 def show_warning(message: str) -> None:
     """Display a warning message."""
-    console.print(f"⚠️  [bold yellow]Warning:[/bold yellow] {message}")
+    console.print(f"[WARNING] {message}", style="bold yellow")
