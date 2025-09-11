@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 from ..utils.display import show_error
+from ..utils.performance import measure_performance
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -308,6 +309,7 @@ class ProjectContext:
         self.cache_hits = 0
         self.cache_misses = 0
 
+    @measure_performance("file_scanning")
     async def scan_directory(
         self,
         max_depth: int = 10,
@@ -647,6 +649,7 @@ class ProjectContext:
 
         return filtered_files[:max_files]
 
+    @measure_performance("context_building")
     async def build_context_prompt(
         self,
         query: str | None = None,

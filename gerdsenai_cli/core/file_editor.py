@@ -21,6 +21,7 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from ..utils.display import show_error, show_info, show_success, show_warning
+from ..utils.performance import measure_performance
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -382,6 +383,7 @@ class FileEditor:
             show_error(f"Failed to propose edit: {e}")
             return None
 
+    @measure_performance("file_editing")
     async def preview_edit(self, edit: FileEdit, show_full_diff: bool = False) -> None:
         """Preview a file edit with diff display."""
         try:
@@ -455,6 +457,7 @@ class FileEditor:
             logger.error(f"Failed to preview edit: {e}")
             show_error(f"Failed to preview edit: {e}")
 
+    @measure_performance("file_editing")
     async def apply_edit(self, edit: FileEdit, force: bool = False) -> bool:
         """Apply a file edit after confirmation."""
         try:

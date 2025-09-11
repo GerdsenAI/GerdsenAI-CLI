@@ -25,9 +25,10 @@ class TestLLMClient:
         mock_settings.current_model = "llama2:7b"
         self.client = LLMClient(mock_settings)
 
-    async def teardown_method(self):
+    def teardown_method(self):
         """Clean up after tests."""
-        await self.client.close()
+        import asyncio
+        asyncio.run(self.client.close())
 
     @pytest.mark.asyncio
     async def test_initialization(self):

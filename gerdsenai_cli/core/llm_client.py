@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from ..config.settings import Settings
 from ..utils.display import show_error
+from ..utils.performance import measure_performance
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +215,7 @@ class LLMClient:
         if last_exception:
             raise last_exception
 
+    @measure_performance("health")
     async def connect(self) -> bool:
         """
         Test connection to the LLM server.
@@ -256,6 +258,7 @@ class LLMClient:
             show_error(f"Unable to connect to LLM server at {self.base_url}")
             return False
 
+    @measure_performance("model_loading")
     async def list_models(self) -> list[ModelInfo]:
         """
         Get list of available models from the server.
@@ -338,6 +341,7 @@ class LLMClient:
 
         return models
 
+    @measure_performance("chat")
     async def chat(
         self,
         messages: list[ChatMessage],
@@ -525,6 +529,7 @@ class LLMClient:
         """Get cached list of available models."""
         return self._available_models.copy()
 
+    @measure_performance("health")
     async def health_check(self) -> dict[str, Any]:
         """
         Perform a health check on the LLM server.

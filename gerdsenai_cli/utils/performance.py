@@ -259,10 +259,10 @@ class PerformanceTracker:
 
             # Status indicator
             if stats.get("target_met"):
-                status = "✓"
+                status = "OK"
                 status_style = "green"
             elif stats.get("target"):
-                status = "✗"
+                status = "FAIL"
                 status_style = "red"
             else:
                 status = "-"
@@ -282,7 +282,7 @@ class PerformanceTracker:
         # Memory usage
         current_memory = self.get_memory_usage()
         memory_status = (
-            "✓" if current_memory <= self.targets["memory_baseline"] else "✗"
+            "OK" if current_memory <= self.targets["memory_baseline"] else "FAIL"
         )
         memory_color = (
             "green" if current_memory <= self.targets["memory_baseline"] else "red"
@@ -298,7 +298,7 @@ class PerformanceTracker:
             startup_duration = self.get_startup_duration()
             if startup_duration:
                 startup_status = (
-                    "✓" if startup_duration <= self.targets["startup_time"] else "✗"
+                    "OK" if startup_duration <= self.targets["startup_time"] else "FAIL"
                 )
                 startup_color = (
                     "green"
@@ -315,7 +315,7 @@ class PerformanceTracker:
             console.print("Recent Operations (Last 10):")
             recent_metrics = self.metrics[-10:]
             for metric in recent_metrics:
-                status_icon = "✓" if metric.success else "✗"
+                status_icon = "OK" if metric.success else "FAIL"
                 status_color = "green" if metric.success else "red"
                 console.print(
                     f"[{status_color}]{status_icon}[/{status_color}] "
