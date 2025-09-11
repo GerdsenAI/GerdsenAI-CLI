@@ -1,0 +1,72 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.nox/
+.mypy_cache/
+.hypothesis/
+htmlcov/
+.coverage
+
+# Static analysis / tooling caches
+.ruff_cache/
+.pyre/
+.dmypy.json
+
+# Logs and debug
+logs/
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.code-workspace
+
+# OS / misc
+.DS_Store
+Thumbs.db
+
+# Environment variables / secrets
+.env
+.env.*
+*.env
+
+# Local data
+*.sqlite3
+
+# Generated artifacts
+*.bak
+*.tmp
+
+# Project specific
+.claude/
