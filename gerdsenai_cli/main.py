@@ -128,8 +128,8 @@ class GerdsenAICLI:
         await self.command_parser.register_command(ExitCommand(**command_deps))
         await self.command_parser.register_command(StatusCommand(**command_deps))
         await self.command_parser.register_command(ConfigCommand(**command_deps))
-    await self.command_parser.register_command(DebugCommand(**command_deps))
-    await self.command_parser.register_command(SetupCommand(**command_deps))
+        await self.command_parser.register_command(DebugCommand(**command_deps))
+        await self.command_parser.register_command(SetupCommand(**command_deps))
         
         # Register model commands
         await self.command_parser.register_command(ListModelsCommand(**command_deps))

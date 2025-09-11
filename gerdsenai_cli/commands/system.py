@@ -8,7 +8,6 @@ from typing import Any, Dict
 from pathlib import Path
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 
 from .base import BaseCommand, CommandCategory, CommandResult, CommandArgument
@@ -237,12 +236,12 @@ class ConfigCommand(BaseCommand):
         console.print("\n⚙️  [bold cyan]Current Configuration[/bold cyan]\n")
         
         # Basic settings
-    console.print(f"  LLM Protocol:       [bold]{getattr(settings, 'protocol', 'http')}[/bold]")
-    console.print(f"  LLM Host:           [bold]{getattr(settings, 'llm_host', 'localhost')}[/bold]")
-    console.print(f"  LLM Port:           [bold]{getattr(settings, 'llm_port', 11434)}[/bold]")
-    console.print(f"  LLM Server URL:     [bold]{settings.llm_server_url}[/bold]")
-    console.print(f"  Current Model:      [bold]{settings.current_model or 'Not set'}[/bold]")
-    console.print(f"  API Timeout:        [bold]{settings.api_timeout}s[/bold]")
+        console.print(f"  LLM Protocol:       [bold]{getattr(settings, 'protocol', 'http')}[/bold]")
+        console.print(f"  LLM Host:           [bold]{getattr(settings, 'llm_host', 'localhost')}[/bold]")
+        console.print(f"  LLM Port:           [bold]{getattr(settings, 'llm_port', 11434)}[/bold]")
+        console.print(f"  LLM Server URL:     [bold]{settings.llm_server_url}[/bold]")
+        console.print(f"  Current Model:      [bold]{settings.current_model or 'Not set'}[/bold]")
+        console.print(f"  API Timeout:        [bold]{settings.api_timeout}s[/bold]")
         
         # Connection status
         llm_client = context.get("llm_client")
