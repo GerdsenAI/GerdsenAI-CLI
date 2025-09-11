@@ -1,0 +1,64 @@
+# Pre-commit hooks configuration for GerdsenAI CLI
+# Ensures code quality and consistency before commits
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: mixed-line-ending
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.7.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        args: [--strict]
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        types: [python]
+        stages: [commit]
+        args: [--tb=short]
+        pass_filenames: false
+
+      - id: security-audit
+        name: security audit
+        entry: python
+        language: system
+        args: [-m, pip, audit, --desc, --format=json]
+        types: [python]
+        stages: [push]
+        pass_filenames: false
+
+# Configure for Python files only
+default_language_version:
+  python: python3.11
+
+# Skip some hooks for specific files
+exclude: |
+  (?x)^(
+      \.venv/.*|
+      \.git/.*|
+      __pycache__/.*|
+      \.pytest_cache/.*|
+      build/.*|
+      dist/.*
+  )$
