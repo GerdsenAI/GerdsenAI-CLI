@@ -7,7 +7,7 @@ This module contains the core application logic and interactive loop.
 import asyncio
 
 from rich.console import Console
-from rich.text import Text
+from rich.prompt import Prompt
 
 from .commands.agent import (
     AgentConfigCommand,
@@ -324,7 +324,6 @@ class GerdsenAICLI:
                 console.print_exception()
             return None
 
-
     async def _handle_user_input(self, user_input: str) -> bool:
         """
         Handle user input and route to appropriate handler.
@@ -425,14 +424,14 @@ class GerdsenAICLI:
                     if not self.input_handler:
                         show_error("Input handler not initialized")
                         break
-                    
+
                     user_input = await self.input_handler.get_user_input()
 
                     # Handle the input
                     continue_running = await self._handle_user_input(user_input)
                     if not continue_running:
                         self.running = False
-                        
+
                 except KeyboardInterrupt:
                     # User pressed Ctrl+C during input
                     continue

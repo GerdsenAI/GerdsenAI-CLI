@@ -250,7 +250,9 @@ def show_context_warning() -> None:
 
 def show_prompt_hint() -> None:
     """Show a simple prompt hint without panels to avoid cursor positioning issues."""
-    console.print("Try: 'write a test for <filepath>' or '/help' for commands", style="dim")
+    console.print(
+        "Try: 'write a test for <filepath>' or '/help' for commands", style="dim"
+    )
     console.print("Type '/tools' to see all available tools", style="dim")
 
 
