@@ -172,13 +172,13 @@ class AgentStatusCommand(BaseCommand):
             console.print(context_panel)
 
 
-class ConversationCommand(BaseCommand):
+class ChatCommand(BaseCommand):
     """Manage conversation history and context."""
 
-    name = "conversation"
+    name = "chat"
     description = "Manage conversation history and context"
     category = CommandCategory.AGENT
-    aliases = ["conv", "chat-history"]
+    aliases = ["conversation", "conv", "chat-history"]
 
     arguments = [
         CommandArgument(
@@ -392,13 +392,13 @@ class RefreshContextCommand(BaseCommand):
             return CommandResult(success=False, message=error_msg)
 
 
-class ClearSessionCommand(BaseCommand):
+class ResetCommand(BaseCommand):
     """Clear the current session and reset agent state."""
 
-    name = "clear"
+    name = "reset"
     description = "Clear the current session and reset agent state"
     category = CommandCategory.AGENT
-    aliases = ["clear-session", "reset"]
+    aliases = ["clear", "clear-session"]
 
     arguments = [
         CommandArgument(
