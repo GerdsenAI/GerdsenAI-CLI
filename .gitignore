@@ -82,3 +82,4 @@ profile_*.txt
 # Temporary files
 .temp/
 tmp/
+.clinerules/clinerules.md
