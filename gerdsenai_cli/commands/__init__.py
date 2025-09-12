@@ -7,16 +7,16 @@ This module contains all slash command implementations and the command parser.
 from .agent import (
     AgentConfigCommand,
     AgentStatusCommand,
-    ClearSessionCommand,
-    ConversationCommand,
+    ChatCommand,
     RefreshContextCommand,
+    ResetCommand,
 )
 from .base import BaseCommand
 from .files import (
     CreateFileCommand,
     EditFileCommand,
-    ListFilesCommand,
-    ReadFileCommand,
+    FilesCommand,
+    ReadCommand,
     SearchFilesCommand,
     SessionCommand,
 )
@@ -27,7 +27,18 @@ from .model import (
     SwitchModelCommand,
 )
 from .parser import CommandParser
-from .system import ConfigCommand, DebugCommand, ExitCommand, HelpCommand, StatusCommand
+from .system import (
+    AboutCommand,
+    ConfigCommand,
+    CopyCommand,
+    DebugCommand,
+    ExitCommand,
+    HelpCommand,
+    InitCommand,
+    SetupCommand,
+    StatusCommand,
+    ToolsCommand,
+)
 
 __all__ = [
     "BaseCommand",
@@ -38,6 +49,11 @@ __all__ = [
     "StatusCommand",
     "ConfigCommand",
     "DebugCommand",
+    "AboutCommand",
+    "CopyCommand",
+    "InitCommand",
+    "SetupCommand",
+    "ToolsCommand",
     # Model commands
     "ListModelsCommand",
     "SwitchModelCommand",
@@ -45,13 +61,13 @@ __all__ = [
     "ModelStatsCommand",
     # Agent commands
     "AgentStatusCommand",
-    "ConversationCommand",
+    "ChatCommand",
     "RefreshContextCommand",
-    "ClearSessionCommand",
+    "ResetCommand",
     "AgentConfigCommand",
     # File commands
-    "ListFilesCommand",
-    "ReadFileCommand",
+    "FilesCommand",
+    "ReadCommand",
     "EditFileCommand",
     "CreateFileCommand",
     "SearchFilesCommand",

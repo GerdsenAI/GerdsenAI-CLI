@@ -5,7 +5,6 @@ This module contains the core application logic and interactive loop.
 """
 
 import asyncio
-from pathlib import Path
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -14,15 +13,15 @@ from rich.text import Text
 from .commands.agent import (
     AgentConfigCommand,
     AgentStatusCommand,
-    ClearSessionCommand,
-    ConversationCommand,
+    ChatCommand,
     RefreshContextCommand,
+    ResetCommand,
 )
 from .commands.files import (
     CreateFileCommand,
     EditFileCommand,
-    ListFilesCommand,
-    ReadFileCommand,
+    FilesCommand,
+    ReadCommand,
     SearchFilesCommand,
     SessionCommand,
 )
@@ -45,6 +44,7 @@ from .commands.system import (
     InitCommand,
     SetupCommand,
     StatusCommand,
+    ToolsCommand,
 )
 from .commands.terminal import (
     ClearHistoryCommand,
@@ -58,9 +58,7 @@ from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
 from .utils.display import (
-    build_welcome_panel,
     show_error,
-    show_footer_status,
     show_info,
     show_startup_sequence,
     show_success,
@@ -178,11 +176,12 @@ class GerdsenAICLI:
         await self.command_parser.register_command(ConfigCommand(**command_deps))
         await self.command_parser.register_command(DebugCommand(**command_deps))
         await self.command_parser.register_command(SetupCommand(**command_deps))
-
-        # Register Phase 5.5 Essential Commands
         await self.command_parser.register_command(AboutCommand(**command_deps))
-        await self.command_parser.register_command(InitCommand(**command_deps))
         await self.command_parser.register_command(CopyCommand(**command_deps))
+        await self.command_parser.register_command(InitCommand(**command_deps))
+        await self.command_parser.register_command(ToolsCommand(**command_deps))
+
+        # (AboutCommand, InitCommand, CopyCommand already registered above)
 
         # Register model commands
         await self.command_parser.register_command(ListModelsCommand(**command_deps))
@@ -192,16 +191,16 @@ class GerdsenAICLI:
 
         # Register agent commands
         await self.command_parser.register_command(AgentStatusCommand(**command_deps))
-        await self.command_parser.register_command(ConversationCommand(**command_deps))
+        await self.command_parser.register_command(ChatCommand(**command_deps))
         await self.command_parser.register_command(
             RefreshContextCommand(**command_deps)
         )
-        await self.command_parser.register_command(ClearSessionCommand(**command_deps))
+        await self.command_parser.register_command(ResetCommand(**command_deps))
         await self.command_parser.register_command(AgentConfigCommand(**command_deps))
 
         # Register file commands
-        await self.command_parser.register_command(ListFilesCommand(**command_deps))
-        await self.command_parser.register_command(ReadFileCommand(**command_deps))
+        await self.command_parser.register_command(FilesCommand(**command_deps))
+        await self.command_parser.register_command(ReadCommand(**command_deps))
         await self.command_parser.register_command(EditFileCommand(**command_deps))
         await self.command_parser.register_command(CreateFileCommand(**command_deps))
         await self.command_parser.register_command(SearchFilesCommand(**command_deps))
@@ -425,33 +424,7 @@ class GerdsenAICLI:
 
         self.running = True
 
-        # Render refreshed banner with model/server and a footer status line (no emojis)
         try:
-            cwd = ""
-            try:
-                cwd = str(Path.cwd())
-            except Exception:
-                pass
-            model = ""
-            server_url = ""
-            try:
-                model = self.settings.current_model if self.settings else ""
-            except Exception:
-                pass
-            try:
-                server_url = self.settings.llm_server_url if self.settings else ""
-            except Exception:
-                pass
-
-            console.print()
-            console.print(
-                build_welcome_panel(cwd=cwd, model=model, server_url=server_url)
-            )
-            console.print()
-            show_footer_status(
-                security_level="strict", model=model, context_percent=100
-            )
-
             while self.running:
                 # Create and display prompt
                 prompt_text = self._create_prompt()

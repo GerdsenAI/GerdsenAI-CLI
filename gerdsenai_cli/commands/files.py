@@ -22,13 +22,13 @@ from ..utils.helpers import format_size, get_file_type
 from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 
-class ListFilesCommand(BaseCommand):
+class FilesCommand(BaseCommand):
     """List files in the current project directory."""
 
     name = "ls"
     description = "List files in the current project directory"
     category = CommandCategory.FILE
-    aliases = ["list", "files"]
+    aliases = ["list", "files", "listfiles"]
 
     arguments = [
         CommandArgument(
@@ -175,13 +175,13 @@ class ListFilesCommand(BaseCommand):
         console.print(table)
 
 
-class ReadFileCommand(BaseCommand):
+class ReadCommand(BaseCommand):
     """Read and display the contents of a file."""
 
     name = "cat"
     description = "Read and display the contents of a file"
     category = CommandCategory.FILE
-    aliases = ["read", "view"]
+    aliases = ["read", "view", "readfile"]
 
     arguments = [
         CommandArgument(
