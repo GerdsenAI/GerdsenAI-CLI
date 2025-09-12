@@ -7,7 +7,6 @@ This module contains the core application logic and interactive loop.
 import asyncio
 
 from rich.console import Console
-from rich.prompt import Prompt
 from rich.text import Text
 
 from .commands.agent import (
@@ -57,6 +56,7 @@ from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
+from .ui.input_handler import EnhancedInputHandler
 from .utils.display import (
     show_error,
     show_info,
@@ -88,6 +88,7 @@ class GerdsenAICLI:
         self.llm_client: LLMClient | None = None
         self.agent: Agent | None = None
         self.command_parser: CommandParser | None = None
+        self.input_handler: EnhancedInputHandler | None = None
 
     async def initialize(self) -> bool:
         """
@@ -146,6 +147,11 @@ class GerdsenAICLI:
 
             # Initialize command system
             await self._initialize_commands()
+
+            # Initialize enhanced input handler
+            self.input_handler = EnhancedInputHandler(
+                command_parser=self.command_parser
+            )
 
             show_success("GerdsenAI CLI initialized successfully!")
             return True
@@ -318,18 +324,6 @@ class GerdsenAICLI:
                 console.print_exception()
             return None
 
-    def _create_prompt(self) -> Text:
-        """
-        Create the interactive prompt text.
-
-        Returns:
-            Rich Text object for the prompt
-        """
-        prompt_text = Text()
-        prompt_text.append("[AI] ", style="bright_cyan")
-        prompt_text.append("GerdsenAI", style="bold bright_cyan")
-        prompt_text.append(" > ", style="white")
-        return prompt_text
 
     async def _handle_user_input(self, user_input: str) -> bool:
         """
@@ -426,15 +420,25 @@ class GerdsenAICLI:
 
         try:
             while self.running:
-                # Create and display prompt
-                prompt_text = self._create_prompt()
+                try:
+                    # Get user input using enhanced input handler
+                    if not self.input_handler:
+                        show_error("Input handler not initialized")
+                        break
+                    
+                    user_input = await self.input_handler.get_user_input()
 
-                # Get user input
-                user_input = Prompt.ask(prompt_text, console=console)
-
-                # Handle the input
-                continue_running = await self._handle_user_input(user_input)
-                if not continue_running:
+                    # Handle the input
+                    continue_running = await self._handle_user_input(user_input)
+                    if not continue_running:
+                        self.running = False
+                        
+                except KeyboardInterrupt:
+                    # User pressed Ctrl+C during input
+                    continue
+                except EOFError:
+                    # User pressed Ctrl+D (exit signal)
+                    console.print("\n[INFO] Goodbye!", style="bright_cyan")
                     self.running = False
 
         except KeyboardInterrupt:
@@ -445,6 +449,8 @@ class GerdsenAICLI:
                 console.print_exception()
         finally:
             # Clean up resources
+            if self.input_handler:
+                await self.input_handler.cleanup()
             if self.llm_client:
                 await self.llm_client.close()
 

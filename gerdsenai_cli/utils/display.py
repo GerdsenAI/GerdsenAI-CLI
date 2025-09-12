@@ -136,8 +136,11 @@ def show_welcome_message() -> None:
 
 
 def show_startup_sequence() -> None:
-    """Display the complete startup sequence with Claude/Gemini-style layout (no emojis)."""
+    """Display the complete startup sequence with ASCII art and Claude/Gemini-style layout (no emojis)."""
     console.clear()
+
+    # Show ASCII art first
+    show_ascii_art()
 
     # Build and show welcome panel (pre-init, so we don't show model/server yet)
     cwd = str(Path.cwd())
@@ -246,12 +249,9 @@ def show_context_warning() -> None:
 
 
 def show_prompt_hint() -> None:
-    """Show a framed prompt hint line."""
-    hint = Text()
-    hint.append("> ", style="white")
-    hint.append('Try "write a test for <filepath>"', style="white")
-    console.print(Panel(hint, border_style="dim"))
-    console.print(Text("? for shortcuts", style="dim"))
+    """Show a simple prompt hint without panels to avoid cursor positioning issues."""
+    console.print("Try: 'write a test for <filepath>' or '/help' for commands", style="dim")
+    console.print("Type '/tools' to see all available tools", style="dim")
 
 
 def show_footer_status(
