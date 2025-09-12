@@ -84,7 +84,7 @@ class ExitCommand(BaseCommand):
         self, args: dict[str, Any], context: dict[str, Any]
     ) -> CommandResult:
         """Execute exit command."""
-        console.print("\n[INFO] Goodbye!", style="bright_cyan")
+        console.print("\n👋 [bright_cyan]Goodbye![/bright_cyan]")
         return CommandResult(success=True, should_exit=True)
 
 
@@ -124,7 +124,7 @@ class StatusCommand(BaseCommand):
         """Execute status command."""
         verbose = args.get("verbose", False)
 
-        console.print("\n[bold cyan]System Status[/bold cyan]\n")
+        console.print("\n📊 [bold cyan]System Status[/bold cyan]\n")
 
         # LLM Client Status
         llm_client = context.get("llm_client")
@@ -132,7 +132,7 @@ class StatusCommand(BaseCommand):
             with console.status("[bold green]Checking LLM status...", spinner="dots"):
                 health = await llm_client.health_check()
 
-            status = "OK" if health["connected"] else "FAIL"
+            status = "✅ Connected" if health["connected"] else "❌ Disconnected"
             console.print(f"  LLM Connection:     [bold]{status}[/bold]")
             console.print(f"  Server URL:         [bold]{health['server_url']}[/bold]")
 
@@ -156,7 +156,7 @@ class StatusCommand(BaseCommand):
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
-            console.print("  AI Agent:           [bold green]OK[/bold green] Ready")
+            console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
             console.print(
                 f"  Actions Performed:  [bold]{stats['actions_performed']}[/bold]"
             )
@@ -165,7 +165,7 @@ class StatusCommand(BaseCommand):
             )
 
             if verbose:
-                console.print("\n[bold cyan]Agent Details:[/bold cyan]")
+                console.print("\n🤖 [bold cyan]Agent Details:[/bold cyan]")
                 console.print(
                     f"  Files Modified:     [bold]{stats['files_modified']}[/bold]"
                 )
@@ -181,13 +181,15 @@ class StatusCommand(BaseCommand):
                         f"  Last Action:        [bold]{stats['last_action']}[/bold]"
                     )
         else:
-            console.print("  AI Agent:           [bold red]Not initialized[/bold red]")
+            console.print(
+                "  AI Agent:           [bold red]❌ Not initialized[/bold red]"
+            )
 
         # Command Parser Status
         parser = context.get("parser")
         if parser and verbose:
             parser_stats = parser.get_status()
-            console.print("\n[bold cyan]Parser Status:[/bold cyan]")
+            console.print("\n⚙️  [bold cyan]Parser Status:[/bold cyan]")
             console.print(
                 f"  Commands Loaded:    [bold]{parser_stats['total_commands']}[/bold]"
             )
@@ -271,7 +273,7 @@ class ConfigCommand(BaseCommand):
 
     async def _show_config(self, settings, context: dict[str, Any]) -> None:
         """Show full configuration."""
-        console.print("\n[bold cyan]Current Configuration[/bold cyan]\n")
+        console.print("\n⚙️  [bold cyan]Current Configuration[/bold cyan]\n")
 
         # Basic settings
         console.print(
@@ -292,14 +294,14 @@ class ConfigCommand(BaseCommand):
         # Connection status
         llm_client = context.get("llm_client")
         if llm_client:
-            status = "OK" if llm_client.is_connected else "FAIL"
+            status = "✅ Connected" if llm_client.is_connected else "❌ Disconnected"
             console.print(f"  Connection:         [bold]{status}[/bold]")
 
         # Agent status
         agent = context.get("agent")
         if agent:
             stats = agent.get_agent_stats()
-            status = "OK" if agent else "Not initialized"
+            status = "✅ Ready" if agent else "❌ Not initialized"
             console.print(f"  AI Agent:           [bold]{status}[/bold]")
             console.print(
                 f"  Project Files:      [bold]{stats['project_files_indexed']}[/bold]"
@@ -452,7 +454,7 @@ class AboutCommand(BaseCommand):
         except ImportError:
             __version__ = "0.1.0-dev"
 
-        console.print("\n[bold cyan]GerdsenAI CLI - About[/bold cyan]\n")
+        console.print("\n🔧 [bold cyan]GerdsenAI CLI - About[/bold cyan]\n")
 
         # Basic version information
         console.print(f"  Version:            [bold green]{__version__}[/bold green]")
@@ -468,7 +470,7 @@ class AboutCommand(BaseCommand):
         )
 
         if detailed:
-            console.print("\n[bold cyan]Detailed System Information[/bold cyan]")
+            console.print("\n📋 [bold cyan]Detailed System Information[/bold cyan]")
 
             # Python details
             console.print(f"  Python Executable:  [bold]{sys.executable}[/bold]")
@@ -506,14 +508,16 @@ class AboutCommand(BaseCommand):
             )
 
         # Component status
-        console.print("\n[bold cyan]Component Status[/bold cyan]")
+        console.print("\n🔧 [bold cyan]Component Status[/bold cyan]")
 
         # LLM Client
         llm_client = context.get("llm_client")
         if llm_client:
             try:
                 health = await llm_client.health_check()
-                status = "OK" if health.get("connected") else "FAIL"
+                status = (
+                    "✅ Connected" if health.get("connected") else "❌ Disconnected"
+                )
                 console.print(f"  LLM Client:         [bold]{status}[/bold]")
                 if health.get("server_url"):
                     console.print(
@@ -529,11 +533,11 @@ class AboutCommand(BaseCommand):
                     )
             except Exception as e:
                 console.print(
-                    f"  LLM Client:         [bold red]Error: {str(e)}[/bold red]"
+                    f"  LLM Client:         [bold red]❌ Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  LLM Client:         [bold yellow]Not initialized[/bold yellow]"
+                "  LLM Client:         [bold yellow]⚠️  Not initialized[/bold yellow]"
             )
 
         # Agent
@@ -541,7 +545,7 @@ class AboutCommand(BaseCommand):
         if agent:
             try:
                 stats = agent.get_agent_stats()
-                console.print("  AI Agent:           [bold green]OK[/bold green] Ready")
+                console.print("  AI Agent:           [bold green]✅ Ready[/bold green]")
                 console.print(
                     f"  Files Indexed:      [bold]{stats.get('project_files_indexed', 0)}[/bold]"
                 )
@@ -550,11 +554,11 @@ class AboutCommand(BaseCommand):
                 )
             except Exception as e:
                 console.print(
-                    f"  AI Agent:           [bold red]Error: {str(e)}[/bold red]"
+                    f"  AI Agent:           [bold red]❌ Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  AI Agent:           [bold yellow]Not initialized[/bold yellow]"
+                "  AI Agent:           [bold yellow]⚠️  Not initialized[/bold yellow]"
             )
 
         # Command Parser
@@ -562,7 +566,7 @@ class AboutCommand(BaseCommand):
         if parser:
             try:
                 parser_stats = parser.get_status()
-                console.print("  Command Parser:     [bold green]OK[/bold green] Ready")
+                console.print("  Command Parser:     [bold green]✅ Ready[/bold green]")
                 console.print(
                     f"  Commands Loaded:    [bold]{parser_stats.get('total_commands', 0)}[/bold]"
                 )
@@ -571,25 +575,28 @@ class AboutCommand(BaseCommand):
                 )
             except Exception as e:
                 console.print(
-                    f"  Command Parser:     [bold red]Error: {str(e)}[/bold red]"
+                    f"  Command Parser:     [bold red]❌ Error: {str(e)}[/bold red]"
                 )
         else:
             console.print(
-                "  Command Parser:     [bold yellow]Not initialized[/bold yellow]"
+                "  Command Parser:     [bold yellow]⚠️  Not initialized[/bold yellow]"
             )
 
         # Installation path
-        console.print("\n[bold cyan]Installation Information[/bold cyan]")
+        console.print("\n📦 [bold cyan]Installation Information[/bold cyan]")
         try:
             import gerdsenai_cli
 
             install_path = Path(gerdsenai_cli.__file__).parent
             console.print(f"  Installation Path:  [bold]{install_path}[/bold]")
+            console.print(
+                f"  Package Mode:       [bold]{'Development' if 'site-packages' not in str(install_path) else 'Installed'}[/bold]"
+            )
         except Exception:
             console.print("  Installation Path:  [dim]Unable to determine[/dim]")
 
         # Troubleshooting tips
-        console.print("\n[bold cyan]Troubleshooting Tips[/bold cyan]")
+        console.print("\n💡 [bold cyan]Troubleshooting Tips[/bold cyan]")
         console.print("  • If LLM connection fails, check your server is running")
         console.print("  • Use '/setup' to reconfigure LLM server settings")
         console.print("  • Use '/status --verbose' for detailed component status")
@@ -659,7 +666,7 @@ class InitCommand(BaseCommand):
         guide_path = Path("GerdsenAI.md")
         if guide_path.exists() and not force:
             console.print(
-                "[yellow]GerdsenAI.md already exists in current directory.[/yellow]"
+                "[yellow]⚠️  GerdsenAI.md already exists in current directory.[/yellow]"
             )
             console.print(
                 "[dim]Use --force to overwrite or choose a different directory.[/dim]\n"
@@ -674,7 +681,7 @@ class InitCommand(BaseCommand):
             with open(guide_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            console.print("[green]Successfully created GerdsenAI.md![/green]")
+            console.print("[green]✅ Successfully created GerdsenAI.md![/green]")
             console.print(f"[dim]Location: {guide_path.absolute()}[/dim]\n")
 
             # Show quick tips
@@ -687,7 +694,7 @@ class InitCommand(BaseCommand):
             )
 
         except Exception as e:
-            console.print(f"[red]Failed to create GerdsenAI.md: {str(e)}[/red]\n")
+            console.print(f"[red]❌ Failed to create GerdsenAI.md: {str(e)}[/red]\n")
             return CommandResult(
                 success=False, message=f"Failed to create guide: {str(e)}"
             )
@@ -906,7 +913,7 @@ your-web-project/
 
     def _show_quick_tips(self, template: str):
         """Show quick tips after initialization."""
-        console.print("[bold cyan]Quick Start Tips:[/bold cyan]")
+        console.print("[bold cyan]🎯 Quick Start Tips:[/bold cyan]")
         console.print("  1. Start chatting: Type your coding question or request")
         console.print("  2. Explore files: `/ls` to see project structure")
         console.print("  3. Get help: `/help` for all available commands")
@@ -924,7 +931,7 @@ your-web-project/
             console.print("  5. Try this: 'Help me organize this project structure'")
 
         console.print(
-            "\n[dim]Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n"
+            "\n[dim]💡 Read GerdsenAI.md for comprehensive guidance and best practices.[/dim]\n"
         )
 
 
@@ -1147,7 +1154,7 @@ class CopyCommand(BaseCommand):
                 if len(preview_lines) > 3:
                     preview = "\n".join(preview_lines[:3]) + "\n..."
 
-                console.print("[green]Copied to clipboard![/green]")
+                console.print("[green]✅ Copied to clipboard![/green]")
                 console.print(f"[dim]Source: {source_info}[/dim]")
                 console.print(f"[dim]Length: {len(content)} characters[/dim]")
 
@@ -1338,3 +1345,340 @@ class CopyCommand(BaseCommand):
 
         except Exception as e:
             return False, str(e)
+
+
+class ToolsCommand(BaseCommand):
+    """List available tools and capabilities in the CLI."""
+
+    @property
+    def name(self) -> str:
+        return "tools"
+
+    @property
+    def description(self) -> str:
+        return "List available tools and capabilities in GerdsenAI CLI"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
+
+    @property
+    def aliases(self) -> list[str]:
+        return ["capabilities", "features"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        return {
+            "category": CommandArgument(
+                name="category",
+                description="Filter by category (system, file, agent, model, terminal)",
+                required=False,
+                choices=["system", "file", "agent", "model", "terminal"],
+            ),
+            "detailed": CommandArgument(
+                name="--detailed",
+                description="Show detailed information about each tool",
+                required=False,
+                arg_type=bool,
+                default=False,
+            ),
+            "search": CommandArgument(
+                name="--search",
+                description="Search tools by name or description",
+                required=False,
+            ),
+        }
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
+        """List available tools and capabilities."""
+        category_filter = args.get("category")
+        detailed = args.get("detailed", False)
+        search_term = args.get("search")
+
+        # Define tool categories and their descriptions
+        tools = {
+            "System Tools": {
+                "category": "system",
+                "description": "Core system operations and configuration",
+                "tools": [
+                    {
+                        "name": "/help",
+                        "description": "Show help for commands",
+                        "aliases": ["/h", "/?"],
+                        "usage": "/help [command]",
+                    },
+                    {
+                        "name": "/status",
+                        "description": "Show system and AI connection status",
+                        "aliases": [],
+                        "usage": "/status [--verbose]",
+                    },
+                    {
+                        "name": "/about",
+                        "description": "Show version and troubleshooting info",
+                        "aliases": [],
+                        "usage": "/about",
+                    },
+                    {
+                        "name": "/config",
+                        "description": "Display current configuration",
+                        "aliases": [],
+                        "usage": "/config",
+                    },
+                    {
+                        "name": "/setup",
+                        "description": "Interactive LLM server reconfiguration",
+                        "aliases": [],
+                        "usage": "/setup [--apply]",
+                    },
+                    {
+                        "name": "/debug",
+                        "description": "Toggle debug mode",
+                        "aliases": [],
+                        "usage": "/debug [on|off]",
+                    },
+                    {
+                        "name": "/init",
+                        "description": "Initialize project with GerdsenAI guide",
+                        "aliases": [],
+                        "usage": "/init [template]",
+                    },
+                    {
+                        "name": "/copy",
+                        "description": "Copy text or file contents to clipboard",
+                        "aliases": ["/cp", "/clip"],
+                        "usage": "/copy --text 'content' | --file path",
+                    },
+                    {
+                        "name": "/exit",
+                        "description": "Exit the application",
+                        "aliases": ["/quit", "/q"],
+                        "usage": "/exit",
+                    },
+                ],
+            },
+            "File Operations": {
+                "category": "file",
+                "description": "File and project management tools",
+                "tools": [
+                    {
+                        "name": "/ls",
+                        "description": "List files in project directory",
+                        "aliases": ["/files", "/list"],
+                        "usage": "/ls [path] [--detailed] [--filter pattern]",
+                    },
+                    {
+                        "name": "/cat",
+                        "description": "Read and display file contents",
+                        "aliases": ["/read", "/view"],
+                        "usage": "/cat <file> [--lines range] [--syntax]",
+                    },
+                    {
+                        "name": "/edit",
+                        "description": "AI-assisted file editing with preview",
+                        "aliases": [],
+                        "usage": "/edit <file> 'description of changes'",
+                    },
+                    {
+                        "name": "/create",
+                        "description": "Create new file with AI assistance",
+                        "aliases": [],
+                        "usage": "/create <file> 'description or content'",
+                    },
+                    {
+                        "name": "/search",
+                        "description": "Search text across project files",
+                        "aliases": ["/find", "/grep"],
+                        "usage": "/search <pattern> [--files] [--context]",
+                    },
+                    {
+                        "name": "/session",
+                        "description": "Manage conversation sessions",
+                        "aliases": [],
+                        "usage": "/session <save|load|list> [name]",
+                    },
+                ],
+            },
+            "AI Agent": {
+                "category": "agent",
+                "description": "AI assistant and context management",
+                "tools": [
+                    {
+                        "name": "/agent",
+                        "description": "Show AI agent statistics and status",
+                        "aliases": [],
+                        "usage": "/agent [--detailed]",
+                    },
+                    {
+                        "name": "/chat",
+                        "description": "Start or continue conversation with AI",
+                        "aliases": ["/c"],
+                        "usage": "/chat [message] | just type naturally",
+                    },
+                    {
+                        "name": "/refresh",
+                        "description": "Refresh project context for AI",
+                        "aliases": [],
+                        "usage": "/refresh",
+                    },
+                    {
+                        "name": "/clear",
+                        "description": "Clear conversation history",
+                        "aliases": ["/reset"],
+                        "usage": "/clear",
+                    },
+                ],
+            },
+            "Model Management": {
+                "category": "model",
+                "description": "LLM model selection and information",
+                "tools": [
+                    {
+                        "name": "/models",
+                        "description": "List available AI models",
+                        "aliases": [],
+                        "usage": "/models [--refresh]",
+                    },
+                    {
+                        "name": "/model",
+                        "description": "Switch to specific AI model",
+                        "aliases": [],
+                        "usage": "/model <name>",
+                    },
+                    {
+                        "name": "/model-info",
+                        "description": "Show detailed model information",
+                        "aliases": [],
+                        "usage": "/model-info [model_name]",
+                    },
+                    {
+                        "name": "/model-stats",
+                        "description": "Show model usage statistics",
+                        "aliases": [],
+                        "usage": "/model-stats",
+                    },
+                ],
+            },
+            "Terminal Integration": {
+                "category": "terminal",
+                "description": "Safe terminal command execution",
+                "tools": [
+                    {
+                        "name": "/run",
+                        "description": "Execute terminal commands safely",
+                        "aliases": ["/exec"],
+                        "usage": "/run <command> [--confirm]",
+                    },
+                    {
+                        "name": "/pwd",
+                        "description": "Show current working directory",
+                        "aliases": [],
+                        "usage": "/pwd",
+                    },
+                    {
+                        "name": "/history",
+                        "description": "Show command execution history",
+                        "aliases": [],
+                        "usage": "/history [--limit n]",
+                    },
+                    {
+                        "name": "/clear-history",
+                        "description": "Clear command execution history",
+                        "aliases": [],
+                        "usage": "/clear-history",
+                    },
+                    {
+                        "name": "/terminal-status",
+                        "description": "Show terminal integration status",
+                        "aliases": [],
+                        "usage": "/terminal-status",
+                    },
+                ],
+            },
+        }
+
+        # Apply filters
+        filtered_tools = {}
+        for category_name, category_data in tools.items():
+            if category_filter and category_data["category"] != category_filter:
+                continue
+
+            category_tools = category_data["tools"]
+            if search_term:
+                search_lower = search_term.lower()
+                category_tools = [
+                    tool
+                    for tool in category_tools
+                    if search_lower in tool["name"].lower()
+                    or search_lower in tool["description"].lower()
+                    or any(search_lower in alias.lower() for alias in tool["aliases"])
+                ]
+
+            if category_tools:  # Only include categories with matching tools
+                filtered_tools[category_name] = {
+                    **category_data,
+                    "tools": category_tools,
+                }
+
+        # Display results
+        if not filtered_tools:
+            message = "No tools found"
+            if category_filter:
+                message += f" in category '{category_filter}'"
+            if search_term:
+                message += f" matching '{search_term}'"
+            console.print(f"[yellow]{message}[/yellow]")
+            return CommandResult(success=True, message=message)
+
+        # Show header
+        console.print("[bold cyan]🔧 GerdsenAI CLI Tools & Capabilities[/bold cyan]")
+        if category_filter:
+            console.print(f"[dim]Filtered by category: {category_filter}[/dim]")
+        if search_term:
+            console.print(f"[dim]Search term: {search_term}[/dim]")
+        console.print()
+
+        # Display each category
+        for category_name, category_data in filtered_tools.items():
+            console.print(f"[bold]{category_name}[/bold]")
+            console.print(f"[dim]{category_data['description']}[/dim]")
+            console.print()
+
+            for tool in category_data["tools"]:
+                # Tool name and description
+                console.print(
+                    f"  [green]{tool['name']}[/green] - {tool['description']}"
+                )
+
+                if detailed:
+                    # Show aliases if any
+                    if tool["aliases"]:
+                        aliases_str = ", ".join(tool["aliases"])
+                        console.print(f"    [dim]Aliases: {aliases_str}[/dim]")
+
+                    # Show usage
+                    console.print(f"    [dim]Usage: {tool['usage']}[/dim]")
+
+                    console.print()  # Extra spacing in detailed mode
+
+            console.print()  # Category separator
+
+        # Show summary
+        total_tools = sum(len(cat["tools"]) for cat in filtered_tools.values())
+        console.print(f"[dim]Total tools shown: {total_tools}[/dim]")
+
+        if not detailed:
+            console.print(
+                "[dim]💡 Use --detailed for more information about each tool[/dim]"
+            )
+
+        return CommandResult(
+            success=True,
+            message=f"Listed {total_tools} tools",
+            data={
+                "categories": len(filtered_tools),
+                "tools": total_tools,
+                "filtered": bool(category_filter or search_term),
+            },
+        )
