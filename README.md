@@ -20,13 +20,82 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 
 ## 📋 Requirements
 
+### 🐳 Recommended: Container Development
+- **Docker** - For secure, isolated development environment
+- **VSCode** with Dev Containers extension
+- **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
+
+### 🔧 Alternative: Traditional Setup
 - **Python 3.11+** (required)
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-- **Virtual Environment** - Recommended for development
+- **Virtual Environment** - Required for isolation
 
 ## 🛠 Installation
 
-### Quick Install (Recommended)
+### 🐳 Quick Start with DevContainer (Recommended)
+```bash
+# Prerequisites: Docker + VSCode with Dev Containers extension
+
+# 1. Clone the repository
+git clone https://github.com/GerdsenAI-Admin/GerdsenAI-CLI.git
+cd GerdsenAI-CLI
+
+# 2. Open in VSCode
+code .
+
+# 3. When prompted, click "Reopen in Container"
+# 4. Container builds automatically with all dependencies and security
+
+# 5. Verify installation (inside container)
+gcli --version
+gtest  # Run tests
+gsec   # Check security status
+```
+
+#### 🔒 Container Security Features
+The DevContainer provides a **secure-by-default** development environment:
+
+- **Configurable Security Levels**:
+  - `SECURITY_LEVEL=strict` (default): Whitelist-only network access
+  - `SECURITY_LEVEL=development`: Common dev domains allowed
+  - `SECURITY_LEVEL=testing`: Minimal restrictions for CI
+
+- **Network Isolation**: iptables firewall with domain whitelisting
+- **Container Isolation**: Isolated from host system and other containers
+- **Volume Security**: Persistent data in secure container volumes
+
+#### ⚡ Development Shortcuts
+Pre-configured shortcuts for faster development:
+
+```bash
+gcli          # Start GerdsenAI CLI
+gtest         # Run test suite (pytest)
+glint         # Lint code (ruff check)
+gformat       # Format code (ruff format + black)
+gbuild        # Build package
+gsec          # Security status check
+```
+
+#### 🔧 Container Configuration
+Set security level via environment variable:
+```bash
+# In your shell (before opening DevContainer)
+export SECURITY_LEVEL=development  # or 'strict', 'testing'
+```
+
+Or configure in `.devcontainer/.env`:
+```bash
+SECURITY_LEVEL=development
+TZ=America/New_York
+```
+
+**Why DevContainer?**
+- 🔒 **Security**: Network firewall prevents AI-generated code from data exfiltration
+- 🎯 **Consistency**: Identical environment across all developers
+- ⚡ **Speed**: Pre-configured with all tools and dependencies
+- 🛡️ **Isolation**: Complete separation from host system
+
+### 🔧 Alternative: Traditional Installation
 ```bash
 # Clone the repository
 git clone https://github.com/GerdsenAI-Admin/GerdsenAI-CLI.git

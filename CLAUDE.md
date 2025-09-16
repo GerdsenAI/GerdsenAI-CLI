@@ -46,6 +46,22 @@ black gerdsenai_cli/
 ```
 
 ### Development Setup
+
+#### 🐳 Recommended: DevContainer (Secure & Consistent)
+```bash
+# Prerequisites: Docker + VSCode with Dev Containers extension
+# 1. Clone repository
+# 2. Open in VSCode
+# 3. When prompted, click "Reopen in Container"
+# 4. Container builds automatically with all dependencies
+
+# Verify installation (inside container)
+gcli --version
+gtest  # Run tests
+gsec   # Check security status
+```
+
+#### 🔧 Alternative: Traditional Setup
 ```bash
 # Create virtual environment with Python 3.11+
 python3.11 -m venv .venv --prompt "gerdsenai-cli"
@@ -57,6 +73,8 @@ pip install -e .
 # Verify installation
 python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
 ```
+
+**Note**: DevContainer is strongly recommended for AI development due to security isolation and consistent environment setup.
 
 ## Architecture Overview
 
