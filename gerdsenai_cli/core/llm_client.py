@@ -88,7 +88,14 @@ class ChatCompletionResponse(BaseModel):
 
 
 class LLMClient:
-    """Client for communicating with local LLM servers."""
+    """Client for communicating with local LLM servers.
+
+    The retry behavior can be configured via application settings. If
+    `Settings.max_retries` is provided it will override the module level
+    `MAX_RETRIES` constant for this client instance. This makes the retry
+    policy user-configurable without changing test expectations (tests still
+    rely on module constant if settings value matches default).
+    """
 
     def __init__(self, settings: Settings):
         """
@@ -117,6 +124,8 @@ class LLMClient:
 
         self._is_connected = False
         self._available_models: list[ModelInfo] = []
+        # Effective retry configuration (instance-scoped)
+        self._max_retries = getattr(settings, "max_retries", MAX_RETRIES) or MAX_RETRIES
 
         # Performance tracking
         self._request_count = 0
@@ -152,7 +161,7 @@ class LLMClient:
         operation_name: str,
         operation_func,
         *args,
-        max_retries: int = MAX_RETRIES,
+        max_retries: int | None = None,
         **kwargs,
     ) -> Any:
         """
@@ -170,9 +179,16 @@ class LLMClient:
         Raises:
             The last exception if all retries fail
         """
+        # Determine effective retries (explicit argument > instance > module constant)
+        effective_retries = (
+            max_retries
+            if max_retries is not None
+            else (self._max_retries if self._max_retries is not None else MAX_RETRIES)
+        )
+
         last_exception = None
 
-        for attempt in range(max_retries + 1):
+        for attempt in range(effective_retries + 1):
             try:
                 start_time = time.time()
                 result = await operation_func(*args, **kwargs)
@@ -190,21 +206,21 @@ class LLMClient:
                 last_exception = e
                 self._retry_count += 1
 
-                if attempt < max_retries:
+                if attempt < effective_retries:
                     # Calculate delay with exponential backoff and jitter
                     delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                     jitter = random.uniform(0, delay * 0.1)  # 10% jitter
                     total_delay = delay + jitter
 
                     logger.warning(
-                        f"{operation_name} failed on attempt {attempt + 1}/{max_retries + 1}: {e}. "
+                        f"{operation_name} failed on attempt {attempt + 1}/{effective_retries + 1}: {e}. "
                         f"Retrying in {total_delay:.2f}s..."
                     )
 
                     await asyncio.sleep(total_delay)
                 else:
                     logger.error(
-                        f"{operation_name} failed after {max_retries + 1} attempts: {e}"
+                        f"{operation_name} failed after {effective_retries + 1} attempts: {e}"
                     )
                     raise
 
