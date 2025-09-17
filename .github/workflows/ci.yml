@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    
+
     # Use the same container environment as development
     container:
       image: python:${{ matrix.python-version }}-slim
@@ -26,11 +26,11 @@ jobs:
         SECURITY_LEVEL: testing
         PYTHONDONTWRITEBYTECODE: "1"
         PYTHONUNBUFFERED: "1"
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Install system dependencies
       run: |
         apt-get update && apt-get install -y --no-install-recommends \
@@ -40,37 +40,37 @@ jobs:
           curl \
           jq \
           && apt-get clean && rm -rf /var/lib/apt/lists/*
-    
+
     - name: Set up Python environment
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        
+
     - name: Install dependencies
       run: |
         pip install -e .
         pip install pytest pytest-cov pytest-asyncio ruff black mypy
-    
+
     - name: Lint with Ruff
       run: |
         ruff check gerdsenai_cli/
-        
+
     - name: Format check with Black
       run: |
         black --check gerdsenai_cli/
-        
+
     - name: Type check with MyPy
       run: |
         mypy gerdsenai_cli/ --ignore-missing-imports
-        
+
     - name: Test with pytest
       run: |
         pytest tests/ -v --cov=gerdsenai_cli --cov-report=xml --cov-report=term
-        
+
     - name: Validate CLI entry point
       run: |
         python -m gerdsenai_cli --version
         python -c "import gerdsenai_cli; print(f'✅ GerdsenAI-CLI {gerdsenai_cli.__version__} imported successfully')"
-    
+
     - name: Test AI agent integration (mock)
       run: |
         python -c "
@@ -87,7 +87,7 @@ jobs:
         print(f'✅ Context building completed in {duration:.2f}s')
         assert duration < 5.0, f'Context building too slow: {duration:.2f}s'
         "
-    
+
     - name: Performance validation
       run: |
         python -c "
@@ -104,28 +104,28 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
+
     - name: Install security tools
       run: |
         pip install safety bandit semgrep
-        
+
     - name: Run safety check
       run: |
         safety check --file pyproject.toml --output text
-        
+
     - name: Run bandit security scan
       run: |
         bandit -r gerdsenai_cli/ -f json -o bandit-report.json || true
-        
+
     - name: Upload security reports
       uses: actions/upload-artifact@v3
       if: always()
@@ -137,15 +137,15 @@ jobs:
   container-build:
     name: Container Build Test
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Build devcontainer
       run: |
         docker build -f .devcontainer/Dockerfile -t gerdsenai-cli:test .devcontainer/
-        
+
     - name: Test container functionality
       run: |
         docker run --rm -v $(pwd):/workspace -w /workspace gerdsenai-cli:test python -c "
@@ -161,28 +161,44 @@ jobs:
     needs: [test, security-scan, container-build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
+
     - name: Install build tools
       run: |
         pip install build twine
-        
+
     - name: Build package
       run: |
         python -m build
-        
-    - name: Upload to PyPI (on release tags)
+
+    - name: Validate package
+      run: |
+        python -m twine check dist/*
+
+    - name: Check PyPI token availability
       if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+      run: |
+        if [ -z "${{ secrets.PYPI_TOKEN }}" ]; then
+          echo "❌ PYPI_TOKEN secret is not set"
+          exit 1
+        else
+          echo "✅ PYPI_TOKEN secret is available"
+        fi
+
+    - name: Upload to PyPI (on release tags)
+      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && success()
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
-        twine upload dist/*
+        echo "🚀 Uploading to PyPI..."
+        python -m twine upload dist/* --verbose --non-interactive
+        echo "✅ Package uploaded successfully to PyPI"
