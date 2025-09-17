@@ -24,17 +24,19 @@ logger = logging.getLogger(__name__)
 
 # Per-operation timeout configurations (in seconds)
 OPERATION_TIMEOUTS = {
-    "health": 5.0,
-    "models": 10.0,
+    "health": 2.0,  # Reduced from 5.0 for faster connection testing
+    "models": 5.0,  # Reduced from 10.0
     "chat": 30.0,
     "stream": 30.0,
     "default": 30.0,
 }
 
 # Retry configuration
-MAX_RETRIES = 3
-BASE_DELAY = 1.0  # Base delay in seconds
-MAX_DELAY = 8.0  # Maximum delay in seconds
+# Use 2 retries (total 3 attempts) to balance responsiveness and robustness.
+# This aligns with unit test expectations for retry behavior.
+MAX_RETRIES = 2
+BASE_DELAY = 0.5  # Reduced from 1.0 for faster retries
+MAX_DELAY = 2.0  # Reduced from 8.0
 RETRY_EXCEPTIONS = (
     httpx.RequestError,
     httpx.TimeoutException,
@@ -225,8 +227,14 @@ class LLMClient:
         """
 
         async def _connect_impl() -> bool:
-            # Try to get server health/status
-            health_endpoints = ["/health", "/v1/models", "/api/health", "/"]
+            # Try Ollama-specific endpoints first, then fallback to general ones
+            health_endpoints = [
+                "/api/tags",  # Ollama specific - lists models
+                "/api/version",  # Ollama specific - version info
+                "/v1/models",  # OpenAI compatible
+                "/health",  # Generic health check
+                "/",  # Root endpoint
+            ]
 
             # Use health-specific timeout
             timeout = httpx.Timeout(OPERATION_TIMEOUTS["health"])
@@ -234,28 +242,32 @@ class LLMClient:
             for endpoint in health_endpoints:
                 try:
                     url = self._get_endpoint(endpoint)
+                    logger.info(f"Testing connection to {url}")
                     response = await self.client.get(url, timeout=timeout)
 
                     if response.status_code == 200:
                         logger.info(
-                            f"Successfully connected to LLM server at {self.base_url}"
+                            f"Successfully connected to LLM server at {self.base_url} via {endpoint}"
                         )
                         self._is_connected = True
                         return True
 
-                except (httpx.RequestError, httpx.HTTPStatusError):
+                except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                    logger.debug(f"Endpoint {endpoint} failed: {e}")
                     continue
 
             # If none of the health endpoints work, raise an exception to trigger retry
             raise httpx.ConnectError(
-                f"Unable to connect to LLM server at {self.base_url}"
+                f"Unable to connect to LLM server at {self.base_url} (tried {len(health_endpoints)} endpoints)"
             )
 
         try:
             return await self._execute_with_retry("Connection test", _connect_impl)
         except Exception as e:
             logger.error(f"Connection test failed after retries: {e}")
-            show_error(f"Unable to connect to LLM server at {self.base_url}")
+            show_error(
+                f"Unable to connect to LLM server at {self.base_url}. Is Ollama running?"
+            )
             return False
 
     @measure_performance("model_loading")
