@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, model_validator, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Settings(BaseModel):
@@ -58,21 +58,21 @@ class Settings(BaseModel):
     debug_mode: bool = Field(default=False)
     log_level: str = Field(default="INFO")
 
-    @validator("protocol")
-    def validate_protocol(cls, v):
+    @field_validator("protocol", mode="before")
+    def validate_protocol(cls, v: str) -> str:
         v = v.lower().strip()
         if v not in {"http", "https"}:
             raise ValueError("Protocol must be 'http' or 'https'")
         return v
 
-    @validator("llm_host")
-    def validate_host(cls, v):
+    @field_validator("llm_host")
+    def validate_host(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("LLM host cannot be empty")
         return v.strip()
 
     @model_validator(mode="after")
-    def sync_url_components(self):  # type: ignore
+    def sync_url_components(self):
         """Synchronize llm_server_url with protocol/host/port (both directions)."""
         try:
             # If llm_server_url was provided explicitly and differs from constructed, parse it
@@ -92,13 +92,13 @@ class Settings(BaseModel):
             self.llm_server_url = self.llm_server_url.rstrip("/")
         return self
 
-    @validator("current_model")
-    def validate_model_name(cls, v):
+    @field_validator("current_model")
+    def validate_model_name(cls, v: str) -> str:
         """Validate model name (can be empty for initial setup)."""
         return v.strip() if v else ""
 
-    @validator("log_level")
-    def validate_log_level(cls, v):
+    @field_validator("log_level")
+    def validate_log_level(cls, v: str) -> str:
         """Validate log level."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         v_upper = v.upper()
@@ -114,9 +114,9 @@ class Settings(BaseModel):
         """Set a user preference value."""
         self.user_preferences[key] = value
 
-    class Config:
-        """Pydantic configuration."""
-
-        validate_assignment = True
-        extra = "forbid"
-        json_encoders = {Path: str}
+    # Pydantic v2 model configuration
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        json_encoders={Path: str},
+    )
