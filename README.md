@@ -110,6 +110,15 @@ source .venv/bin/activate  # Linux/macOS
 pip install -e .
 ```
 
+### 🐳 Runtime with Docker (Alternative)
+```bash
+# Build runtime image (uses pyproject.toml)
+docker build -t gerdsenai-cli .
+
+# Run CLI
+docker run --rm -it gerdsenai-cli --help
+```
+
 ### Future PyPI Installation
 ```bash
 # Coming soon
