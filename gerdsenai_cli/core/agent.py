@@ -281,14 +281,34 @@ class Agent:
             # Prepare messages for LLM
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
-            # Get LLM response
-            with console.status("[bold green]Thinking...", spinner="dots"):
-                llm_response = await self.llm_client.chat(llm_messages)
+            # Decide whether to stream
+            streaming_enabled = self.settings.get_preference("streaming", True)
+            llm_response = ""
 
-            if not llm_response:
+            if streaming_enabled:
+                try:
+                    console.print("[bold cyan]\nGerdsenAI:[/bold cyan]", end=" ")
+                    async for chunk in self.llm_client.stream_chat(llm_messages):
+                        if chunk:
+                            llm_response += chunk
+                            # Print chunk without newline for live feeling
+                            console.print(chunk, end="", style="white")
+                    console.print()  # Final newline
+                except Exception as stream_err:
+                    show_warning(
+                        f"Streaming failed ({stream_err}); falling back to non-streaming mode."
+                    )
+                    streaming_enabled = False  # Fallback
+
+            if not streaming_enabled:
+                # Non-streaming path with status spinner
+                with console.status("[bold green]Thinking...", spinner="dots"):
+                    llm_response = await self.llm_client.chat(llm_messages) or ""
+
+            if not llm_response.strip():
                 return "I apologize, but I'm having trouble connecting to the AI model. Please try again."
 
-            # Add assistant response to conversation
+            # Add assistant response to conversation (full aggregated text)
             assistant_message = ChatMessage(role="assistant", content=llm_response)
             self.conversation.messages.append(assistant_message)
 

@@ -49,6 +49,7 @@ class Settings(BaseModel):
             "max_context_length": 4000,
             "temperature": 0.7,
             "top_p": 0.9,
+            "streaming": True,  # Enable streaming responses by default
         },
         description="User preferences and UI settings",
     )

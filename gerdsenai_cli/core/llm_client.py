@@ -255,31 +255,86 @@ class LLMClient:
             # Use health-specific timeout
             timeout = httpx.Timeout(OPERATION_TIMEOUTS["health"])
 
-            for endpoint in health_endpoints:
+            for i, endpoint in enumerate(health_endpoints):
                 try:
                     url = self._get_endpoint(endpoint)
+                    print(
+                        f"[DEBUG] Testing endpoint {i+1}/{len(health_endpoints)}: {url}"
+                    )
                     logger.info(f"Testing connection to {url}")
-                    response = await self.client.get(url, timeout=timeout)
+
+                    # Wrap in asyncio.wait_for for additional timeout protection
+                    response = await asyncio.wait_for(
+                        self.client.get(url, timeout=timeout),
+                        timeout=OPERATION_TIMEOUTS["health"] + 1.0,  # Extra buffer
+                    )
+
+                    print(f"[DEBUG] Response status: {response.status_code}")
+                    print(f"[DEBUG] Response headers: {dict(response.headers)}")
+
+                    # Show response content for debugging (limit to first 200 chars)
+                    try:
+                        content = response.text[:200]
+                        if len(response.text) > 200:
+                            content += "..."
+                        print(f"[DEBUG] Response content: {content}")
+                    except Exception:
+                        print("[DEBUG] Response content: <unable to decode>")
 
                     if response.status_code == 200:
                         logger.info(
                             f"Successfully connected to LLM server at {self.base_url} via {endpoint}"
                         )
+                        print(f"[DEBUG] Connection successful via {endpoint}")
                         self._is_connected = True
                         return True
+                    else:
+                        print(f"[DEBUG] Non-200 status code: {response.status_code}")
 
-                except (httpx.RequestError, httpx.HTTPStatusError) as e:
-                    logger.debug(f"Endpoint {endpoint} failed: {e}")
+                except asyncio.TimeoutError:
+                    print(
+                        f"[DEBUG] Timeout on endpoint {endpoint} (>{OPERATION_TIMEOUTS['health']}s)"
+                    )
+                    logger.debug(f"Endpoint {endpoint} timed out")
+                    continue
+                except httpx.ConnectError as e:
+                    print(f"[DEBUG] Connection error on {endpoint}: {e}")
+                    print(
+                        "[DEBUG] This usually means the server is not running or not accessible"
+                    )
+                    logger.debug(f"Endpoint {endpoint} connection failed: {e}")
+                    continue
+                except httpx.HTTPStatusError as e:
+                    print(
+                        f"[DEBUG] HTTP error on {endpoint}: {e.response.status_code} - {e}"
+                    )
+                    logger.debug(f"Endpoint {endpoint} HTTP error: {e}")
+                    continue
+                except httpx.RequestError as e:
+                    print(f"[DEBUG] Request error on {endpoint}: {e}")
+                    logger.debug(f"Endpoint {endpoint} request failed: {e}")
+                    continue
+                except Exception as e:
+                    print(f"[DEBUG] Unexpected error on endpoint {endpoint}: {e}")
+                    logger.debug(f"Unexpected error on endpoint {endpoint}: {e}")
                     continue
 
             # If none of the health endpoints work, raise an exception to trigger retry
+            print(f"[DEBUG] All endpoints failed for {self.base_url}")
+            print("[DEBUG] Common Ollama troubleshooting:")
+            print("[DEBUG] 1. Make sure Ollama is running: 'ollama serve'")
+            print(f"[DEBUG] 2. Check if Ollama is listening on {self.base_url}")
+            print(f"[DEBUG] 3. Try: 'curl {self.base_url}/api/tags' to test manually")
+            print("[DEBUG] 4. Verify Ollama version is compatible (>= 0.1.0)")
             raise httpx.ConnectError(
                 f"Unable to connect to LLM server at {self.base_url} (tried {len(health_endpoints)} endpoints)"
             )
 
         try:
+            print(f"[DEBUG] Starting connection test to {self.base_url}")
             return await self._execute_with_retry("Connection test", _connect_impl)
         except Exception as e:
+            print(f"[DEBUG] Connection test failed completely: {e}")
             logger.error(f"Connection test failed after retries: {e}")
             show_error(
                 f"Unable to connect to LLM server at {self.base_url}. Is Ollama running?"

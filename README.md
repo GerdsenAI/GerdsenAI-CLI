@@ -20,111 +20,53 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 
 ## 📋 Requirements
 
-### 🐳 Recommended: Container Development
-- **Docker** - For secure, isolated development environment
-- **VSCode** with Dev Containers extension
-- **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-
-### 🔧 Alternative: Traditional Setup
 - **Python 3.11+** (required)
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-- **Virtual Environment** - Required for isolation
+- **Virtual Environment** - Recommended for isolation
 
 ## 🛠 Installation
 
-### 🐳 Quick Start with DevContainer (Recommended)
+### � From PyPI (Recommended)
 ```bash
-# Prerequisites: Docker + VSCode with Dev Containers extension
+# Install with pipx (isolated, recommended)
+pipx install gerdsenai-cli
 
-# 1. Clone the repository
-git clone https://github.com/GerdsenAI-Admin/GerdsenAI-CLI.git
-cd GerdsenAI-CLI
+# Or install with pip
+pip install gerdsenai-cli
 
-# 2. Open in VSCode
-code .
-
-# 3. When prompted, click "Reopen in Container"
-# 4. Container builds automatically with all dependencies and security
-
-# 5. Verify installation (inside container)
-gcli --version
-gtest  # Run tests
-gsec   # Check security status
+# Verify installation
+gerdsenai --version
 ```
 
-#### 🔒 Container Security Features
-The DevContainer provides a **secure-by-default** development environment:
-
-- **Configurable Security Levels**:
-  - `SECURITY_LEVEL=strict` (default): Whitelist-only network access
-  - `SECURITY_LEVEL=development`: Common dev domains allowed
-  - `SECURITY_LEVEL=testing`: Minimal restrictions for CI
-
-- **Network Isolation**: iptables firewall with domain whitelisting
-- **Container Isolation**: Isolated from host system and other containers
-- **Volume Security**: Persistent data in secure container volumes
-
-#### ⚡ Development Shortcuts
-Pre-configured shortcuts for faster development:
-
-```bash
-gcli          # Start GerdsenAI CLI
-gtest         # Run test suite (pytest)
-glint         # Lint code (ruff check)
-gformat       # Format code (ruff format + black)
-gbuild        # Build package
-gsec          # Security status check
-```
-
-#### 🔧 Container Configuration
-Set security level via environment variable:
-```bash
-# In your shell (before opening DevContainer)
-export SECURITY_LEVEL=development  # or 'strict', 'testing'
-```
-
-Or configure in `.devcontainer/.env`:
-```bash
-SECURITY_LEVEL=development
-TZ=America/New_York
-```
-
-**Why DevContainer?**
-- 🔒 **Security**: Network firewall prevents AI-generated code from data exfiltration
-- 🎯 **Consistency**: Identical environment across all developers
-- ⚡ **Speed**: Pre-configured with all tools and dependencies
-- 🛡️ **Isolation**: Complete separation from host system
-
-### 🔧 Alternative: Traditional Installation
+### 🔧 Development Installation
 ```bash
 # Clone the repository
-git clone https://github.com/GerdsenAI-Admin/GerdsenAI-CLI.git
+git clone https://github.com/GerdsenAI/GerdsenAI-CLI.git
 cd GerdsenAI-CLI
 
-# Create virtual environment
+# Create virtual environment with Python 3.11+
 python3.11 -m venv .venv --prompt "gerdsenai-cli"
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
 # Install in development mode
-pip install -e .
+pip install -e ".[dev]"
+
+# Install pre-commit hooks (optional)
+pre-commit install
+
+# Verify installation
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+gerdsenai --version
 ```
 
-### 🐳 Runtime with Docker (Alternative)
+### 🏗️ Alternative Installation Methods
 ```bash
-# Build runtime image (uses pyproject.toml)
-docker build -t gerdsenai-cli .
+# Install from source (latest)
+pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
 
-# Run CLI
-docker run --rm -it gerdsenai-cli --help
-```
-
-### Future PyPI Installation
-```bash
-# Coming soon
-pipx install gerdsenai-cli  # Recommended
-# or
-pip install gerdsenai-cli
+# Install specific branch/tag
+pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 ```
 
 ## 🚀 Quick Start
@@ -158,6 +100,11 @@ pip install gerdsenai-cli
    # Edit files with AI help
    /edit main.py "add error handling to the main function"
    ```
+
+4. **Interactive Streaming Responses**
+   - By default, responses stream token-by-token for a more natural experience.
+   - Disable streaming at runtime by toggling the preference in a future config command, or edit your settings file to set `"streaming": false` under `user_preferences`.
+   - If streaming encounters an error, the CLI automatically falls back to standard full-response mode.
 
 ## 📚 Key Commands
 
@@ -267,7 +214,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ### Getting Help
 - Use `/about` to gather system information for bug reports
 - Check `/status --verbose` for detailed diagnostics
-- Report issues: https://github.com/GerdsenAI-Admin/GerdsenAI-CLI/issues
+- Report issues: https://github.com/GerdsenAI/GerdsenAI-CLI/issues
 
 ---
 

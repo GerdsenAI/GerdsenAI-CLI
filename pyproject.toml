@@ -53,13 +53,14 @@ dev = [
 gerdsenai = "gerdsenai_cli.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/GerdsenAI-Admin/GerdsenAI-CLI"
-Repository = "https://github.com/GerdsenAI-Admin/GerdsenAI-CLI"
-Documentation = "https://github.com/GerdsenAI-Admin/GerdsenAI-CLI#readme"
-"Bug Tracker" = "https://github.com/GerdsenAI-Admin/GerdsenAI-CLI/issues"
+Homepage = "https://github.com/GerdsenAI/GerdsenAI-CLI"
+Repository = "https://github.com/GerdsenAI/GerdsenAI-CLI"
+Documentation = "https://github.com/GerdsenAI/GerdsenAI-CLI#readme"
+"Bug Tracker" = "https://github.com/GerdsenAI/GerdsenAI-CLI/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gerdsenai_cli"]
+include = ["gerdsenai_cli/py.typed"]
 
 [tool.black]
 line-length = 88

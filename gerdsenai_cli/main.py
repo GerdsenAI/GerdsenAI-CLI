@@ -241,7 +241,7 @@ class GerdsenAICLI:
                 console=console,
             )
             host = Prompt.ask(
-                "LLM server host or IP", default="localhost", console=console
+                "LLM server host or IP", default="127.0.0.1", console=console
             )
             port_str = Prompt.ask("Port", default="11434", console=console)
             try:
@@ -250,13 +250,33 @@ class GerdsenAICLI:
                 show_warning("Invalid port provided, falling back to 11434")
                 port = 11434
 
-            # Test connection to LLM server
+            # Test connection to LLM server with timeout
             show_info("Testing connection to LLM server...")
 
             temp_client = LLMClient(
                 Settings(protocol=protocol, llm_host=host, llm_port=port)
             )
-            connected = await temp_client.connect()
+
+            try:
+                # Wrap the entire connection test in a timeout to prevent hanging
+                print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
+                connected = await asyncio.wait_for(
+                    temp_client.connect(),
+                    timeout=15.0,  # 15 second total timeout for setup
+                )
+                print(f"[DEBUG] Connection result: {connected}")
+            except asyncio.TimeoutError:
+                print("[DEBUG] Connection test timed out after 15 seconds")
+                show_error(
+                    "Connection test timed out. Please check if Ollama is running and accessible."
+                )
+                await temp_client.close()
+                return None
+            except Exception as e:
+                print(f"[DEBUG] Connection test failed with exception: {e}")
+                show_error(f"Connection test failed: {e}")
+                await temp_client.close()
+                return None
 
             if not connected:
                 show_error(
