@@ -23,65 +23,78 @@
 - [x] Create implementation guide (QUICK_START_IMPLEMENTATION.md)
 - [x] Update Copilot instructions (.github/copilot-instructions.md)
 
-### Phase 8b: Enhanced Intent Detection (HIGH PRIORITY - Week 1)
+### Phase 8b: LLM-Based Intent Detection (HIGH PRIORITY - Week 1)
 
-**Goal:** Natural language → Action inference (no slash commands required)
+**Goal:** Natural language → Action inference using LLM (no slash commands required)
 
-- [ ] Enhance IntentParser class in `core/agent.py`
-  - [ ] Add file path extraction from natural language
-  - [ ] Improve confidence scoring algorithm
-  - [ ] Add LLM-based intent classification (optional mode)
-  - [ ] Support multi-file intent detection
-- [ ] Create implicit command detection in `main.py`
-  - [ ] Pattern matching for common phrases ("list files", "show me", "read X")
-  - [ ] Map natural language → slash commands transparently
-  - [ ] Maintain backward compatibility with explicit slash commands
+- [ ] Implement LLM-based intent parser in `core/agent.py`
+  - [ ] Fast intent-only LLM call (temperature=0.3, max_tokens=300)
+  - [ ] JSON response format with action, files, reasoning, scope
+  - [ ] Support actions: read_and_explain, whole_repo_analysis, iterative_search, edit_files, chat
+  - [ ] Regex helper for file path extraction (assists LLM)
+- [ ] Add implicit command detection in `main.py`
+  - [ ] Route natural language through LLM intent parser first
+  - [ ] Map detected intents → appropriate handlers
+  - [ ] Maintain backward compatibility with slash commands
 - [ ] Add unit tests for intent detection
+  - [ ] Test LLM intent parsing accuracy
   - [ ] Test file mention extraction
-  - [ ] Test command inference accuracy
-  - [ ] Test edge cases (ambiguous input)
+  - [ ] Test edge cases (ambiguous input, no files mentioned)
 
 **Success Criteria:**
-- User can type "explain agent.py" instead of "/read agent.py"
-- User can type "list files" instead of "/files"
+- User types "explain agent.py" → LLM detects read_and_explain intent
+- User types "analyze this project" → LLM detects whole_repo_analysis intent
+- User types "where is error handling" → LLM detects iterative_search intent
+- 95%+ accuracy on common patterns
+- <1 second intent detection latency
 - Slash commands still work for power users
-- 90%+ accuracy on common patterns
 
 **Estimated Time:** 2-3 days
 
-### Phase 8c: Auto File Reading (HIGH PRIORITY - Week 1)
+### Phase 8c: Context Window Auto-Detection & Aggressive Auto-Reading (HIGH PRIORITY - Week 1)
 
-**Goal:** Proactively read files mentioned in conversation
+**Goal:** Dynamically manage context based on model capabilities (2K to 1M+ tokens)
 
-- [ ] Implement auto file detection in `core/agent.py`
-  - [ ] Extract file paths from user input using regex patterns
-  - [ ] Validate files exist in project context
-  - [ ] Read files automatically before LLM query
-  - [ ] Inject file contents into conversation context
-- [ ] Add safety limits
-  - [ ] Max 5 files auto-read per query
-  - [ ] Max 50KB total content size
-  - [ ] 2-second timeout per file read
-- [ ] Update `core/context_manager.py`
-  - [ ] Add file_exists() method
-  - [ ] Add batch_read_files() method
-  - [ ] Cache recently read files (5-minute TTL)
-- [ ] Add user settings
-  - [ ] auto_read_files: bool (default: true)
-  - [ ] max_auto_read_files: int (default: 5)
-  - [ ] proactive_context: "conservative" | "moderate" | "aggressive"
-- [ ] Display status messages
-  - [ ] "📖 Reading agent.py, utils.py..." (dim/gray text)
-  - [ ] Progress indicator for large files
-  - [ ] Error messages for missing files
+- [ ] Implement context window auto-detection in `core/llm_client.py`
+  - [ ] get_model_context_window() method
+  - [ ] Pattern matching for common models (GPT-4: 128K, Gemini Pro: 1M, Llama 2: 4K, etc.)
+  - [ ] Fallback to model metadata API if available
+  - [ ] Conservative default (4096 tokens) if unknown model
+- [ ] Update Settings in `config/settings.py`
+  - [ ] model_context_window: int | None (auto-detected, user can override)
+  - [ ] context_window_usage: float (default 0.8 = use 80%, reserve 20% for response)
+  - [ ] auto_read_strategy: "smart" | "whole_repo" | "iterative" | "off" (default: "smart")
+  - [ ] enable_file_summarization: bool (default: true)
+  - [ ] max_iterative_reads: int (default: 10 iterations max)
+  - [ ] REMOVE fixed limits: max_auto_read_files, max 50KB size constraints
+- [ ] Implement dynamic context building in `core/context_manager.py`
+  - [ ] build_dynamic_context(query, max_tokens, strategy) method
+  - [ ] _smart_context_building() - prioritized file reading with token budget
+  - [ ] _read_whole_repo_chunked() - read entire codebase intelligently
+  - [ ] _iterative_reading() - keep reading until sufficient context found
+  - [ ] _prioritize_files() - relevance ranking (mentioned files → recent → core → rest)
+  - [ ] _estimate_tokens() - rough token counting (1 token ≈ 4 chars)
+  - [ ] _summarize_file() - intelligent truncation when file doesn't fit
+- [ ] Add progress indicators and feedback
+  - [ ] "📖 Reading entire repository (142 files, ~45K tokens)..."
+  - [ ] "📊 Summarized 15 large files to fit context"
+  - [ ] "✓ Context built: 78K/100K tokens used (78%)"
+  - [ ] Error messages for missing files or read failures
+- [ ] Auto-detect context window on model switch
+  - [ ] Update settings.model_context_window automatically when user switches models
+  - [ ] Show detected window size to user ("Detected 128K token context window")
+  - [ ] Allow manual override via /config if detection is wrong
 
 **Success Criteria:**
-- "explain main.py" → auto-reads main.py before explaining
-- "compare agent.py and llm_client.py" → reads both files
-- Respects size/count limits gracefully
-- Clear feedback on what's being read
+- Gemini Pro (1M tokens): Reads entire large codebases without issue
+- Llama 2 (4K tokens): Intelligently prioritizes and summarizes to fit
+- Claude 3 (200K tokens): Reads substantial portions with smart chunking
+- Context window auto-detected for 95%+ of common models
+- User sees clear feedback on context usage and token budget
+- No arbitrary file count or size limits - only token budget constraints
+- "explain this project" works seamlessly regardless of model size
 
-**Estimated Time:** 1-2 days
+**Estimated Time:** 2-3 days
 
 ### Phase 8d: Multi-File Operations (MEDIUM PRIORITY - Week 2)
 

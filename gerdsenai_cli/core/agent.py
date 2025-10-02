@@ -6,6 +6,8 @@ for action intents, and orchestrates context-aware operations like file editing 
 project analysis.
 """
 
+import asyncio
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -23,6 +25,33 @@ from .llm_client import ChatMessage, LLMClient
 
 logger = logging.getLogger(__name__)
 console = Console()
+
+# Intent detection system prompt for LLM-based natural language understanding
+INTENT_DETECTION_PROMPT = """You are an intent classifier for a coding assistant CLI.
+
+Analyze the user's query and determine their intent. Respond ONLY with valid JSON.
+
+Available actions:
+- read_and_explain: User wants to read/understand specific files
+- whole_repo_analysis: User wants overview of entire project
+- iterative_search: User wants to find code/patterns across files
+- edit_files: User wants to modify existing files
+- create_files: User wants to create new files
+- chat: General conversation or questions
+
+Project files (first 100):
+{file_list}
+
+User query: {user_query}
+
+Respond with JSON only (no other text):
+{{
+  "action": "<action_type>",
+  "files": ["<file_paths>"],
+  "reasoning": "<brief explanation>",
+  "scope": "<single_file|whole_repo|search|specific_files>",
+  "confidence": <0.0-1.0>
+}}"""
 
 
 class ActionType(Enum):
@@ -121,6 +150,210 @@ class IntentParser:
             "grep",
             "where is",
         }
+
+    async def detect_intent_with_llm(
+        self,
+        llm_client: LLMClient,
+        user_query: str,
+        project_files: list[str],
+    ) -> ActionIntent:
+        """Use LLM to detect user intent from natural language.
+        
+        Args:
+            llm_client: LLM client for making inference calls
+            user_query: The user's natural language query
+            project_files: List of project file paths for context
+            
+        Returns:
+            ActionIntent with detected action and parameters
+        """
+        try:
+            # Prepare file list (limit to first 100 for token efficiency)
+            file_list = "\n".join(project_files[:100])
+            if len(project_files) > 100:
+                file_list += f"\n... and {len(project_files) - 100} more files"
+            
+            # Build intent detection prompt
+            prompt = INTENT_DETECTION_PROMPT.format(
+                file_list=file_list,
+                user_query=user_query
+            )
+            
+            # Create messages for LLM
+            messages = [
+                ChatMessage(role="system", content=prompt),
+                ChatMessage(role="user", content=user_query)
+            ]
+            
+            # Call LLM with timeout (5 seconds max)
+            try:
+                response = await asyncio.wait_for(
+                    llm_client.chat(
+                        messages=messages,
+                        temperature=0.3,  # Deterministic for intent detection
+                        max_tokens=300,   # Keep response short
+                    ),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning("LLM intent detection timed out after 5 seconds")
+                return ActionIntent(
+                    action_type=ActionType.NONE,
+                    confidence=0.0,
+                    reasoning="Intent detection timeout"
+                )
+            
+            if not response:
+                return ActionIntent(
+                    action_type=ActionType.NONE,
+                    confidence=0.0,
+                    reasoning="Empty LLM response"
+                )
+            
+            # Parse JSON response
+            intent_data = self._parse_intent_json(response)
+            if not intent_data:
+                return ActionIntent(
+                    action_type=ActionType.NONE,
+                    confidence=0.0,
+                    reasoning="Failed to parse intent JSON"
+                )
+            
+            # Map LLM action to ActionType
+            action_map = {
+                "read_and_explain": ActionType.READ_FILE,
+                "whole_repo_analysis": ActionType.ANALYZE_PROJECT,
+                "iterative_search": ActionType.SEARCH_FILES,
+                "edit_files": ActionType.EDIT_FILE,
+                "create_files": ActionType.CREATE_FILE,
+                "chat": ActionType.CHAT,
+            }
+            
+            action_type = action_map.get(
+                intent_data.get("action", "chat"),
+                ActionType.CHAT
+            )
+            
+            # Extract file paths from detected files
+            detected_files = intent_data.get("files", [])
+            validated_files = self.extract_file_paths(
+                " ".join(detected_files) if detected_files else user_query,
+                project_files
+            )
+            
+            # Build parameters
+            parameters = {}
+            if validated_files:
+                parameters["file_path"] = validated_files[0]  # Use first file
+                parameters["files"] = validated_files
+            if intent_data.get("scope"):
+                parameters["scope"] = intent_data["scope"]
+            
+            return ActionIntent(
+                action_type=action_type,
+                confidence=float(intent_data.get("confidence", 0.7)),
+                parameters=parameters,
+                reasoning=intent_data.get("reasoning", "LLM-based intent detection")
+            )
+            
+        except Exception as e:
+            logger.error(f"LLM intent detection failed: {e}")
+            return ActionIntent(
+                action_type=ActionType.NONE,
+                confidence=0.0,
+                reasoning=f"Error: {e}"
+            )
+    
+    def _parse_intent_json(self, response: str) -> dict[str, Any] | None:
+        """Parse JSON from LLM response.
+        
+        Args:
+            response: Raw LLM response text
+            
+        Returns:
+            Parsed JSON dict or None if parsing fails
+        """
+        # Try to extract JSON from response (may have markdown code blocks)
+        json_patterns = [
+            r"```json\s*\n?(.*?)\n?```",  # JSON in code block
+            r"```\s*\n?(.*?)\n?```",      # Generic code block
+            r"(\{.*\})",                   # Raw JSON object
+        ]
+        
+        for pattern in json_patterns:
+            match = re.search(pattern, response, re.DOTALL)
+            if match:
+                json_str = match.group(1).strip()
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    continue
+        
+        # Try parsing the entire response as JSON
+        try:
+            return json.loads(response.strip())
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse intent JSON from response: {response[:100]}")
+            return None
+    
+    def extract_file_paths(
+        self,
+        text: str,
+        project_files: list[str]
+    ) -> list[str]:
+        """Extract and validate file paths from user input.
+        
+        Args:
+            text: Text containing potential file paths
+            project_files: List of known project file paths
+            
+        Returns:
+            List of validated file paths that exist in the project
+        """
+        # Patterns for detecting file paths
+        path_patterns = [
+            r'["\']([^"\']+\.[a-zA-Z0-9]+)["\']',  # Quoted paths with extensions
+            r'`([^`]+\.[a-zA-Z0-9]+)`',             # Backtick paths
+            r'\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b', # Bare paths with extensions
+        ]
+        
+        detected_paths = set()
+        
+        # Extract paths using patterns
+        for pattern in path_patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                # Clean up the path
+                path = match.strip().strip("'\"` ")
+                if path:
+                    detected_paths.add(path)
+        
+        # Validate against known project files
+        validated = []
+        project_files_lower = [f.lower() for f in project_files]
+        
+        for path in detected_paths:
+            path_lower = path.lower()
+            
+            # Exact match
+            if path in project_files:
+                validated.append(path)
+                continue
+            
+            # Case-insensitive match
+            if path_lower in project_files_lower:
+                idx = project_files_lower.index(path_lower)
+                validated.append(project_files[idx])
+                continue
+            
+            # Partial match (filename in any directory)
+            filename = Path(path).name
+            for proj_file in project_files:
+                if Path(proj_file).name == filename:
+                    validated.append(proj_file)
+                    break
+        
+        return validated
 
     def parse_intent(self, llm_response: str, user_query: str = "") -> ActionIntent:
         """Parse LLM response to determine action intent."""
@@ -272,6 +505,65 @@ class Agent:
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
 
+            # Try LLM-based intent detection first (Phase 8b feature)
+            intent = None
+            use_llm_intent = self.settings.get_preference("enable_llm_intent_detection", True)
+            
+            if use_llm_intent:
+                try:
+                    # Get project file list for context
+                    project_files = []
+                    if self.context_manager.files:
+                        project_files = [
+                            str(f.relative_path) for f in self.context_manager.files
+                        ]
+                    
+                    # Attempt LLM-based intent detection
+                    intent = await self.intent_parser.detect_intent_with_llm(
+                        llm_client=self.llm_client,
+                        user_query=user_input,
+                        project_files=project_files
+                    )
+                    
+                    # If confidence is high, use LLM intent
+                    if intent and intent.confidence >= 0.7:
+                        logger.info(
+                            f"LLM intent detection: {intent.action_type.value} "
+                            f"(confidence: {intent.confidence:.2f})"
+                        )
+                        
+                        # For READ_FILE intent, we can execute directly without full LLM response
+                        if intent.action_type == ActionType.READ_FILE:
+                            action_result = await self._execute_action(intent, user_input, "")
+                            if action_result:
+                                return action_result
+                        
+                        # For ANALYZE_PROJECT intent, execute directly
+                        if intent.action_type == ActionType.ANALYZE_PROJECT:
+                            action_result = await self._execute_action(intent, user_input, "")
+                            if action_result:
+                                return action_result
+                        
+                        # For SEARCH_FILES intent, execute directly
+                        if intent.action_type == ActionType.SEARCH_FILES:
+                            action_result = await self._execute_action(intent, user_input, "")
+                            if action_result:
+                                return action_result
+                    else:
+                        # Low confidence, fall back to regex
+                        logger.info(
+                            f"LLM intent confidence too low ({intent.confidence:.2f}), "
+                            "falling back to regex"
+                        )
+                        intent = None
+                
+                except (TimeoutError, asyncio.TimeoutError) as e:
+                    logger.warning(f"LLM intent detection timed out: {e}, falling back to regex")
+                    intent = None
+                except Exception as e:
+                    logger.warning(f"LLM intent detection failed: {e}, falling back to regex")
+                    intent = None
+
             # Build context for LLM if needed
             context_prompt = ""
             if not self.conversation.project_context_built:
@@ -312,8 +604,10 @@ class Agent:
             assistant_message = ChatMessage(role="assistant", content=llm_response)
             self.conversation.messages.append(assistant_message)
 
-            # Parse intent and potentially perform actions
-            intent = self.intent_parser.parse_intent(llm_response, user_input)
+            # Parse intent using regex if we don't have LLM intent
+            if not intent or intent.action_type == ActionType.NONE:
+                intent = self.intent_parser.parse_intent(llm_response, user_input)
+            
             self.conversation.last_action = intent
 
             # Execute action if needed
