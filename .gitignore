@@ -68,32 +68,6 @@ Thumbs.db
 *.bak
 *.tmp
 
-# ---- Container-First Development ----
-# Docker build cache and temporary files
-.docker/
-docker-build-cache/
-.dockerignore.tmp
-
-# DevContainer volumes and data
-.devcontainer/volumes/
-.devcontainer/.env
-.devcontainer/docker-compose.override.yml
-
-# Container logs and debugging
-container-logs/
-*.container.log
-devcontainer-debug/
-
-# Security scan outputs
-bandit-report.json
-safety-report.txt
-semgrep-output.json
-vulnerability-scan.json
-
-# Performance benchmarks
-benchmark-results/
-performance-reports/
-
 # Project specific
 .claude/
 
@@ -109,3 +83,4 @@ profile_*.txt
 .temp/
 tmp/
 .clinerules/clinerules.md
+.github/copilot-instructions.md

@@ -1,19 +1,154 @@
 # TODO: GerdsenAI CLI Development Plan
 
-This document outlines the development plan for the GerdsenAI CLI, a terminal-based agentic coding tool that connects to local AI models.
+> **Last Updated:** October 2, 2025
+> **Current Focus:** Claude/Gemini CLI Alignment - De-containerization Complete
 
-## 📊 Current Status (Updated: 2025-09-11)
+## 📊 Status Overview
 
-**✅ PHASES 1-7 COMPLETE** - Core application is fully functional with:
-- Complete project scaffolding and configuration system
-- LLM client with async support and streaming
-- Interactive command loop with comprehensive command system
-- Core agentic features (context management, file editing, agent logic)
-- Enhanced command system with 30+ tools across 5 categories
-- Terminal integration with safe command execution
-- **All critical startup issues resolved**
+**✅ PHASES 1-7 COMPLETE** - Core application fully functional
+**✅ DE-CONTAINERIZATION COMPLETE** - Removed all Docker/DevContainer dependencies
+**✅ CODE QUALITY AUDIT COMPLETE** - Vulture analysis: 99% clean codebase
+**🚧 PHASE 8: CLAUDE/GEMINI CLI ALIGNMENT** - In Progress (80% feature parity achieved)
 
-**🚧 PHASES 8+ IN PROGRESS** - Extended features and integrations
+---
+
+## 🎯 Current Sprint: Claude/Gemini CLI Alignment
+
+### Phase 8a: De-containerization & Code Cleanup ✅ COMPLETE
+
+- [x] Remove Docker/DevContainer references from .gitignore
+- [x] Install and run vulture for dead code detection
+- [x] Fix unused parameter warning (ui/input_handler.py)
+- [x] Create comprehensive alignment analysis (ALIGNMENT_ANALYSIS.md)
+- [x] Create implementation guide (QUICK_START_IMPLEMENTATION.md)
+- [x] Update Copilot instructions (.github/copilot-instructions.md)
+
+### Phase 8b: Enhanced Intent Detection (HIGH PRIORITY - Week 1)
+
+**Goal:** Natural language → Action inference (no slash commands required)
+
+- [ ] Enhance IntentParser class in `core/agent.py`
+  - [ ] Add file path extraction from natural language
+  - [ ] Improve confidence scoring algorithm
+  - [ ] Add LLM-based intent classification (optional mode)
+  - [ ] Support multi-file intent detection
+- [ ] Create implicit command detection in `main.py`
+  - [ ] Pattern matching for common phrases ("list files", "show me", "read X")
+  - [ ] Map natural language → slash commands transparently
+  - [ ] Maintain backward compatibility with explicit slash commands
+- [ ] Add unit tests for intent detection
+  - [ ] Test file mention extraction
+  - [ ] Test command inference accuracy
+  - [ ] Test edge cases (ambiguous input)
+
+**Success Criteria:**
+- User can type "explain agent.py" instead of "/read agent.py"
+- User can type "list files" instead of "/files"
+- Slash commands still work for power users
+- 90%+ accuracy on common patterns
+
+**Estimated Time:** 2-3 days
+
+### Phase 8c: Auto File Reading (HIGH PRIORITY - Week 1)
+
+**Goal:** Proactively read files mentioned in conversation
+
+- [ ] Implement auto file detection in `core/agent.py`
+  - [ ] Extract file paths from user input using regex patterns
+  - [ ] Validate files exist in project context
+  - [ ] Read files automatically before LLM query
+  - [ ] Inject file contents into conversation context
+- [ ] Add safety limits
+  - [ ] Max 5 files auto-read per query
+  - [ ] Max 50KB total content size
+  - [ ] 2-second timeout per file read
+- [ ] Update `core/context_manager.py`
+  - [ ] Add file_exists() method
+  - [ ] Add batch_read_files() method
+  - [ ] Cache recently read files (5-minute TTL)
+- [ ] Add user settings
+  - [ ] auto_read_files: bool (default: true)
+  - [ ] max_auto_read_files: int (default: 5)
+  - [ ] proactive_context: "conservative" | "moderate" | "aggressive"
+- [ ] Display status messages
+  - [ ] "📖 Reading agent.py, utils.py..." (dim/gray text)
+  - [ ] Progress indicator for large files
+  - [ ] Error messages for missing files
+
+**Success Criteria:**
+- "explain main.py" → auto-reads main.py before explaining
+- "compare agent.py and llm_client.py" → reads both files
+- Respects size/count limits gracefully
+- Clear feedback on what's being read
+
+**Estimated Time:** 1-2 days
+
+### Phase 8d: Multi-File Operations (MEDIUM PRIORITY - Week 2)
+
+**Goal:** Batch operations across related files
+
+- [ ] Create `core/batch_operations.py` module
+  - [ ] BatchFileEditor class
+  - [ ] edit_multiple_files() method
+  - [ ] Combined diff preview
+  - [ ] Atomic apply (all or nothing)
+- [ ] Extend FileEditor for batch support
+  - [ ] prepare_batch_edit() method
+  - [ ] show_combined_diff() method
+  - [ ] apply_batch_with_rollback() method
+- [ ] Add batch intent detection
+  - [ ] "update all test files"
+  - [ ] "add logging to all handlers"
+  - [ ] "refactor all commands to use new base"
+- [ ] Implement smart file grouping
+  - [ ] Group by directory
+  - [ ] Group by file type
+  - [ ] Group by dependency relationships
+
+**Success Criteria:**
+- "add type hints to all files in core/" → batch operation
+- Shows single combined diff for review
+- One confirmation for entire batch
+- Rollback works if any file fails
+
+**Estimated Time:** 3-4 days
+
+### Phase 8e: Persistent Project Memory (LOWER PRIORITY - Week 3)
+
+**Goal:** Remember project context across sessions
+
+- [ ] Create `core/project_memory.py` module
+  - [ ] ProjectMemory class
+  - [ ] Store in .gerdsenai/memory.json (gitignored)
+  - [ ] remember(key, value) method
+  - [ ] recall(key) method
+  - [ ] forget(key) method
+- [ ] Define memory schema
+  - [ ] project_type: str (e.g., "Python CLI")
+  - [ ] key_files: List[str]
+  - [ ] conventions: Dict[str, str]
+  - [ ] learned_patterns: List[str]
+  - [ ] user_preferences: Dict[str, Any]
+- [ ] Auto-learn from interactions
+  - [ ] Track frequently accessed files
+  - [ ] Identify coding patterns used
+  - [ ] Remember user corrections
+- [ ] Add memory commands
+  - [ ] /memory show
+  - [ ] /memory add <key> <value>
+  - [ ] /memory clear
+
+**Success Criteria:**
+- Remembers "this is a Python 3.11+ async project"
+- Recalls frequently edited files
+- Persists across restarts
+- User can manually add/edit memories
+
+**Estimated Time:** 2-3 days
+
+---
+
+## 🚀 Enhancement Backlog (Future Phases)
 
 ## 🎯 Ready for Use
 
@@ -318,18 +453,189 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Clean up legacy virtual environment artifacts
 - [x] Verify ASCII art integration (already functional)
 
-**Commit Point 8: `feat: complete Phase 8 container-first development infrastructure` ✅ COMPLETE**
+**Commit Point 8a: `chore: de-containerize and align with Claude/Gemini CLI patterns` ✅ COMPLETE**
 
-### Container-First Development Benefits
+---
 
-**Security Advantages:**
-- Isolated development environment with controlled network access
-- Configurable security levels for different development phases
-- Automatic firewall protection with domain whitelisting
-- Container-based CI/CD prevents dependency conflicts
+## 🎨 UX Polish & Enhancement Ideas
 
-**Developer Experience:**
-- Consistent environment across all machines and platforms
+### Inline Diff Display
+- [ ] Show diffs inline in conversation (not separate preview)
+- [ ] Syntax-highlighted inline code blocks
+- [ ] Collapsible diff sections for large changes
+
+### Proactive Suggestions
+- [ ] "I notice you're missing error handling here..."
+- [ ] "Would you like me to update the tests too?"
+- [ ] "This file is imported by 3 other files. Review those too?"
+
+### Multi-turn Editing
+- [ ] Allow refinement within same operation
+- [ ] "actually change line 5 to X instead"
+- [ ] Update diff without re-confirming entire edit
+
+### Smart Context Building
+- [ ] Auto-include imported modules
+- [ ] Detect circular dependencies
+- [ ] Suggest related files to review
+
+### Conversation Memory
+- [ ] Session summaries
+- [ ] Key decision tracking
+- [ ] Conversation bookmarks
+
+---
+
+## 🔧 Technical Debt & Maintenance
+
+### Pydantic v2 Migration (IN PROGRESS)
+- [ ] Migrate remaining @validator usage to @field_validator
+- [ ] Update @root_validator to @model_validator
+- [ ] Test all validation logic after migration
+- [ ] Update documentation for new patterns
+
+### Command Naming Consolidation
+- [ ] Review all command aliases
+- [ ] Deprecate redundant aliases
+- [ ] Update documentation for preferred names
+
+### Test Coverage Improvements
+- [ ] Increase coverage to 90%+
+- [ ] Add integration tests for end-to-end flows
+- [ ] Add performance regression tests
+- [ ] Mock LLM responses for deterministic testing
+
+### Performance Optimizations
+- [ ] Profile slow operations (file scanning, context building)
+- [ ] Implement smarter caching strategies
+- [ ] Optimize regex patterns in intent parser
+- [ ] Reduce startup time (<1 second target)
+
+---
+
+## 📚 Documentation Improvements
+
+### User Documentation
+- [ ] Create Getting Started tutorial with examples
+- [ ] Add video walkthrough of key features
+- [ ] Document common workflows (debugging, refactoring, etc.)
+- [ ] Add troubleshooting guide
+
+### Developer Documentation
+- [ ] Architecture decision records (ADRs)
+- [ ] API documentation (docstrings → rendered docs)
+- [ ] Contributing guide with development setup
+- [ ] Code style guide and conventions
+
+### AI Agent Documentation
+- [x] GitHub Copilot instructions (.github/copilot-instructions.md)
+- [x] Alignment analysis (ALIGNMENT_ANALYSIS.md)
+- [x] Quick start implementation guide (QUICK_START_IMPLEMENTATION.md)
+- [ ] Update for new features as implemented
+
+---
+
+## 🚀 Future Features (Long-term Vision)
+
+### Plugin System
+- [ ] Plugin API for custom commands
+- [ ] Third-party tool integrations
+- [ ] Community plugin marketplace
+
+### Advanced AI Features
+- [ ] Multi-agent collaboration (specialized agents per task)
+- [ ] Code generation from natural language specs
+- [ ] Automated testing and bug detection
+- [ ] Refactoring suggestions with impact analysis
+
+### IDE Integration
+- [ ] VS Code extension
+- [ ] JetBrains plugin
+- [ ] Vim/Neovim integration
+- [ ] Sublime Text plugin
+
+### Team Features
+- [ ] Shared project memories
+- [ ] Code review assistance
+- [ ] Pair programming mode
+- [ ] Session replay and sharing
+
+### Analytics & Insights
+- [ ] Productivity metrics
+- [ ] Code quality trends
+- [ ] Common patterns identification
+- [ ] Usage analytics (privacy-respecting)
+
+---
+
+## 📋 Release Checklist
+
+### Pre-Release (v0.2.0 - Claude/Gemini Alignment)
+- [ ] All Phase 8b-8e tasks complete
+- [ ] Integration tests passing
+- [ ] Documentation updated
+- [ ] CHANGELOG.md created
+- [ ] Version bump in pyproject.toml
+- [ ] Tag release in git
+- [ ] Build and test package locally
+
+### Release Process
+- [ ] Push to PyPI test instance
+- [ ] Verify installation from test PyPI
+- [ ] Push to production PyPI
+- [ ] Create GitHub release with notes
+- [ ] Announce on relevant channels
+- [ ] Update README badges
+
+### Post-Release
+- [ ] Monitor for bug reports
+- [ ] Address critical issues immediately
+- [ ] Gather user feedback
+- [ ] Plan next iteration
+
+---
+
+## 🎯 Success Metrics
+
+### User Experience
+- **Target:** 90%+ of users don't need slash commands
+- **Measure:** Track command usage patterns
+- **Goal:** Natural language → correct action 95% of the time
+
+### Performance
+- **Target:** <1s startup time
+- **Target:** <500ms for file read operations
+- **Target:** Streaming response starts in <2s
+
+### Code Quality
+- **Target:** 90%+ test coverage
+- **Target:** Zero critical security vulnerabilities
+- **Target:** <5 open bugs at any time
+
+### Adoption
+- **Target:** 100+ GitHub stars in first quarter
+- **Target:** 50+ active users
+- **Target:** 5+ community contributions
+
+---
+
+## 📞 Support & Community
+
+### Getting Help
+- GitHub Issues for bug reports
+- GitHub Discussions for questions
+- Discord server (planned)
+- Stack Overflow tag: `gerdsenai-cli`
+
+### Contributing
+- See CONTRIBUTING.md (to be created)
+- Code of Conduct (to be created)
+- Development setup in README.md
+
+---
+
+**Last Updated:** October 2, 2025
+**Next Review:** After Phase 8b completion (Enhanced Intent Detection)
 - One-click setup with VSCode DevContainers
 - Persistent volumes for pip cache, config, and command history
 - Automated development shortcuts and tools integration

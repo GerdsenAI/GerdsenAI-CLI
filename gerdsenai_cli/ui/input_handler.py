@@ -28,7 +28,7 @@ class CommandCompleter(Completer):
         self.command_parser = command_parser
         self.console = Console()
 
-    def get_completions(self, document, complete_event):
+    def get_completions(self, document, _complete_event):
         """Generate completions based on current input."""
         text = document.text
 
