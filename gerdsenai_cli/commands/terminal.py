@@ -15,7 +15,7 @@ from rich.text import Text
 
 from ..core.terminal import TerminalExecutor
 from ..utils.display import show_error, show_info, show_success, show_warning
-from .base import BaseCommand
+from .base import BaseCommand, CommandCategory
 
 console = Console()
 
@@ -42,6 +42,10 @@ class RunCommand(BaseCommand):
     @property
     def usage(self) -> str:
         return "/run <command> [args...]"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
 
     async def execute(self, args: str) -> dict[str, Any]:
         """Execute a terminal command."""
@@ -95,6 +99,10 @@ class HistoryCommand(BaseCommand):
     @property
     def usage(self) -> str:
         return "/history [limit]"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
 
     async def execute(self, args: str) -> dict[str, Any]:
         """Display command history."""
@@ -183,6 +191,10 @@ class ClearHistoryCommand(BaseCommand):
     def usage(self) -> str:
         return "/clear_history"
 
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
+
     async def execute(self, args: str) -> dict[str, Any]:
         """Clear command history."""
         try:
@@ -225,6 +237,10 @@ class WorkingDirectoryCommand(BaseCommand):
     @property
     def usage(self) -> str:
         return "/cd [directory]"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
 
     async def execute(self, args: str) -> dict[str, Any]:
         """Change or display working directory."""
@@ -292,6 +308,10 @@ class TerminalStatusCommand(BaseCommand):
     @property
     def usage(self) -> str:
         return "/terminal_status"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
 
     async def execute(self, args: str) -> dict[str, Any]:
         """Display terminal status."""

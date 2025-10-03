@@ -25,34 +25,51 @@ from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 class FilesCommand(BaseCommand):
     """List files in the current project directory."""
 
-    name = "ls"
-    description = "List files in the current project directory"
-    category = CommandCategory.FILE
-    aliases = ["list", "files", "listfiles"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "ls"
 
-    arguments = [
-        CommandArgument(
-            name="path",
-            description="Path to list (defaults to current directory)",
-            required=False,
-            arg_type=str,
-            default=".",
-        ),
-        CommandArgument(
-            name="--detailed",
-            description="Show detailed file information",
-            required=False,
-            arg_type=bool,
-            default=False,
-        ),
-        CommandArgument(
-            name="--filter",
-            description="Filter files by extension or pattern",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "List files in the current project directory"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.FILE
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["list", "files", "listfiles"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "path": CommandArgument(
+                name="path",
+                description="Path to list (defaults to current directory)",
+                required=False,
+                arg_type=str,
+                default=".",
+            ),
+            "--detailed": CommandArgument(
+                name="--detailed",
+                description="Show detailed file information",
+                required=False,
+                arg_type=bool,
+                default=False,
+            ),
+            "--filter": CommandArgument(
+                name="--filter",
+                description="Filter files by extension or pattern",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the list files command."""
@@ -178,40 +195,57 @@ class FilesCommand(BaseCommand):
 class ReadCommand(BaseCommand):
     """Read and display the contents of a file."""
 
-    name = "cat"
-    description = "Read and display the contents of a file"
-    category = CommandCategory.FILE
-    aliases = ["read", "view", "readfile"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "cat"
 
-    arguments = [
-        CommandArgument(
-            name="file_path",
-            description="Path to the file to read",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="--lines",
-            description="Number of lines to display (0 for all)",
-            required=False,
-            arg_type=int,
-            default=0,
-        ),
-        CommandArgument(
-            name="--syntax",
-            description="Force syntax highlighting language",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Read and display the contents of a file"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.FILE
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["read", "view", "readfile"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "file_path": CommandArgument(
+                name="file_path",
+                description="Path to the file to read",
+                required=True,
+                arg_type=str,
+            ),
+            "--lines": CommandArgument(
+                name="--lines",
+                description="Number of lines to display (0 for all)",
+                required=False,
+                arg_type=int,
+                default=0,
+            ),
+            "--syntax": CommandArgument(
+                name="--syntax",
+                description="Force syntax highlighting language",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the read file command."""
         console = Console()
 
         try:
-            file_path = Path(args.get("file_path"))
+            file_path = Path(args["file_path"])
 
             if not file_path.exists():
                 console.print(f"[red]File does not exist: {file_path}[/red]")
@@ -279,39 +313,56 @@ class ReadCommand(BaseCommand):
 class EditFileCommand(BaseCommand):
     """Edit a file with AI assistance."""
 
-    name = "edit"
-    description = "Edit a file with AI assistance"
-    category = CommandCategory.FILE
-    aliases = ["modify", "change"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "edit"
 
-    arguments = [
-        CommandArgument(
-            name="file_path",
-            description="Path to the file to edit",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="instructions",
-            description="Instructions for the edit",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="--backup",
-            description="Create backup before editing",
-            required=False,
-            arg_type=bool,
-            default=True,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Edit a file with AI assistance"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.FILE
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["modify", "change"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "file_path": CommandArgument(
+                name="file_path",
+                description="Path to the file to edit",
+                required=True,
+                arg_type=str,
+            ),
+            "instructions": CommandArgument(
+                name="instructions",
+                description="Instructions for the edit",
+                required=True,
+                arg_type=str,
+            ),
+            "--backup": CommandArgument(
+                name="--backup",
+                description="Create backup before editing",
+                required=False,
+                arg_type=bool,
+                default=True,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the edit file command."""
         console = Console()
 
         try:
-            file_path = Path(args.get("file_path"))
+            file_path = Path(args["file_path"])
             instructions = args.get("instructions")
             args.get("backup", True)
 
@@ -376,40 +427,57 @@ class EditFileCommand(BaseCommand):
 class CreateFileCommand(BaseCommand):
     """Create a new file with specified content."""
 
-    name = "create"
-    description = "Create a new file with specified content"
-    category = CommandCategory.FILE
-    aliases = ["new", "make"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "create"
 
-    arguments = [
-        CommandArgument(
-            name="file_path",
-            description="Path for the new file",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="content",
-            description="Content for the new file (or description for AI generation)",
-            required=False,
-            arg_type=str,
-            default="",
-        ),
-        CommandArgument(
-            name="--template",
-            description="Use a template (e.g., python, html, markdown)",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Create a new file with specified content"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.FILE
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["new", "make"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "file_path": CommandArgument(
+                name="file_path",
+                description="Path for the new file",
+                required=True,
+                arg_type=str,
+            ),
+            "content": CommandArgument(
+                name="content",
+                description="Content for the new file (or description for AI generation)",
+                required=False,
+                arg_type=str,
+                default="",
+            ),
+            "--template": CommandArgument(
+                name="--template",
+                description="Use template for file creation",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the create file command."""
         console = Console()
 
         try:
-            file_path = Path(args.get("file_path"))
+            file_path = Path(args["file_path"])
             content = args.get("content", "")
             template = args.get("template")
 
@@ -569,47 +637,64 @@ body {{
 class SearchFilesCommand(BaseCommand):
     """Search for text patterns across project files."""
 
-    name = "search"
-    description = "Search for text patterns across project files"
-    category = CommandCategory.FILE
-    aliases = ["grep", "find"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "search"
 
-    arguments = [
-        CommandArgument(
-            name="pattern",
-            description="Text pattern to search for",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="--path",
-            description="Directory to search in (defaults to current)",
-            required=False,
-            arg_type=str,
-            default=".",
-        ),
-        CommandArgument(
-            name="--extension",
-            description="File extension filter (e.g., .py, .js)",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-        CommandArgument(
-            name="--limit",
-            description="Maximum number of results to show",
-            required=False,
-            arg_type=int,
-            default=50,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Search for text patterns across project files"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.FILE
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["grep", "find"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "pattern": CommandArgument(
+                name="pattern",
+                description="Text pattern to search for",
+                required=True,
+                arg_type=str,
+            ),
+            "--path": CommandArgument(
+                name="--path",
+                description="Directory to search in (defaults to current)",
+                required=False,
+                arg_type=str,
+                default=".",
+            ),
+            "--extension": CommandArgument(
+                name="--extension",
+                description="File extension filter (e.g., .py, .js)",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+            "--limit": CommandArgument(
+                name="--limit",
+                description="Maximum number of results to show",
+                required=False,
+                arg_type=int,
+                default=50,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the search files command."""
         console = Console()
 
         try:
-            pattern = args.get("pattern")
+            pattern = args["pattern"]  # Required argument, use direct access
             search_path = Path(args.get("path", "."))
             extension_filter = args.get("extension")
             limit = args.get("limit", 50)
@@ -740,26 +825,43 @@ class SearchFilesCommand(BaseCommand):
 class SessionCommand(BaseCommand):
     """Manage work sessions and project state."""
 
-    name = "session"
-    description = "Manage work sessions and project state"
-    category = CommandCategory.SESSION
-    aliases = ["sess"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "session"
 
-    arguments = [
-        CommandArgument(
-            name="action",
-            description="Action: save, load, list, delete",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="name",
-            description="Session name for save/load/delete operations",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Manage work sessions and project state"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.SESSION
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["sess"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "action": CommandArgument(
+                name="action",
+                description="Action: save, load, list, delete",
+                required=True,
+                arg_type=str,
+            ),
+            "name": CommandArgument(
+                name="name",
+                description="Session name for save/load/delete operations",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the session command."""
@@ -787,7 +889,7 @@ class SessionCommand(BaseCommand):
             return CommandResult(success=False, message=error_msg)
 
     async def _save_session(
-        self, console: Console, session_name: str, context: Any
+        self, console: Console, session_name: str | None, context: Any
     ) -> CommandResult:
         """Save current session state."""
         if not session_name:
@@ -832,7 +934,7 @@ class SessionCommand(BaseCommand):
         return CommandResult(success=True, message=f"Session saved: {session_name}")
 
     async def _load_session(
-        self, console: Console, session_name: str, context: Any
+        self, console: Console, session_name: str | None, context: Any
     ) -> CommandResult:
         """Load a saved session."""
         if not session_name:
@@ -937,7 +1039,7 @@ class SessionCommand(BaseCommand):
         )
 
     async def _delete_session(
-        self, console: Console, session_name: str, context: Any
+        self, console: Console, session_name: str | None, context: Any
     ) -> CommandResult:
         """Delete a saved session."""
         if not session_name:

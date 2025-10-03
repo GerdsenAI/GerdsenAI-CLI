@@ -8,6 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 
@@ -38,6 +39,131 @@ class ConfigManager:
         self.backup_dir = self.config_file.parent / "backups"
         self.backup_dir.mkdir(parents=True, exist_ok=True)
 
+    # ------------------------------------------------------------------
+    # Synchronous helper methods used by command implementations
+    # ------------------------------------------------------------------
+
+    def _read_config_data(self) -> dict[str, Any]:
+        """Read and deserialize the config file synchronously."""
+        try:
+            if not self.config_file.exists():
+                return {}
+
+            raw = self.config_file.read_text("utf-8")
+            if not raw.strip():
+                return {}
+
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            show_warning(f"Config file contains invalid JSON: {e}")
+            return {}
+        except Exception as e:
+            show_warning(f"Failed to read config file: {e}")
+            return {}
+
+    def _cleanup_old_backups_sync(self, keep_count: int = 5) -> None:
+        """Synchronously prune old backup files."""
+        try:
+            backup_files = list(self.backup_dir.glob("config_backup_*.json"))
+            backup_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+
+            for old_backup in backup_files[keep_count:]:
+                try:
+                    old_backup.unlink()
+                except Exception as exc:
+                    show_warning(f"Failed to delete backup {old_backup}: {exc}")
+        except Exception as e:
+            show_warning(f"Failed to enumerate backups: {e}")
+
+    def _write_settings_sync(self, settings: Settings) -> bool:
+        """Write a Settings object to disk synchronously with basic backup."""
+        try:
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+
+            if self.config_file.exists():
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_file = self.backup_dir / f"config_backup_{timestamp}.json"
+                try:
+                    self._copy_file(self.config_file, backup_file)
+                    self._cleanup_old_backups_sync()
+                except Exception as exc:
+                    show_warning(f"Failed to create synchronous backup: {exc}")
+
+            config_dict = settings.model_dump()
+            config_dict["_metadata"] = {
+                "version": "1.0",
+                "created_at": datetime.now().isoformat(),
+                "application": "GerdsenAI CLI",
+            }
+
+            config_json = json.dumps(config_dict, indent=2, ensure_ascii=False)
+            self.config_file.write_text(config_json, "utf-8")
+            return True
+
+        except Exception as e:
+            show_error(f"Failed to write configuration: {e}")
+            return False
+
+    def get_settings(self) -> Settings:
+        """Synchronously load settings, falling back to defaults on failure."""
+        data = self._read_config_data()
+        data.pop("_metadata", None)
+
+        try:
+            if data:
+                return Settings(**data)
+        except Exception as e:
+            show_warning(f"Invalid configuration detected, using defaults: {e}")
+
+        return Settings()
+
+    def get_setting(self, dotted_key: str, default: Any | None = None) -> Any | None:
+        """Retrieve a specific setting using dot notation (e.g. 'agent.temperature')."""
+        settings_dict = self.get_settings().model_dump()
+
+        current: Any = settings_dict
+        for segment in dotted_key.split('.'):
+            if isinstance(current, dict) and segment in current:
+                current = current[segment]
+            else:
+                return default
+
+        return current
+
+    def update_setting(self, dotted_key: str, value: Any) -> bool:
+        """Update a setting using dot notation, validating through Settings model."""
+        settings = self.get_settings()
+        data = settings.model_dump()
+
+        segments = dotted_key.split('.')
+        current: Any = data
+
+        for segment in segments[:-1]:
+            if isinstance(current, dict):
+                current = current.setdefault(segment, {})
+            else:
+                show_warning(
+                    f"Cannot set '{dotted_key}': intermediate path '{segment}' is not a dict"
+                )
+                return False
+
+        final_key = segments[-1]
+        if isinstance(current, dict):
+            current[final_key] = value
+        else:
+            show_warning(
+                f"Cannot set '{dotted_key}': parent container is not mutable"
+            )
+            return False
+
+        try:
+            updated_settings = Settings(**data)
+        except Exception as e:
+            show_error(f"Rejected configuration update for '{dotted_key}': {e}")
+            return False
+
+        return self._write_settings_sync(updated_settings)
+
     async def load_settings(self) -> Settings | None:
         """
         Load settings from configuration file.
@@ -57,6 +183,9 @@ class ConfigManager:
 
             # Parse JSON
             config_dict = json.loads(config_data)
+
+            # Remove metadata before passing to Settings (it's added during save but not part of the model)
+            config_dict.pop("_metadata", None)
 
             # Create Settings object with validation
             settings = Settings(**config_dict)
