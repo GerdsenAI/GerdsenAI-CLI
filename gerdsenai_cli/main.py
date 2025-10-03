@@ -167,62 +167,55 @@ class GerdsenAICLI:
         """Initialize the command parser and register all commands."""
         self.command_parser = CommandParser()
 
-        # Create command dependencies
-        command_deps = {
+        # Set execution context for commands (passed to execute() method)
+        command_context = {
             "llm_client": self.llm_client,
             "agent": self.agent,
             "settings": self.settings,
             "config_manager": self.config_manager,
             "console": console,
         }
+        self.command_parser.set_context(command_context)
 
         # Register system commands
-        await self.command_parser.register_command(HelpCommand(**command_deps))
-        await self.command_parser.register_command(ExitCommand(**command_deps))
-        await self.command_parser.register_command(StatusCommand(**command_deps))
-        await self.command_parser.register_command(ConfigCommand(**command_deps))
-        await self.command_parser.register_command(DebugCommand(**command_deps))
-        await self.command_parser.register_command(SetupCommand(**command_deps))
-        await self.command_parser.register_command(AboutCommand(**command_deps))
-        await self.command_parser.register_command(CopyCommand(**command_deps))
-        await self.command_parser.register_command(InitCommand(**command_deps))
-        await self.command_parser.register_command(ToolsCommand(**command_deps))
-
-        # (AboutCommand, InitCommand, CopyCommand already registered above)
+        self.command_parser.register_command(HelpCommand())
+        self.command_parser.register_command(ExitCommand())
+        self.command_parser.register_command(StatusCommand())
+        self.command_parser.register_command(ConfigCommand())
+        self.command_parser.register_command(DebugCommand())
+        self.command_parser.register_command(SetupCommand())
+        self.command_parser.register_command(AboutCommand())
+        self.command_parser.register_command(CopyCommand())
+        self.command_parser.register_command(InitCommand())
+        self.command_parser.register_command(ToolsCommand())
 
         # Register model commands
-        await self.command_parser.register_command(ListModelsCommand(**command_deps))
-        await self.command_parser.register_command(SwitchModelCommand(**command_deps))
-        await self.command_parser.register_command(ModelInfoCommand(**command_deps))
-        await self.command_parser.register_command(ModelStatsCommand(**command_deps))
+        self.command_parser.register_command(ListModelsCommand())
+        self.command_parser.register_command(SwitchModelCommand())
+        self.command_parser.register_command(ModelInfoCommand())
+        self.command_parser.register_command(ModelStatsCommand())
 
         # Register agent commands
-        await self.command_parser.register_command(AgentStatusCommand(**command_deps))
-        await self.command_parser.register_command(ChatCommand(**command_deps))
-        await self.command_parser.register_command(
-            RefreshContextCommand(**command_deps)
-        )
-        await self.command_parser.register_command(ResetCommand(**command_deps))
-        await self.command_parser.register_command(AgentConfigCommand(**command_deps))
+        self.command_parser.register_command(AgentStatusCommand())
+        self.command_parser.register_command(ChatCommand())
+        self.command_parser.register_command(RefreshContextCommand())
+        self.command_parser.register_command(ResetCommand())
+        self.command_parser.register_command(AgentConfigCommand())
 
         # Register file commands
-        await self.command_parser.register_command(FilesCommand(**command_deps))
-        await self.command_parser.register_command(ReadCommand(**command_deps))
-        await self.command_parser.register_command(EditFileCommand(**command_deps))
-        await self.command_parser.register_command(CreateFileCommand(**command_deps))
-        await self.command_parser.register_command(SearchFilesCommand(**command_deps))
-        await self.command_parser.register_command(SessionCommand(**command_deps))
+        self.command_parser.register_command(FilesCommand())
+        self.command_parser.register_command(ReadCommand())
+        self.command_parser.register_command(EditFileCommand())
+        self.command_parser.register_command(CreateFileCommand())
+        self.command_parser.register_command(SearchFilesCommand())
+        self.command_parser.register_command(SessionCommand())
 
         # Register terminal commands (Phase 6)
-        await self.command_parser.register_command(RunCommand(**command_deps))
-        await self.command_parser.register_command(HistoryCommand(**command_deps))
-        await self.command_parser.register_command(ClearHistoryCommand(**command_deps))
-        await self.command_parser.register_command(
-            WorkingDirectoryCommand(**command_deps)
-        )
-        await self.command_parser.register_command(
-            TerminalStatusCommand(**command_deps)
-        )
+        self.command_parser.register_command(RunCommand())
+        self.command_parser.register_command(HistoryCommand())
+        self.command_parser.register_command(ClearHistoryCommand())
+        self.command_parser.register_command(WorkingDirectoryCommand())
+        self.command_parser.register_command(TerminalStatusCommand())
 
     async def _first_time_setup(self) -> Settings | None:
         """
@@ -377,10 +370,10 @@ class GerdsenAICLI:
 
         try:
             # Parse and execute the command
-            result = await self.command_parser.parse_and_execute(command)
+            result = await self.command_parser.execute_command(command)
 
             # Handle exit command result
-            if result and result.get("exit", False):
+            if result.should_exit:
                 return False
 
             return True
