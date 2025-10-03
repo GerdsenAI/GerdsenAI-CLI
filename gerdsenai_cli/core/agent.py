@@ -644,22 +644,59 @@ class Agent:
             show_warning(f"Could not analyze project structure: {e}")
 
     async def _build_project_context(self, user_query: str = "") -> str:
-        """Build project context for LLM."""
+        """Build project context for LLM using Phase 8c dynamic context building."""
         try:
             if not self.context_manager.files:
                 await self._analyze_project_structure()
 
-            context = await self.context_manager.build_context_prompt(
+            # Phase 8c: Get model context window and calculate token budget
+            model_id = self.settings.get_preference("model", "")
+            context_window = self.llm_client.get_model_context_window(model_id)
+            
+            # Get context window usage preference (default 80%)
+            context_usage = self.settings.get_preference("context_window_usage", 0.8)
+            
+            # Calculate max tokens for context (reserve some for response)
+            max_context_tokens = int(context_window * context_usage)
+            
+            # Get auto-read strategy from settings
+            strategy = self.settings.get_preference("auto_read_strategy", "smart")
+            
+            # Track mentioned files from conversation for prioritization
+            mentioned_files = self._extract_mentioned_files()
+            
+            # Track recent files (last 5 files accessed)
+            recent_files = self._get_recent_files()
+            
+            # Use Phase 8c dynamic context building
+            logger.info(
+                f"Building dynamic context: model={model_id}, "
+                f"context_window={context_window}, strategy={strategy}, "
+                f"max_tokens={max_context_tokens}"
+            )
+            
+            context = await self.context_manager.build_dynamic_context(
                 query=user_query,
-                include_file_contents=True,
-                max_context_length=self.max_context_length,
+                max_tokens=max_context_tokens,
+                strategy=strategy,
+                mentioned_files=mentioned_files,
+                recent_files=recent_files,
             )
 
             return context
 
         except Exception as e:
-            logger.error(f"Failed to build context: {e}")
-            return ""
+            logger.error(f"Failed to build dynamic context: {e}")
+            # Fallback to old method if dynamic context fails
+            try:
+                return await self.context_manager.build_context_prompt(
+                    query=user_query,
+                    include_file_contents=True,
+                    max_context_length=self.max_context_length,
+                )
+            except Exception as fallback_err:
+                logger.error(f"Fallback context building also failed: {fallback_err}")
+                return ""
 
     def _prepare_llm_messages(
         self, user_input: str, context_prompt: str = ""
@@ -946,6 +983,41 @@ How can I help you with your code today?"""
             if self.conversation.last_action
             else None,
         }
+
+    def _extract_mentioned_files(self) -> list[Path]:
+        """Extract file paths mentioned in recent conversation."""
+        mentioned = []
+        
+        # Look at last 5 messages for file mentions
+        recent_messages = self.conversation.messages[-5:]
+        
+        for message in recent_messages:
+            # Extract file paths from message content
+            file_pattern = r'\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b'
+            matches = re.findall(file_pattern, message.content)
+            
+            for match in matches:
+                file_path = Path(match)
+                # Check if file exists in project
+                if file_path in self.context_manager.files:
+                    mentioned.append(file_path)
+        
+        return list(set(mentioned))  # Remove duplicates
+    
+    def _get_recent_files(self) -> list[Path]:
+        """Get recently modified files from the project."""
+        if not self.context_manager.files:
+            return []
+        
+        # Sort files by modification time (most recent first)
+        sorted_files = sorted(
+            self.context_manager.files.values(),
+            key=lambda f: f.modified_time,
+            reverse=True
+        )
+        
+        # Return top 5 most recently modified files
+        return [f.path for f in sorted_files[:5]]
 
     def clear_conversation(self) -> None:
         """Clear conversation history."""
