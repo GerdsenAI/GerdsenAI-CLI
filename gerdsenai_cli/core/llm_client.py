@@ -107,20 +107,16 @@ class LLMClient:
         self.settings = settings
         self.base_url = settings.llm_server_url.rstrip("/")
 
-        # Configure HTTP client with connection pooling and limits
-        limits = httpx.Limits(
+        # Store client configuration (will be used to create client in async context)
+        self._limits = httpx.Limits(
             max_keepalive_connections=10, max_connections=20, keepalive_expiry=30.0
         )
 
-        self.client = httpx.AsyncClient(
-            timeout=httpx.Timeout(OPERATION_TIMEOUTS["default"]),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "GerdsenAI-CLI/0.1.0",
-            },
-            follow_redirects=True,
-            limits=limits,
-        )
+        # Use api_timeout from settings, fallback to default if not set
+        self._default_timeout = getattr(settings, "api_timeout", OPERATION_TIMEOUTS["default"])
+
+        # Client will be created in __aenter__ (async context)
+        self.client: httpx.AsyncClient | None = None
 
         self._is_connected = False
         self._available_models: list[ModelInfo] = []
@@ -133,7 +129,17 @@ class LLMClient:
         self._total_request_time = 0.0
 
     async def __aenter__(self):
-        """Async context manager entry."""
+        """Async context manager entry - create httpx.AsyncClient in async context."""
+        # Create httpx.AsyncClient in the async event loop context
+        self.client = httpx.AsyncClient(
+            timeout=httpx.Timeout(self._default_timeout),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "GerdsenAI-CLI/0.1.0",
+            },
+            follow_redirects=True,
+            limits=self._limits,
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -142,7 +148,16 @@ class LLMClient:
 
     async def close(self) -> None:
         """Close the HTTP client."""
-        await self.client.aclose()
+        if self.client is not None:
+            await self.client.aclose()
+
+    def _ensure_client(self) -> httpx.AsyncClient:
+        """Ensure HTTP client is initialized."""
+        if self.client is None:
+            raise RuntimeError(
+                "LLMClient must be used within an async context manager (async with LLMClient(...))"
+            )
+        return self.client
 
     def _get_endpoint(self, path: str) -> str:
         """
@@ -155,6 +170,25 @@ class LLMClient:
             Full URL for the endpoint
         """
         return urljoin(self.base_url + "/", path.lstrip("/"))
+    
+    def _get_timeout(self, operation: str) -> float:
+        """
+        Get timeout for a specific operation.
+        
+        Uses Settings.api_timeout if available, otherwise falls back to operation-specific timeout.
+        
+        Args:
+            operation: Operation name (health, models, chat, etc.)
+            
+        Returns:
+            Timeout in seconds
+        """
+        # Check if settings has api_timeout and use it
+        if hasattr(self.settings, "api_timeout") and self.settings.api_timeout:
+            return self.settings.api_timeout
+        
+        # Fallback to operation-specific timeout
+        return OPERATION_TIMEOUTS.get(operation, OPERATION_TIMEOUTS["default"])
 
     async def _execute_with_retry(
         self,
@@ -265,7 +299,7 @@ class LLMClient:
 
                     # Wrap in asyncio.wait_for for additional timeout protection
                     response = await asyncio.wait_for(
-                        self.client.get(url, timeout=timeout),
+                        self._ensure_client().get(url, timeout=timeout),
                         timeout=OPERATION_TIMEOUTS["health"] + 1.0,  # Extra buffer
                     )
 
@@ -357,7 +391,7 @@ class LLMClient:
             # Try primary endpoint first
             url = self._get_endpoint("/v1/models")
             try:
-                response = await self.client.get(url, timeout=timeout)
+                response = await self._ensure_client().get(url, timeout=timeout)
                 response.raise_for_status()
 
                 data = response.json()
@@ -370,7 +404,7 @@ class LLMClient:
                     for endpoint in alternative_endpoints:
                         try:
                             url = self._get_endpoint(endpoint)
-                            response = await self.client.get(url, timeout=timeout)
+                            response = await self._ensure_client().get(url, timeout=timeout)
                             response.raise_for_status()
 
                             data = response.json()
@@ -415,8 +449,19 @@ class LLMClient:
                     # Handle simple string lists
                     model = ModelInfo(id=model_data)
                 else:
-                    # Handle object format
-                    model = ModelInfo(**model_data)
+                    # Handle object format - convert str fields to int if needed
+                    data = dict(model_data)
+                    if "created" in data and isinstance(data["created"], str):
+                        try:
+                            data["created"] = int(data["created"])
+                        except (ValueError, TypeError):
+                            data.pop("created")
+                    if "size" in data and isinstance(data["size"], str):
+                        try:
+                            data["size"] = int(data["size"])
+                        except (ValueError, TypeError):
+                            data.pop("size")
+                    model = ModelInfo(**data)
                 models.append(model)
             except Exception as e:
                 logger.warning(f"Failed to parse model data: {model_data}, error: {e}")
@@ -472,13 +517,13 @@ class LLMClient:
                 stream=False,
             )
 
-            # Use chat-specific timeout
-            timeout = httpx.Timeout(OPERATION_TIMEOUTS["chat"])
+            # Use chat-specific timeout from settings or fallback
+            timeout = httpx.Timeout(self._get_timeout("chat"))
 
             # Try primary endpoint
             url = self._get_endpoint("/v1/chat/completions")
             try:
-                response = await self.client.post(
+                response = await self._ensure_client().post(
                     url, json=request_data.model_dump(), timeout=timeout
                 )
                 response.raise_for_status()
@@ -490,7 +535,7 @@ class LLMClient:
                 if e.response.status_code == 404:
                     # Try alternative endpoint
                     url = self._get_endpoint("/api/chat")
-                    response = await self.client.post(
+                    response = await self._ensure_client().post(
                         url, json=request_data.model_dump(), timeout=timeout
                     )
                     response.raise_for_status()
@@ -549,20 +594,21 @@ class LLMClient:
         """
         try:
             # Use current model if not specified
-            if not model:
-                model = self.settings.current_model
-                if not model:
+            current_model = model
+            if not current_model:
+                current_model = self.settings.current_model
+                if not current_model:
                     # Try to get first available model
                     models = await self.list_models()
                     if models:
-                        model = models[0].id
+                        current_model = models[0].id
                     else:
                         show_error("No model specified and no models available")
                         return
 
             # Prepare request
             request_data = ChatCompletionRequest(
-                model=model,
+                model=current_model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -572,7 +618,7 @@ class LLMClient:
 
             url = self._get_endpoint("/v1/chat/completions")
 
-            async with self.client.stream(
+            async with self._ensure_client().stream(
                 "POST", url, json=request_data.model_dump()
             ) as response:
                 response.raise_for_status()

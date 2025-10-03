@@ -76,21 +76,27 @@ class Settings(BaseModel):
     def sync_url_components(self):
         """Synchronize llm_server_url with protocol/host/port (both directions)."""
         try:
-            # If llm_server_url was provided explicitly and differs from constructed, parse it
-            parsed = urlparse(self.llm_server_url)
-            if parsed.scheme and parsed.hostname and parsed.port:
-                constructed = f"{self.protocol}://{self.llm_host}:{self.llm_port}"
-                if self.llm_server_url.rstrip("/") != constructed.rstrip("/"):
-                    # Update granular fields from provided URL (prefer explicit URL)
-                    self.protocol = parsed.scheme
-                    self.llm_host = parsed.hostname
-                    if parsed.port:
-                        self.llm_port = parsed.port
-            # Always regenerate canonical URL from granular components to ensure consistency
-            self.llm_server_url = f"{self.protocol}://{self.llm_host}:{self.llm_port}"
+            # Build the URL from granular components
+            constructed_url = f"{self.protocol}://{self.llm_host}:{self.llm_port}"
+
+            # Check if llm_server_url was explicitly provided and differs from defaults
+            # If it differs from constructed URL, parse it and update components
+            if self.llm_server_url != "http://localhost:11434":  # Not the default
+                parsed = urlparse(self.llm_server_url)
+                if parsed.scheme and parsed.hostname and parsed.port:
+                    if self.llm_server_url.rstrip("/") != constructed_url.rstrip("/"):
+                        # Update granular fields from provided URL (prefer explicit URL)
+                        # Use object.__setattr__ to bypass validate_assignment and prevent infinite loop
+                        object.__setattr__(self, "protocol", parsed.scheme)
+                        object.__setattr__(self, "llm_host", parsed.hostname)
+                        object.__setattr__(self, "llm_port", parsed.port)
+                        constructed_url = self.llm_server_url.rstrip("/")
+
+            # Always set canonical URL (from final component values)
+            object.__setattr__(self, "llm_server_url", constructed_url.rstrip("/"))
         except Exception:
             # Fallback: ensure trailing components removed
-            self.llm_server_url = self.llm_server_url.rstrip("/")
+            object.__setattr__(self, "llm_server_url", self.llm_server_url.rstrip("/"))
         return self
 
     @field_validator("current_model")
