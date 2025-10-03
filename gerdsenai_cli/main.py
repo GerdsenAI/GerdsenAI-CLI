@@ -424,11 +424,31 @@ class GerdsenAICLI:
                     # Start streaming with enhanced console
                     self.enhanced_console.start_streaming(message)
                     
+                    # Set initial status: thinking
+                    self.enhanced_console.set_operation("thinking")
+                    
+                    # Create status callback for agent
+                    def update_operation(operation: str) -> None:
+                        if self.enhanced_console:
+                            self.enhanced_console.set_operation(operation)
+                    
                     accumulated_response = ""
-                    async for chunk, full_response in self.agent.process_user_input_stream(message):
+                    chunk_count = 0
+                    async for chunk, full_response in self.agent.process_user_input_stream(
+                        message, status_callback=update_operation
+                    ):
                         accumulated_response = full_response
+                        chunk_count += 1
+                        
+                        # Update operation status based on progress
+                        if chunk_count == 1:
+                            # First chunk arrived - we're now streaming
+                            self.enhanced_console.set_operation("streaming")
+                        
                         self.enhanced_console.stream_chunk(chunk, accumulated_response)
                     
+                    # Mark as complete
+                    self.enhanced_console.set_operation("synthesizing")
                     self.enhanced_console.finish_streaming()
                 else:
                     # Fallback to simple streaming

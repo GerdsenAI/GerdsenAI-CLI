@@ -626,12 +626,13 @@ class Agent:
             return f"I encountered an error while processing your request: {e}"
 
     async def process_user_input_stream(
-        self, user_input: str
+        self, user_input: str, status_callback=None
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Process user input and yield streaming response chunks.
         
         Args:
             user_input: User's input message
+            status_callback: Optional callback(operation: str) for status updates
             
         Yields:
             Tuples of (chunk, accumulated_response)
@@ -647,6 +648,10 @@ class Agent:
             
             if use_llm_intent:
                 try:
+                    # Notify: analyzing intent
+                    if status_callback:
+                        status_callback("analyzing")
+                    
                     project_files = []
                     if self.context_manager.files:
                         project_files = [
@@ -662,6 +667,15 @@ class Agent:
                     # For high-confidence file operations, execute directly
                     if intent and intent.confidence >= 0.7:
                         if intent.action_type in [ActionType.READ_FILE, ActionType.ANALYZE_PROJECT, ActionType.SEARCH_FILES]:
+                            # Notify: executing action
+                            if status_callback:
+                                if intent.action_type == ActionType.READ_FILE:
+                                    status_callback("reading")
+                                elif intent.action_type == ActionType.SEARCH_FILES:
+                                    status_callback("searching")
+                                else:
+                                    status_callback("processing")
+                            
                             action_result = await self._execute_action(intent, user_input, "")
                             if action_result:
                                 # Yield complete result as single chunk
@@ -677,10 +691,17 @@ class Agent:
             # Build context for LLM if needed
             context_prompt = ""
             if not self.conversation.project_context_built:
+                # Notify: building context
+                if status_callback:
+                    status_callback("contextualizing")
+                
                 context_prompt = await self._build_project_context(user_input)
                 self.conversation.project_context_built = True
 
             # Prepare messages for LLM
+            if status_callback:
+                status_callback("thinking")
+            
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
             # Stream the response
