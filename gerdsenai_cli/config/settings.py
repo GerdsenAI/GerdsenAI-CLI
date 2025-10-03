@@ -76,6 +76,7 @@ class Settings(BaseModel):
             "temperature": 0.7,
             "top_p": 0.9,
             "streaming": True,  # Enable streaming responses by default
+            "tui_mode": True,  # Enable enhanced TUI by default
         },
         description="User preferences and UI settings",
     )

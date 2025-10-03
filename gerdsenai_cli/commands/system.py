@@ -1682,3 +1682,89 @@ class ToolsCommand(BaseCommand):
                 "filtered": bool(category_filter or search_term),
             },
         )
+
+
+class TuiCommand(BaseCommand):
+    """Toggle enhanced TUI mode."""
+
+    @property
+    def name(self) -> str:
+        return "tui"
+
+    @property
+    def description(self) -> str:
+        return "Toggle enhanced TUI mode (Text User Interface)"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
+
+    @property
+    def aliases(self) -> list[str]:
+        return ["ui"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        return {
+            "mode": CommandArgument(
+                name="mode",
+                description="TUI mode: 'on', 'off', or 'toggle' (default)",
+                required=False,
+            )
+        }
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
+        """Execute TUI toggle command."""
+        settings = context.get("settings")
+        config_manager = context.get("config_manager")
+
+        if not settings or not config_manager:
+            return CommandResult(
+                success=False, message="Settings or config manager not available"
+            )
+
+        mode = args.get("mode", "toggle").lower()
+
+        # Get current TUI mode
+        current_mode = settings.user_preferences.get("tui_mode", True)
+
+        # Determine new mode
+        if mode == "on":
+            new_mode = True
+        elif mode == "off":
+            new_mode = False
+        elif mode == "toggle":
+            new_mode = not current_mode
+        else:
+            return CommandResult(
+                success=False, message=f"Invalid mode: {mode}. Use 'on', 'off', or 'toggle'"
+            )
+
+        # Update settings
+        settings.user_preferences["tui_mode"] = new_mode
+
+        # Save settings
+        save_success = await config_manager.save_settings(settings)
+
+        if not save_success:
+            return CommandResult(
+                success=False, message="Failed to save TUI preference to settings"
+            )
+
+        # Show result
+        status = "enabled" if new_mode else "disabled"
+        icon = "✨" if new_mode else "📝"
+
+        show_success(f"{icon} Enhanced TUI mode {status}")
+
+        if new_mode:
+            show_info("TUI features: syntax highlighting, status bar, 3-panel layout")
+        else:
+            show_info("Using simple console output mode")
+
+        return CommandResult(
+            success=True,
+            message=f"TUI mode {status}",
+            data={"tui_mode": new_mode},
+        )

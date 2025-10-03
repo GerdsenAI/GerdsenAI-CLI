@@ -44,6 +44,7 @@ from .commands.system import (
     SetupCommand,
     StatusCommand,
     ToolsCommand,
+    TuiCommand,
 )
 from .commands.terminal import (
     ClearHistoryCommand,
@@ -201,6 +202,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(CopyCommand())
         self.command_parser.register_command(InitCommand())
         self.command_parser.register_command(ToolsCommand())
+        self.command_parser.register_command(TuiCommand())
 
         # Register model commands
         self.command_parser.register_command(ListModelsCommand())
@@ -412,22 +414,50 @@ class GerdsenAICLI:
             return True
 
         try:
-            # Use the agent to process user input with full agentic capabilities
-            response = await self.agent.process_user_input(message)
-
-            if response:
-                # Use enhanced console for rich formatting and syntax highlighting
-                if self.enhanced_console:
-                    self.enhanced_console.print_message(
-                        user_input=message,
-                        ai_response=response
-                    )
+            # Check if TUI mode and streaming are enabled in preferences
+            tui_mode = self.settings.user_preferences.get("tui_mode", True) if self.settings else True
+            streaming_enabled = self.settings.user_preferences.get("streaming", True) if self.settings else True
+            
+            if streaming_enabled:
+                # Use streaming for real-time response
+                if tui_mode and self.enhanced_console:
+                    # Start streaming with enhanced console
+                    self.enhanced_console.start_streaming(message)
+                    
+                    accumulated_response = ""
+                    async for chunk, full_response in self.agent.process_user_input_stream(message):
+                        accumulated_response = full_response
+                        self.enhanced_console.stream_chunk(chunk, accumulated_response)
+                    
+                    self.enhanced_console.finish_streaming()
                 else:
-                    console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
-                    console.print(response)
-                    console.print()
+                    # Fallback to simple streaming
+                    console.print(f"\n[bold green]You:[/bold green] {message}")
+                    console.print("[bold cyan]GerdsenAI:[/bold cyan]", end=" ")
+                    
+                    accumulated_response = ""
+                    async for chunk, full_response in self.agent.process_user_input_stream(message):
+                        accumulated_response = full_response
+                        console.print(chunk, end="", style="white")
+                    
+                    console.print()  # Final newline
             else:
-                show_error("Failed to get response from AI agent")
+                # Non-streaming mode
+                response = await self.agent.process_user_input(message)
+
+                if response:
+                    # Use enhanced console for rich formatting and syntax highlighting
+                    if tui_mode and self.enhanced_console:
+                        self.enhanced_console.print_message(
+                            user_input=message,
+                            ai_response=response
+                        )
+                    else:
+                        console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
+                        console.print(response)
+                        console.print()
+                else:
+                    show_error("Failed to get response from AI agent")
 
         except Exception as e:
             show_error(f"Agent error: {e}")

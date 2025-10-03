@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from rich.console import Console
 
@@ -624,6 +624,106 @@ class Agent:
         except Exception as e:
             logger.error(f"Error processing user input: {e}")
             return f"I encountered an error while processing your request: {e}"
+
+    async def process_user_input_stream(
+        self, user_input: str
+    ) -> AsyncGenerator[tuple[str, str], None]:
+        """Process user input and yield streaming response chunks.
+        
+        Args:
+            user_input: User's input message
+            
+        Yields:
+            Tuples of (chunk, accumulated_response)
+        """
+        try:
+            # Add user message to conversation
+            user_message = ChatMessage(role="user", content=user_input)
+            self.conversation.messages.append(user_message)
+
+            # Try LLM-based intent detection first
+            intent = None
+            use_llm_intent = self.settings.get_preference("enable_llm_intent_detection", True)
+            
+            if use_llm_intent:
+                try:
+                    project_files = []
+                    if self.context_manager.files:
+                        project_files = [
+                            str(f.relative_path) for f in self.context_manager.files.values()
+                        ]
+                    
+                    intent = await self.intent_parser.detect_intent_with_llm(
+                        llm_client=self.llm_client,
+                        user_query=user_input,
+                        project_files=project_files
+                    )
+                    
+                    # For high-confidence file operations, execute directly
+                    if intent and intent.confidence >= 0.7:
+                        if intent.action_type in [ActionType.READ_FILE, ActionType.ANALYZE_PROJECT, ActionType.SEARCH_FILES]:
+                            action_result = await self._execute_action(intent, user_input, "")
+                            if action_result:
+                                # Yield complete result as single chunk
+                                yield (action_result, action_result)
+                                return
+                    else:
+                        intent = None
+                
+                except (TimeoutError, asyncio.TimeoutError, Exception) as e:
+                    logger.warning(f"LLM intent detection failed: {e}, falling back to regex")
+                    intent = None
+
+            # Build context for LLM if needed
+            context_prompt = ""
+            if not self.conversation.project_context_built:
+                context_prompt = await self._build_project_context(user_input)
+                self.conversation.project_context_built = True
+
+            # Prepare messages for LLM
+            llm_messages = self._prepare_llm_messages(user_input, context_prompt)
+
+            # Stream the response
+            llm_response = ""
+            async for chunk in self.llm_client.stream_chat(llm_messages):
+                if chunk:
+                    llm_response += chunk
+                    yield (chunk, llm_response)
+
+            if not llm_response.strip():
+                error_msg = "I apologize, but I'm having trouble connecting to the AI model. Please try again."
+                yield (error_msg, error_msg)
+                return
+
+            # Add assistant response to conversation
+            assistant_message = ChatMessage(role="assistant", content=llm_response)
+            self.conversation.messages.append(assistant_message)
+
+            # Parse intent using regex if we don't have LLM intent
+            if not intent or intent.action_type == ActionType.NONE:
+                intent = self.intent_parser.parse_intent(llm_response, user_input)
+            
+            self.conversation.last_action = intent
+
+            # Execute action if needed
+            action_result = await self._execute_action(intent, user_input, llm_response)
+
+            # If there's action result, send it as additional chunks
+            if action_result:
+                final_response = self._format_final_response(
+                    llm_response, action_result, intent
+                )
+                # Send the additional action result
+                additional = final_response[len(llm_response):]
+                if additional:
+                    yield (additional, final_response)
+
+            self.actions_performed += 1
+
+        except Exception as e:
+            logger.error(f"Error processing user input: {e}")
+            error_msg = f"I encountered an error while processing your request: {e}"
+            yield (error_msg, error_msg)
 
     async def _analyze_project_structure(self) -> None:
         """Analyze the current project structure."""
