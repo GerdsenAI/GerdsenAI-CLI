@@ -515,7 +515,7 @@ class Agent:
                     project_files = []
                     if self.context_manager.files:
                         project_files = [
-                            str(f.relative_path) for f in self.context_manager.files
+                            str(f.relative_path) for f in self.context_manager.files.values()
                         ]
                     
                     # Attempt LLM-based intent detection
@@ -924,11 +924,12 @@ How can I help you with your code today?"""
 
     def _format_size(self, size_bytes: int) -> str:
         """Format file size in human readable format."""
+        size: float = float(size_bytes)
         for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024
-        return f"{size_bytes:.1f} TB"
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
 
     def get_agent_stats(self) -> dict[str, Any]:
         """Get agent performance statistics."""
