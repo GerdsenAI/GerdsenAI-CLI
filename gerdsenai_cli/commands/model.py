@@ -265,7 +265,7 @@ class ModelInfoCommand(BaseCommand):
     name = "model-info"
     description = "Get detailed information about a specific model"
     category = CommandCategory.MODEL
-    aliases = ["info", "describe-model"]
+    aliases = ["describe-model", "minfo"]
 
     arguments = [
         CommandArgument(
