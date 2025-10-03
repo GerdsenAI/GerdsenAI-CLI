@@ -28,7 +28,7 @@ class CommandCompleter(Completer):
         self.command_parser = command_parser
         self.console = Console()
 
-    def get_completions(self, document, complete_event):
+    def get_completions(self, document, _complete_event):
         """Generate completions based on current input."""
         text = document.text
 
@@ -48,12 +48,17 @@ class CommandCompleter(Completer):
             return
 
         # Get available commands
-        available_commands = []
-        for command in self.command_parser._commands.values():
+        available_commands: list[str] = []
+        registry = self.command_parser.registry
+        for command in registry.commands.values():
             # Add main command
             available_commands.append(f"/{command.name}")
             # Add aliases
             for alias in command.aliases:
+                available_commands.append(f"/{alias}")
+        # Include standalone aliases
+        for alias in registry.aliases:
+            if alias not in registry.commands:
                 available_commands.append(f"/{alias}")
 
         # Filter commands that start with current input
@@ -142,7 +147,7 @@ class EnhancedInputHandler:
     def _create_prompt_text(self) -> HTML:
         """Create the formatted prompt text."""
         return HTML(
-            '<prompt>[AI] </prompt><style fg="#00FFFF" bold>GerdsenAI</style><prompt> > </prompt>'
+            '<prompt>[AI] </prompt><style fg="#00FFFF" bold="true">GerdsenAI</style><prompt> > </prompt>'
         )
 
     async def get_user_input(self) -> str:
@@ -177,8 +182,9 @@ class EnhancedInputHandler:
     def update_command_parser(self, command_parser: CommandParser) -> None:
         """Update the command parser for autocompletion."""
         self.command_parser = command_parser
-        if self.session.completer:
-            self.session.completer.command_parser = command_parser
+        completer = self.session.completer
+        if isinstance(completer, CommandCompleter):
+            completer.command_parser = command_parser
 
     def add_to_history(self, text: str) -> None:
         """Add text to command history."""
@@ -188,8 +194,9 @@ class EnhancedInputHandler:
     async def cleanup(self) -> None:
         """Clean up resources."""
         # Save history
-        if hasattr(self.session.history, "save"):
-            self.session.history.save()
+        history = getattr(self.session, "history", None)
+        if history and hasattr(history, "save"):
+            history.save()
 
 
 class InputHandlerError(Exception):

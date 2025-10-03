@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Lint with ruff
+      run: |
+        ruff check gerdsenai_cli/
+        ruff format --check gerdsenai_cli/
+
+    - name: Type check with mypy
+      run: |
+        mypy gerdsenai_cli/
+
+    - name: Test with pytest
+      run: |
+        pytest -v
+
+    - name: Build package
+      run: |
+        pip install build
+        python -m build
+
+    - name: Verify package
+      run: |
+        pip install twine
+        twine check dist/*

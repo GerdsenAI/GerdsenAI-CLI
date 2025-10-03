@@ -20,27 +20,44 @@ from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 class ListModelsCommand(BaseCommand):
     """List all available models from the LLM server."""
 
-    name = "models"
-    description = "List all available models from the LLM server"
-    category = CommandCategory.MODEL
-    aliases = ["list-models", "model-list"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "models"
 
-    arguments = [
-        CommandArgument(
-            name="--detailed",
-            description="Show detailed model information",
-            required=False,
-            arg_type=bool,
-            default=False,
-        ),
-        CommandArgument(
-            name="--filter",
-            description="Filter models by name pattern",
-            required=False,
-            arg_type=str,
-            default=None,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "List all available models from the LLM server"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.MODEL
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["list-models", "model-list"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "--detailed": CommandArgument(
+                name="--detailed",
+                description="Show detailed model information",
+                required=False,
+                arg_type=bool,
+                default=False,
+            ),
+            "--filter": CommandArgument(
+                name="--filter",
+                description="Filter models by name pattern",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the list models command."""
@@ -177,26 +194,43 @@ class ListModelsCommand(BaseCommand):
 class SwitchModelCommand(BaseCommand):
     """Switch to a different model."""
 
-    name = "model"
-    description = "Switch to a specific model"
-    category = CommandCategory.MODEL
-    aliases = ["switch-model", "use-model"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "model"
 
-    arguments = [
-        CommandArgument(
-            name="model_name",
-            description="Name of the model to switch to",
-            required=True,
-            arg_type=str,
-        ),
-        CommandArgument(
-            name="--force",
-            description="Force switch without validation",
-            required=False,
-            arg_type=bool,
-            default=False,
-        ),
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Switch to a specific model"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.MODEL
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["switch-model", "use-model"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "model_name": CommandArgument(
+                name="model_name",
+                description="Name of the model to switch to",
+                required=True,
+                arg_type=str,
+            ),
+            "--force": CommandArgument(
+                name="--force",
+                description="Force switch without validation",
+                required=False,
+                arg_type=bool,
+                default=False,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the switch model command."""
@@ -262,20 +296,37 @@ class SwitchModelCommand(BaseCommand):
 class ModelInfoCommand(BaseCommand):
     """Get detailed information about a specific model."""
 
-    name = "model-info"
-    description = "Get detailed information about a specific model"
-    category = CommandCategory.MODEL
-    aliases = ["info", "describe-model"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "model-info"
 
-    arguments = [
-        CommandArgument(
-            name="model_name",
-            description="Name of the model to get info about (defaults to current model)",
-            required=False,
-            arg_type=str,
-            default=None,
-        )
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Get detailed information about a specific model"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.MODEL
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["describe-model", "minfo"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "model_name": CommandArgument(
+                name="model_name",
+                description="Name of the model to get info about (defaults to current model)",
+                required=False,
+                arg_type=str,
+                default=None,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the model info command."""
@@ -397,20 +448,37 @@ class ModelInfoCommand(BaseCommand):
 class ModelStatsCommand(BaseCommand):
     """Show statistics about model usage and performance."""
 
-    name = "model-stats"
-    description = "Show statistics about model usage and performance"
-    category = CommandCategory.MODEL
-    aliases = ["stats", "model-performance"]
+    @property
+    def name(self) -> str:
+        """Command name."""
+        return "model-stats"
 
-    arguments = [
-        CommandArgument(
-            name="--reset",
-            description="Reset statistics",
-            required=False,
-            arg_type=bool,
-            default=False,
-        )
-    ]
+    @property
+    def description(self) -> str:
+        """Brief description of the command."""
+        return "Show statistics about model usage and performance"
+
+    @property
+    def category(self) -> CommandCategory:
+        """Command category."""
+        return CommandCategory.MODEL
+
+    @property
+    def aliases(self) -> list[str]:
+        """Alternative names for this command."""
+        return ["stats", "model-performance"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        """Define command arguments."""
+        return {
+            "--reset": CommandArgument(
+                name="--reset",
+                description="Reset statistics",
+                required=False,
+                arg_type=bool,
+                default=False,
+            ),
+        }
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         """Execute the model stats command."""

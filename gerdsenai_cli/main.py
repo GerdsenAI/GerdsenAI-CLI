@@ -44,6 +44,7 @@ from .commands.system import (
     SetupCommand,
     StatusCommand,
     ToolsCommand,
+    TuiCommand,
 )
 from .commands.terminal import (
     ClearHistoryCommand,
@@ -56,6 +57,7 @@ from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
+from .ui.console import EnhancedConsole
 from .ui.input_handler import EnhancedInputHandler
 from .utils.display import (
     show_error,
@@ -89,6 +91,7 @@ class GerdsenAICLI:
         self.agent: Agent | None = None
         self.command_parser: CommandParser | None = None
         self.input_handler: EnhancedInputHandler | None = None
+        self.enhanced_console: EnhancedConsole | None = None
 
     async def initialize(self) -> bool:
         """
@@ -110,8 +113,9 @@ class GerdsenAICLI:
                     show_error("Setup cancelled or failed.")
                     return False
 
-            # Initialize LLM client
+            # Initialize LLM client with async context manager
             self.llm_client = LLMClient(self.settings)
+            await self.llm_client.__aenter__()  # Enter async context
 
             # Test connection to LLM server
             show_info("Testing connection to LLM server...")
@@ -153,6 +157,17 @@ class GerdsenAICLI:
                 command_parser=self.command_parser
             )
 
+            # Initialize enhanced console with TUI
+            self.enhanced_console = EnhancedConsole(console)
+            
+            # Update status bar with initial info
+            context_files = len(self.agent.context_manager.files) if self.agent and hasattr(self.agent, 'context_manager') else 0
+            self.enhanced_console.update_status(
+                model=self.settings.current_model,
+                context_files=context_files,
+                token_count=0
+            )
+
             show_success("GerdsenAI CLI initialized successfully!")
             return True
 
@@ -166,62 +181,56 @@ class GerdsenAICLI:
         """Initialize the command parser and register all commands."""
         self.command_parser = CommandParser()
 
-        # Create command dependencies
-        command_deps = {
+        # Set execution context for commands (passed to execute() method)
+        command_context = {
             "llm_client": self.llm_client,
             "agent": self.agent,
             "settings": self.settings,
             "config_manager": self.config_manager,
             "console": console,
         }
+        self.command_parser.set_context(command_context)
 
         # Register system commands
-        await self.command_parser.register_command(HelpCommand(**command_deps))
-        await self.command_parser.register_command(ExitCommand(**command_deps))
-        await self.command_parser.register_command(StatusCommand(**command_deps))
-        await self.command_parser.register_command(ConfigCommand(**command_deps))
-        await self.command_parser.register_command(DebugCommand(**command_deps))
-        await self.command_parser.register_command(SetupCommand(**command_deps))
-        await self.command_parser.register_command(AboutCommand(**command_deps))
-        await self.command_parser.register_command(CopyCommand(**command_deps))
-        await self.command_parser.register_command(InitCommand(**command_deps))
-        await self.command_parser.register_command(ToolsCommand(**command_deps))
-
-        # (AboutCommand, InitCommand, CopyCommand already registered above)
+        self.command_parser.register_command(HelpCommand())
+        self.command_parser.register_command(ExitCommand())
+        self.command_parser.register_command(StatusCommand())
+        self.command_parser.register_command(ConfigCommand())
+        self.command_parser.register_command(DebugCommand())
+        self.command_parser.register_command(SetupCommand())
+        self.command_parser.register_command(AboutCommand())
+        self.command_parser.register_command(CopyCommand())
+        self.command_parser.register_command(InitCommand())
+        self.command_parser.register_command(ToolsCommand())
+        self.command_parser.register_command(TuiCommand())
 
         # Register model commands
-        await self.command_parser.register_command(ListModelsCommand(**command_deps))
-        await self.command_parser.register_command(SwitchModelCommand(**command_deps))
-        await self.command_parser.register_command(ModelInfoCommand(**command_deps))
-        await self.command_parser.register_command(ModelStatsCommand(**command_deps))
+        self.command_parser.register_command(ListModelsCommand())
+        self.command_parser.register_command(SwitchModelCommand())
+        self.command_parser.register_command(ModelInfoCommand())
+        self.command_parser.register_command(ModelStatsCommand())
 
         # Register agent commands
-        await self.command_parser.register_command(AgentStatusCommand(**command_deps))
-        await self.command_parser.register_command(ChatCommand(**command_deps))
-        await self.command_parser.register_command(
-            RefreshContextCommand(**command_deps)
-        )
-        await self.command_parser.register_command(ResetCommand(**command_deps))
-        await self.command_parser.register_command(AgentConfigCommand(**command_deps))
+        self.command_parser.register_command(AgentStatusCommand())
+        self.command_parser.register_command(ChatCommand())
+        self.command_parser.register_command(RefreshContextCommand())
+        self.command_parser.register_command(ResetCommand())
+        self.command_parser.register_command(AgentConfigCommand())
 
         # Register file commands
-        await self.command_parser.register_command(FilesCommand(**command_deps))
-        await self.command_parser.register_command(ReadCommand(**command_deps))
-        await self.command_parser.register_command(EditFileCommand(**command_deps))
-        await self.command_parser.register_command(CreateFileCommand(**command_deps))
-        await self.command_parser.register_command(SearchFilesCommand(**command_deps))
-        await self.command_parser.register_command(SessionCommand(**command_deps))
+        self.command_parser.register_command(FilesCommand())
+        self.command_parser.register_command(ReadCommand())
+        self.command_parser.register_command(EditFileCommand())
+        self.command_parser.register_command(CreateFileCommand())
+        self.command_parser.register_command(SearchFilesCommand())
+        self.command_parser.register_command(SessionCommand())
 
         # Register terminal commands (Phase 6)
-        await self.command_parser.register_command(RunCommand(**command_deps))
-        await self.command_parser.register_command(HistoryCommand(**command_deps))
-        await self.command_parser.register_command(ClearHistoryCommand(**command_deps))
-        await self.command_parser.register_command(
-            WorkingDirectoryCommand(**command_deps)
-        )
-        await self.command_parser.register_command(
-            TerminalStatusCommand(**command_deps)
-        )
+        self.command_parser.register_command(RunCommand())
+        self.command_parser.register_command(HistoryCommand())
+        self.command_parser.register_command(ClearHistoryCommand())
+        self.command_parser.register_command(WorkingDirectoryCommand())
+        self.command_parser.register_command(TerminalStatusCommand())
 
     async def _first_time_setup(self) -> Settings | None:
         """
@@ -241,7 +250,7 @@ class GerdsenAICLI:
                 console=console,
             )
             host = Prompt.ask(
-                "LLM server host or IP", default="localhost", console=console
+                "LLM server host or IP", default="127.0.0.1", console=console
             )
             port_str = Prompt.ask("Port", default="11434", console=console)
             try:
@@ -250,24 +259,40 @@ class GerdsenAICLI:
                 show_warning("Invalid port provided, falling back to 11434")
                 port = 11434
 
-            # Test connection to LLM server
+            # Test connection to LLM server with timeout
             show_info("Testing connection to LLM server...")
 
-            temp_client = LLMClient(
-                Settings(protocol=protocol, llm_host=host, llm_port=port)
-            )
-            connected = await temp_client.connect()
+            temp_settings = Settings(protocol=protocol, llm_host=host, llm_port=port)
 
-            if not connected:
+            try:
+                # Use async context manager for proper client lifecycle
+                async with LLMClient(temp_settings) as temp_client:
+                    # Wrap the entire connection test in a timeout to prevent hanging
+                    print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
+                    connected = await asyncio.wait_for(
+                        temp_client.connect(),
+                        timeout=15.0,  # 15 second total timeout for setup
+                    )
+                    print(f"[DEBUG] Connection result: {connected}")
+
+                    if not connected:
+                        show_error(
+                            "Could not connect to the LLM server. Please check the URL and try again."
+                        )
+                        return None
+
+                    # Get available models
+                    models = await temp_client.list_models()
+            except asyncio.TimeoutError:
+                print("[DEBUG] Connection test timed out after 15 seconds")
                 show_error(
-                    "Could not connect to the LLM server. Please check the URL and try again."
+                    "Connection test timed out. Please check if your LLM server is running and accessible."
                 )
-                await temp_client.close()
                 return None
-
-            # Get available models
-            models = await temp_client.list_models()
-            await temp_client.close()
+            except Exception as e:
+                print(f"[DEBUG] Connection test failed with exception: {e}")
+                show_error(f"Connection test failed: {e}")
+                return None
 
             default_model = ""
             if models:
@@ -360,10 +385,10 @@ class GerdsenAICLI:
 
         try:
             # Parse and execute the command
-            result = await self.command_parser.parse_and_execute(command)
+            result = await self.command_parser.execute_command(command)
 
             # Handle exit command result
-            if result and result.get("exit", False):
+            if result.should_exit:
                 return False
 
             return True
@@ -389,15 +414,50 @@ class GerdsenAICLI:
             return True
 
         try:
-            # Use the agent to process user input with full agentic capabilities
-            response = await self.agent.process_user_input(message)
-
-            if response:
-                console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
-                console.print(response)
-                console.print()
+            # Check if TUI mode and streaming are enabled in preferences
+            tui_mode = self.settings.user_preferences.get("tui_mode", True) if self.settings else True
+            streaming_enabled = self.settings.user_preferences.get("streaming", True) if self.settings else True
+            
+            if streaming_enabled:
+                # Use streaming for real-time response
+                if tui_mode and self.enhanced_console:
+                    # Start streaming with enhanced console
+                    self.enhanced_console.start_streaming(message)
+                    
+                    accumulated_response = ""
+                    async for chunk, full_response in self.agent.process_user_input_stream(message):
+                        accumulated_response = full_response
+                        self.enhanced_console.stream_chunk(chunk, accumulated_response)
+                    
+                    self.enhanced_console.finish_streaming()
+                else:
+                    # Fallback to simple streaming
+                    console.print(f"\n[bold green]You:[/bold green] {message}")
+                    console.print("[bold cyan]GerdsenAI:[/bold cyan]", end=" ")
+                    
+                    accumulated_response = ""
+                    async for chunk, full_response in self.agent.process_user_input_stream(message):
+                        accumulated_response = full_response
+                        console.print(chunk, end="", style="white")
+                    
+                    console.print()  # Final newline
             else:
-                show_error("Failed to get response from AI agent")
+                # Non-streaming mode
+                response = await self.agent.process_user_input(message)
+
+                if response:
+                    # Use enhanced console for rich formatting and syntax highlighting
+                    if tui_mode and self.enhanced_console:
+                        self.enhanced_console.print_message(
+                            user_input=message,
+                            ai_response=response
+                        )
+                    else:
+                        console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
+                        console.print(response)
+                        console.print()
+                else:
+                    show_error("Failed to get response from AI agent")
 
         except Exception as e:
             show_error(f"Agent error: {e}")

@@ -334,14 +334,15 @@ class ConfigCommand(BaseCommand):
         if hasattr(settings, key):
             # Try to convert value to appropriate type
             current_value = getattr(settings, key)
+            converted_value: Any = value
             if isinstance(current_value, bool):
-                value = value.lower() in {"true", "1", "yes", "on"}
+                converted_value = value.lower() in {"true", "1", "yes", "on"}
             elif isinstance(current_value, int):
-                value = int(value)
+                converted_value = int(value)
             elif isinstance(current_value, float):
-                value = float(value)
+                converted_value = float(value)
 
-            setattr(settings, key, value)
+            setattr(settings, key, converted_value)
         else:
             # Store in user preferences
             if not settings.user_preferences:
@@ -1097,6 +1098,10 @@ class CopyCommand(BaseCommand):
                 source_info = "direct text"
             else:
                 # Copy file contents
+                if not file_arg:
+                    return CommandResult(
+                        success=False, message="File path is required"
+                    )
                 file_path = Path(file_arg)
                 if not file_path.exists():
                     return CommandResult(
@@ -1186,8 +1191,12 @@ class CopyCommand(BaseCommand):
                 success=False, message=f"Copy operation failed: {str(e)}"
             )
 
-    def _extract_lines(self, content: str, lines_spec: str) -> str:
-        """Extract specific lines from content based on line specification."""
+    def _extract_lines(self, content: str, lines_spec: str) -> str | None:
+        """Extract specific lines from content based on line specification.
+        
+        Returns:
+            Extracted lines as string, or None if specification is invalid
+        """
         lines = content.split("\n")
         total_lines = len(lines)
 
@@ -1251,14 +1260,18 @@ class CopyCommand(BaseCommand):
         return content
 
     async def _copy_to_clipboard(self, content: str) -> tuple[bool, str]:
-        """Copy content to system clipboard with cross-platform support."""
+        """Copy content to system clipboard with cross-platform support.
+        
+        Returns:
+            Tuple of (success: bool, error_message: str). Empty string for success.
+        """
         try:
             # Try to import and use pyperclip (most reliable cross-platform solution)
             try:
                 import pyperclip
 
                 pyperclip.copy(content)
-                return True, None
+                return True, ""
             except ImportError:
                 # Fallback: use system commands
                 return await self._system_clipboard_fallback(content)
@@ -1269,7 +1282,7 @@ class CopyCommand(BaseCommand):
                     fallback_error,
                 ) = await self._system_clipboard_fallback(content)
                 if fallback_success:
-                    return True, None
+                    return True, ""
                 else:
                     return (
                         False,
@@ -1292,7 +1305,7 @@ class CopyCommand(BaseCommand):
                 process.communicate(input=content)
                 return (
                     process.returncode == 0,
-                    None if process.returncode == 0 else "pbcopy failed",
+                    "" if process.returncode == 0 else "pbcopy failed",
                 )
 
             elif system == "linux":
@@ -1307,7 +1320,7 @@ class CopyCommand(BaseCommand):
                     )
                     process.communicate(input=content)
                     if process.returncode == 0:
-                        return True, None
+                        return True, ""
                 except FileNotFoundError:
                     pass
 
@@ -1321,7 +1334,7 @@ class CopyCommand(BaseCommand):
                     )
                     process.communicate(input=content)
                     if process.returncode == 0:
-                        return True, None
+                        return True, ""
                 except FileNotFoundError:
                     pass
 
@@ -1337,7 +1350,7 @@ class CopyCommand(BaseCommand):
                 process.communicate(input=content)
                 return (
                     process.returncode == 0,
-                    None if process.returncode == 0 else "clip.exe failed",
+                    "" if process.returncode == 0 else "clip.exe failed",
                 )
 
             else:
@@ -1681,4 +1694,90 @@ class ToolsCommand(BaseCommand):
                 "tools": total_tools,
                 "filtered": bool(category_filter or search_term),
             },
+        )
+
+
+class TuiCommand(BaseCommand):
+    """Toggle enhanced TUI mode."""
+
+    @property
+    def name(self) -> str:
+        return "tui"
+
+    @property
+    def description(self) -> str:
+        return "Toggle enhanced TUI mode (Text User Interface)"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
+
+    @property
+    def aliases(self) -> list[str]:
+        return ["ui"]
+
+    def _define_arguments(self) -> dict[str, CommandArgument]:
+        return {
+            "mode": CommandArgument(
+                name="mode",
+                description="TUI mode: 'on', 'off', or 'toggle' (default)",
+                required=False,
+            )
+        }
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
+        """Execute TUI toggle command."""
+        settings = context.get("settings")
+        config_manager = context.get("config_manager")
+
+        if not settings or not config_manager:
+            return CommandResult(
+                success=False, message="Settings or config manager not available"
+            )
+
+        mode = args.get("mode", "toggle").lower()
+
+        # Get current TUI mode
+        current_mode = settings.user_preferences.get("tui_mode", True)
+
+        # Determine new mode
+        if mode == "on":
+            new_mode = True
+        elif mode == "off":
+            new_mode = False
+        elif mode == "toggle":
+            new_mode = not current_mode
+        else:
+            return CommandResult(
+                success=False, message=f"Invalid mode: {mode}. Use 'on', 'off', or 'toggle'"
+            )
+
+        # Update settings
+        settings.user_preferences["tui_mode"] = new_mode
+
+        # Save settings
+        save_success = await config_manager.save_settings(settings)
+
+        if not save_success:
+            return CommandResult(
+                success=False, message="Failed to save TUI preference to settings"
+            )
+
+        # Show result
+        status = "enabled" if new_mode else "disabled"
+        icon = "✨" if new_mode else "📝"
+
+        show_success(f"{icon} Enhanced TUI mode {status}")
+
+        if new_mode:
+            show_info("TUI features: syntax highlighting, status bar, 3-panel layout")
+        else:
+            show_info("Using simple console output mode")
+
+        return CommandResult(
+            success=True,
+            message=f"TUI mode {status}",
+            data={"tui_mode": new_mode},
         )

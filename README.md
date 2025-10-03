@@ -22,31 +22,51 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 
 - **Python 3.11+** (required)
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-- **Virtual Environment** - Recommended for development
+- **Virtual Environment** - Recommended for isolation
 
 ## 🛠 Installation
 
-### Quick Install (Recommended)
+### � From PyPI (Recommended)
+```bash
+# Install with pipx (isolated, recommended)
+pipx install gerdsenai-cli
+
+# Or install with pip
+pip install gerdsenai-cli
+
+# Verify installation
+gerdsenai --version
+```
+
+### 🔧 Development Installation
 ```bash
 # Clone the repository
-git clone https://github.com/GerdsenAI-Admin/GerdsenAI-CLI.git
+git clone https://github.com/GerdsenAI/GerdsenAI-CLI.git
 cd GerdsenAI-CLI
 
-# Create virtual environment
+# Create virtual environment with Python 3.11+
 python3.11 -m venv .venv --prompt "gerdsenai-cli"
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
 # Install in development mode
-pip install -e .
+pip install -e ".[dev]"
+
+# Install pre-commit hooks (optional)
+pre-commit install
+
+# Verify installation
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+gerdsenai --version
 ```
 
-### Future PyPI Installation
+### 🏗️ Alternative Installation Methods
 ```bash
-# Coming soon
-pipx install gerdsenai-cli  # Recommended
-# or
-pip install gerdsenai-cli
+# Install from source (latest)
+pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
+
+# Install specific branch/tag
+pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 ```
 
 ## 🚀 Quick Start
@@ -80,6 +100,11 @@ pip install gerdsenai-cli
    # Edit files with AI help
    /edit main.py "add error handling to the main function"
    ```
+
+4. **Interactive Streaming Responses**
+   - By default, responses stream token-by-token for a more natural experience.
+   - Disable streaming at runtime by toggling the preference in a future config command, or edit your settings file to set `"streaming": false` under `user_preferences`.
+   - If streaming encounters an error, the CLI automatically falls back to standard full-response mode.
 
 ## 📚 Key Commands
 
@@ -189,7 +214,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ### Getting Help
 - Use `/about` to gather system information for bug reports
 - Check `/status --verbose` for detailed diagnostics
-- Report issues: https://github.com/GerdsenAI-Admin/GerdsenAI-CLI/issues
+- Report issues: https://github.com/GerdsenAI/GerdsenAI-CLI/issues
 
 ---
 

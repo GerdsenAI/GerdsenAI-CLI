@@ -87,27 +87,70 @@ def apply_color_to_ascii_art(art_lines: list[str]) -> Text:
 def show_ascii_art() -> None:
     """Display the GerdsenAI ASCII art with colors."""
     try:
+        # Check terminal width to decide if we should show ASCII art
+        terminal_width = console.size.width
+        if terminal_width < 80:
+            # Terminal too narrow, show simplified logo
+            show_simple_logo()
+            return
+
         art_path = get_ascii_art_path()
         if not art_path.exists():
-            console.print("[WARNING] ASCII art file not found", style="yellow")
+            show_simple_logo()
             return
 
         with open(art_path, encoding="utf-8") as f:
             art_lines = f.readlines()
 
-        # Remove trailing newlines but preserve the structure
+        # Remove trailing newlines and limit width
         art_lines = [line.rstrip("\n") for line in art_lines]
 
-        # Apply colors to the ASCII art
-        colored_art = apply_color_to_ascii_art(art_lines)
+        # Truncate lines that are too wide
+        max_width = min(terminal_width - 4, 120)  # Leave some margin
+        art_lines = [
+            line[:max_width] if len(line) > max_width else line for line in art_lines
+        ]
 
-        # Display with some padding
+        # Apply simplified colors (avoid complex coloring that might cause issues)
+        colored_art = apply_simple_color_to_ascii_art(art_lines)
+
+        # Display with minimal padding
         console.print()
-        console.print(Align.center(colored_art))
+        console.print(colored_art)
         console.print()
 
     except Exception as e:
-        console.print(f"[ERROR] Error loading ASCII art: {e}", style="red")
+        console.print(f"[WARNING] Could not display ASCII art: {e}", style="yellow")
+        show_simple_logo()
+
+
+def show_simple_logo() -> None:
+    """Display a simple text logo when ASCII art fails."""
+    logo = Text()
+    logo.append("█▀▀ █▀▀ █▀▀█ █▀▀▄ █▀▀ █▀▀ █▀▀▄ █▀▀█ ▀█", style="bright_cyan bold")
+    logo.append("\n")
+    logo.append("█▄█ █▀▀ █▄▄▀ █  █ ▀▀█ █▀▀ █  █ █▄▄█  █", style="cyan")
+    logo.append("\n")
+    logo.append("▀▀▀ ▀▀▀ ▀ ▀▀ ▀▀▀  ▀▀▀ ▀▀▀ ▀  ▀ ▀  ▀ ▀▀▀", style="blue")
+    console.print()
+    console.print(Align.center(logo))
+    console.print()
+
+
+def apply_simple_color_to_ascii_art(art_lines: list[str]) -> Text:
+    """Apply simplified colors to ASCII art."""
+    colored_text = Text()
+
+    for line_num, line in enumerate(art_lines):
+        if line_num < 20:  # Logo area
+            colored_text.append(line, style="bright_cyan")
+        elif line_num >= 40:  # Text area
+            colored_text.append(line, style="bright_white")
+        else:  # Transition area
+            colored_text.append(line, style="cyan")
+        colored_text.append("\n")
+
+    return colored_text
 
 
 def show_welcome_message() -> None:

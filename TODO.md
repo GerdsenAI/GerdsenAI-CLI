@@ -1,19 +1,212 @@
 # TODO: GerdsenAI CLI Development Plan
 
-This document outlines the development plan for the GerdsenAI CLI, a terminal-based agentic coding tool that connects to local AI models.
+> **Last Updated:** October 2, 2025 (11:19 PM)
+> **Current Focus:** Phase 8c - Context Window Auto-Detection (Core Implementation Complete, Testing & UX Remaining)
 
-## 📊 Current Status (Updated: 2025-09-11)
+## 📊 Status Overview
 
-**✅ PHASES 1-7 COMPLETE** - Core application is fully functional with:
-- Complete project scaffolding and configuration system
-- LLM client with async support and streaming
-- Interactive command loop with comprehensive command system
-- Core agentic features (context management, file editing, agent logic)
-- Enhanced command system with 30+ tools across 5 categories
-- Terminal integration with safe command execution
-- **All critical startup issues resolved**
+**✅ PHASES 1-7 COMPLETE** - Core application fully functional
+**✅ DE-CONTAINERIZATION COMPLETE** - Removed all Docker/DevContainer dependencies
+**✅ CODE QUALITY AUDIT COMPLETE** - Vulture analysis: 99% clean codebase
+**🚧 PHASE 8: CLAUDE/GEMINI CLI ALIGNMENT** - In Progress (85% feature parity achieved)
 
-**🚧 PHASES 8+ IN PROGRESS** - Extended features and integrations
+---
+
+## 🎯 Current Sprint: Claude/Gemini CLI Alignment
+
+### Phase 8a: De-containerization & Code Cleanup ✅ COMPLETE
+
+- [x] Remove Docker/DevContainer references from .gitignore
+- [x] Install and run vulture for dead code detection
+- [x] Fix unused parameter warning (ui/input_handler.py)
+- [x] Create comprehensive alignment analysis (ALIGNMENT_ANALYSIS.md)
+- [x] Create implementation guide (QUICK_START_IMPLEMENTATION.md)
+- [x] Update Copilot instructions (.github/copilot-instructions.md)
+
+### Phase 8b: LLM-Based Intent Detection ✅ **COMPLETE**
+
+**Goal:** Natural language → Action inference using LLM (no slash commands required)
+
+- [x] Implement LLM-based intent parser in `core/agent.py`
+  - [x] Fast intent-only LLM call (temperature=0.3, max_tokens=300)
+  - [x] JSON response format with action, files, reasoning, scope
+  - [x] Support actions: read_file, analyze_project, search_files, edit_files, chat
+  - [x] Regex helper for file path extraction (assists LLM)
+- [x] Add implicit command detection in `main.py`
+  - [x] Route natural language through LLM intent parser first
+  - [x] Map detected intents → appropriate handlers
+  - [x] Maintain backward compatibility with slash commands
+- [x] Add live tests for intent detection
+  - [x] Test LLM intent parsing accuracy (100% accuracy achieved)
+  - [x] Test file mention extraction (working correctly)
+  - [x] Test edge cases (timeout handling with regex fallback)
+
+**Success Criteria - ACHIEVED:**
+- ✅ User types "explain agent.py" → LLM detects read_file intent (0.95 confidence)
+- ✅ User types "analyze this project" → LLM detects analyze_project intent (0.95 confidence)
+- ✅ User types "where is error handling" → LLM detects search_files intent (0.85 confidence)
+- ✅ 100% accuracy on test patterns (10/10 tests passed)
+- ✅ 2.08s average response time (local LLM, within acceptable range)
+- ✅ Slash commands still work for power users (backward compatible)
+
+**Critical Bugs Fixed:**
+1. Pydantic infinite validation loop (settings.py) - Fixed with `object.__setattr__()`
+2. httpx.AsyncClient sync creation (llm_client.py) - Fixed with async context manager
+
+**Test Results:** 12/12 tests passed in 23.94s | See PHASE_8B_TEST_REPORT.md for details
+
+**Actual Time:** 3 days (including debugging async/pytest issues)
+
+**Commits (5 total - organized by logical functionality):**
+1. `a112173` - Documentation and TODO updates
+2. `eeb34ff` - Critical bug fixes (Pydantic loop, httpx async)
+3. `9448ff4` - Core intent detection implementation
+4. `16c6726` - Test infrastructure and dependencies
+5. `2c28b5c` - Live integration tests
+
+### Phase 8c: Context Window Auto-Detection & Auto File Reading ✅ **CORE COMPLETE** 🚧 **TESTING/UX REMAINING**
+
+**Goal:** Dynamically manage context based on model capabilities (2K to 1M+ tokens)
+
+- [x] Implement context window auto-detection in `core/llm_client.py`
+  - [x] get_model_context_window() method
+  - [x] Pattern matching for 15+ model families (GPT-4: 128K, Gemini Pro: 1M, Llama 3: 8K, etc.)
+  - [x] Conservative default (4096 tokens) if unknown model
+- [x] Update Settings in `config/settings.py`
+  - [x] model_context_window: int | None (auto-detected, user can override)
+  - [x] context_window_usage: float (default 0.8 = use 80%, reserve 20% for response)
+  - [x] auto_read_strategy: "smart" | "whole_repo" | "iterative" | "off" (default: "smart")
+  - [x] enable_file_summarization: bool (default: true)
+  - [x] max_iterative_reads: int (default: 10 iterations max)
+- [x] Implement dynamic context building in `core/context_manager.py`
+  - [x] build_dynamic_context(query, max_tokens, strategy) orchestrator method
+  - [x] _smart_context_building() - prioritized file reading with token budget
+  - [x] _read_whole_repo_chunked() - read entire codebase intelligently
+  - [x] _iterative_reading() - placeholder for future LLM-guided reading
+  - [x] _prioritize_files() - 7-tier relevance ranking (mentioned → recent → core → rest)
+  - [x] _estimate_tokens() - token estimation (~4 chars per token)
+  - [x] _summarize_file() - intelligent truncation (beginning + end strategy)
+- [x] Integrate dynamic context into Agent workflow in `core/agent.py`
+  - [x] _build_project_context() now uses dynamic context building
+  - [x] _extract_mentioned_files() for conversation-aware prioritization
+  - [x] _get_recent_files() for recency-based prioritization
+  - [x] Automatic context window detection on model selection
+  - [x] Fallback to legacy method if dynamic context fails
+- [x] Create comprehensive test suite
+  - [x] tests/test_phase8c_context.py - Pytest test suite
+  - [x] test_phase8c_simple.py - Standalone validation script
+  - [x] All tests passing (context detection, settings, token estimation, prioritization, summarization)
+- [ ] Add progress indicators and feedback
+  - [ ] "Reading project context (strategy: smart, budget: 100K tokens)..."
+  - [ ] "Summarized 15 large files to fit context"
+  - [ ] "Context built: 78K/100K tokens used (78%)"
+  - [ ] Error messages for missing files or read failures
+- [ ] Test with various model sizes (live testing)
+  - [ ] Test with Gemini Pro (1M tokens) - whole repo reading
+  - [ ] Test with Llama 3 (8K tokens) - smart prioritization
+  - [ ] Test with Claude 3 (200K tokens) - balanced reading
+  - [ ] Verify auto-detection accuracy across models
+- [ ] Update documentation
+  - [ ] Add Phase 8c to ALIGNMENT_ANALYSIS.md
+  - [ ] Update QUICK_START_IMPLEMENTATION.md with dynamic context
+  - [ ] Document new settings in README.md
+
+**Success Criteria:**
+- Gemini Pro (1M tokens): Reads entire large codebases without issue
+- Llama 2 (4K tokens): Intelligently prioritizes and summarizes to fit
+- Claude 3 (200K tokens): Reads substantial portions with smart chunking
+- Context window auto-detected for 95%+ of common models
+- User sees clear feedback on context usage and token budget
+- No arbitrary file count or size limits - only token budget constraints
+- "explain this project" works seamlessly regardless of model size
+
+**Test Results Summary:**
+- ✅ Context window detection: Correctly identifies 15+ model families
+- ✅ Dynamic settings: All Phase 8c configuration fields validated
+- ✅ Token estimation: Accurate ~4 chars per token calculation
+- ✅ Dynamic context building: Smart strategy correctly prioritizes files
+- ✅ File prioritization: 7-tier system working as expected
+- ✅ Summarization: Intelligent truncation (beginning + end) functional
+- ✅ All unit tests passing (6/6 tests in standalone script)
+
+**Critical Bugs Fixed (Post-Implementation):**
+1. Async context manager bug: LLMClient now properly managed with `async with` pattern
+2. Server-agnostic error messages: Removed all Ollama-specific references for compatibility
+3. BaseCommand initialization error: Commands now instantiated without parameters, dependencies passed via context
+
+**Progress:** Core implementation complete (100%), bug fixes complete (100%), testing/UX remaining (40%)
+
+**Actual Time:** 1 day for core implementation + 4 hours for critical bug fixes
+**Remaining Time:** 1-2 days for UX polish and live testing
+
+**Ready for Testing:** CLI now initializes successfully and can connect to LM Studio (port 1234)
+
+### Phase 8d: Multi-File Operations (MEDIUM PRIORITY - Week 2)
+
+**Goal:** Batch operations across related files
+
+- [ ] Create `core/batch_operations.py` module
+  - [ ] BatchFileEditor class
+  - [ ] edit_multiple_files() method
+  - [ ] Combined diff preview
+  - [ ] Atomic apply (all or nothing)
+- [ ] Extend FileEditor for batch support
+  - [ ] prepare_batch_edit() method
+  - [ ] show_combined_diff() method
+  - [ ] apply_batch_with_rollback() method
+- [ ] Add batch intent detection
+  - [ ] "update all test files"
+  - [ ] "add logging to all handlers"
+  - [ ] "refactor all commands to use new base"
+- [ ] Implement smart file grouping
+  - [ ] Group by directory
+  - [ ] Group by file type
+  - [ ] Group by dependency relationships
+
+**Success Criteria:**
+- "add type hints to all files in core/" → batch operation
+- Shows single combined diff for review
+- One confirmation for entire batch
+- Rollback works if any file fails
+
+**Estimated Time:** 3-4 days
+
+### Phase 8e: Persistent Project Memory (LOWER PRIORITY - Week 3)
+
+**Goal:** Remember project context across sessions
+
+- [ ] Create `core/project_memory.py` module
+  - [ ] ProjectMemory class
+  - [ ] Store in .gerdsenai/memory.json (gitignored)
+  - [ ] remember(key, value) method
+  - [ ] recall(key) method
+  - [ ] forget(key) method
+- [ ] Define memory schema
+  - [ ] project_type: str (e.g., "Python CLI")
+  - [ ] key_files: List[str]
+  - [ ] conventions: Dict[str, str]
+  - [ ] learned_patterns: List[str]
+  - [ ] user_preferences: Dict[str, Any]
+- [ ] Auto-learn from interactions
+  - [ ] Track frequently accessed files
+  - [ ] Identify coding patterns used
+  - [ ] Remember user corrections
+- [ ] Add memory commands
+  - [ ] /memory show
+  - [ ] /memory add <key> <value>
+  - [ ] /memory clear
+
+**Success Criteria:**
+- Remembers "this is a Python 3.11+ async project"
+- Recalls frequently edited files
+- Persists across restarts
+- User can manually add/edit memories
+
+**Estimated Time:** 2-3 days
+
+---
+
+## 🚀 Enhancement Backlog (Future Phases)
 
 ## 🎯 Ready for Use
 
@@ -254,6 +447,268 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [ ] Add `/compress` - Replace current chat context with a summary
 
 **Commit Point 7: `feat: complete Phase 7 command system consistency and tools command` ✅ COMPLETE**
+
+## Phase 8: Container-First Development ✅ **COMPLETE**
+
+### Task 19: DevContainer Infrastructure ✅ **COMPLETE**
+- [x] Design container-first development environment
+- [x] Create comprehensive `.devcontainer/devcontainer.json` configuration:
+  - [x] Python 3.11-slim base image with security focus
+  - [x] Essential VSCode extensions (Python, Pylance, Ruff, Black, GitLens, MyPy)
+  - [x] Optimized settings for Python development
+  - [x] Volume mounts for persistence (pip cache, config, command history)
+  - [x] Container environment variables and security settings
+- [x] Implement multi-stage `Dockerfile` with security hardening
+- [x] Add development shortcuts and automation scripts
+- [x] Fix DevContainer extension validation errors
+
+### Task 20: Security-Focused Firewall System ✅ **COMPLETE**
+- [x] Create `init-firewall.sh` with configurable security levels:
+  - [x] **Strict Mode**: Whitelist only essential domains (localhost, package repos)
+  - [x] **Development Mode**: Allow common development domains
+  - [x] **Testing Mode**: Minimal restrictions for CI/testing
+- [x] Implement iptables-based domain whitelisting
+- [x] Add security level environment variable support
+- [x] Create domain validation and logging system
+- [x] Integrate firewall initialization into container startup
+
+### Task 21: Container-Aware CI/CD Pipeline ✅ **COMPLETE**
+- [x] Update `.github/workflows/ci.yml` for container-first approach:
+  - [x] Use Python 3.11-slim container for consistency
+  - [x] Add comprehensive testing pipeline (lint, format, type-check, tests)
+  - [x] Implement security scanning (safety, bandit, semgrep)
+  - [x] Add container build validation
+  - [x] Create release automation with PyPI integration
+- [x] Fix CI workflow PYPI token access warnings
+- [x] Add parallel job execution for faster feedback
+- [x] Implement artifact uploading for security reports
+
+### Task 22: Development Experience Enhancement ✅ **COMPLETE**
+- [x] Create `post-create.sh` automation script:
+  - [x] Automatic project installation in editable mode
+  - [x] Development shortcuts creation (`gcli`, `gtest`, `glint`, `gformat`, `gbuild`, `gsec`)
+  - [x] Environment validation and setup
+  - [x] Quick start guidance and tips
+- [x] Implement `validate-container.sh` comprehensive environment checker
+- [x] Update `.gitignore` for container-first patterns
+- [x] Create comprehensive `SLASH_COMMAND.MD` documentation
+
+### Task 23: Testing and Validation ✅ **COMPLETE**
+- [x] Comprehensive Phase 7 validation testing:
+  - [x] All 47 tests pass in container environment
+  - [x] CLI entry point validation (`GerdsenAI CLI v0.1.0`)
+  - [x] ASCII art display functionality verification
+  - [x] Command system integration testing
+  - [x] Performance validation and startup time testing
+- [x] Container functionality validation
+- [x] Security features testing
+- [x] Development workflow verification
+
+### Task 24: Documentation and Integration ✅ **COMPLETE**
+- [x] Update `README.md` with container-first installation instructions
+- [x] Update `CLAUDE.md` with container development workflow
+- [x] Create comprehensive command reference documentation
+- [x] Clean up legacy virtual environment artifacts
+- [x] Verify ASCII art integration (already functional)
+
+**Commit Point 8a: `chore: de-containerize and align with Claude/Gemini CLI patterns` ✅ COMPLETE**
+
+---
+
+## 🎨 UX Polish & Enhancement Ideas
+
+### Inline Diff Display
+- [ ] Show diffs inline in conversation (not separate preview)
+- [ ] Syntax-highlighted inline code blocks
+- [ ] Collapsible diff sections for large changes
+
+### Proactive Suggestions
+- [ ] "I notice you're missing error handling here..."
+- [ ] "Would you like me to update the tests too?"
+- [ ] "This file is imported by 3 other files. Review those too?"
+
+### Multi-turn Editing
+- [ ] Allow refinement within same operation
+- [ ] "actually change line 5 to X instead"
+- [ ] Update diff without re-confirming entire edit
+
+### Smart Context Building
+- [ ] Auto-include imported modules
+- [ ] Detect circular dependencies
+- [ ] Suggest related files to review
+
+### Conversation Memory
+- [ ] Session summaries
+- [ ] Key decision tracking
+- [ ] Conversation bookmarks
+
+---
+
+## 🔧 Technical Debt & Maintenance
+
+### Pydantic v2 Migration (IN PROGRESS)
+- [ ] Migrate remaining @validator usage to @field_validator
+- [ ] Update @root_validator to @model_validator
+- [ ] Test all validation logic after migration
+- [ ] Update documentation for new patterns
+
+### Command Naming Consolidation
+- [ ] Review all command aliases
+- [ ] Deprecate redundant aliases
+- [ ] Update documentation for preferred names
+
+### Test Coverage Improvements
+- [ ] Increase coverage to 90%+
+- [ ] Add integration tests for end-to-end flows
+- [ ] Add performance regression tests
+- [ ] Mock LLM responses for deterministic testing
+
+### Performance Optimizations
+- [ ] Profile slow operations (file scanning, context building)
+- [ ] Implement smarter caching strategies
+- [ ] Optimize regex patterns in intent parser
+- [ ] Reduce startup time (<1 second target)
+
+---
+
+## 📚 Documentation Improvements
+
+### User Documentation
+- [ ] Create Getting Started tutorial with examples
+- [ ] Add video walkthrough of key features
+- [ ] Document common workflows (debugging, refactoring, etc.)
+- [ ] Add troubleshooting guide
+
+### Developer Documentation
+- [ ] Architecture decision records (ADRs)
+- [ ] API documentation (docstrings → rendered docs)
+- [ ] Contributing guide with development setup
+- [ ] Code style guide and conventions
+
+### AI Agent Documentation
+- [x] GitHub Copilot instructions (.github/copilot-instructions.md)
+- [x] Alignment analysis (ALIGNMENT_ANALYSIS.md)
+- [x] Quick start implementation guide (QUICK_START_IMPLEMENTATION.md)
+- [ ] Update for new features as implemented
+
+---
+
+## 🚀 Future Features (Long-term Vision)
+
+### Plugin System
+- [ ] Plugin API for custom commands
+- [ ] Third-party tool integrations
+- [ ] Community plugin marketplace
+
+### Advanced AI Features
+- [ ] Multi-agent collaboration (specialized agents per task)
+- [ ] Code generation from natural language specs
+- [ ] Automated testing and bug detection
+- [ ] Refactoring suggestions with impact analysis
+
+### IDE Integration
+- [ ] VS Code extension
+- [ ] JetBrains plugin
+- [ ] Vim/Neovim integration
+- [ ] Sublime Text plugin
+
+### Team Features
+- [ ] Shared project memories
+- [ ] Code review assistance
+- [ ] Pair programming mode
+- [ ] Session replay and sharing
+
+### Analytics & Insights
+- [ ] Productivity metrics
+- [ ] Code quality trends
+- [ ] Common patterns identification
+- [ ] Usage analytics (privacy-respecting)
+
+---
+
+## 📋 Release Checklist
+
+### Pre-Release (v0.2.0 - Claude/Gemini Alignment)
+- [ ] All Phase 8b-8e tasks complete
+- [ ] Integration tests passing
+- [ ] Documentation updated
+- [ ] CHANGELOG.md created
+- [ ] Version bump in pyproject.toml
+- [ ] Tag release in git
+- [ ] Build and test package locally
+
+### Release Process
+- [ ] Push to PyPI test instance
+- [ ] Verify installation from test PyPI
+- [ ] Push to production PyPI
+- [ ] Create GitHub release with notes
+- [ ] Announce on relevant channels
+- [ ] Update README badges
+
+### Post-Release
+- [ ] Monitor for bug reports
+- [ ] Address critical issues immediately
+- [ ] Gather user feedback
+- [ ] Plan next iteration
+
+---
+
+## 🎯 Success Metrics
+
+### User Experience
+- **Target:** 90%+ of users don't need slash commands
+- **Measure:** Track command usage patterns
+- **Goal:** Natural language → correct action 95% of the time
+
+### Performance
+- **Target:** <1s startup time
+- **Target:** <500ms for file read operations
+- **Target:** Streaming response starts in <2s
+
+### Code Quality
+- **Target:** 90%+ test coverage
+- **Target:** Zero critical security vulnerabilities
+- **Target:** <5 open bugs at any time
+
+### Adoption
+- **Target:** 100+ GitHub stars in first quarter
+- **Target:** 50+ active users
+- **Target:** 5+ community contributions
+
+---
+
+## 📞 Support & Community
+
+### Getting Help
+- GitHub Issues for bug reports
+- GitHub Discussions for questions
+- Discord server (planned)
+- Stack Overflow tag: `gerdsenai-cli`
+
+### Contributing
+- See CONTRIBUTING.md (to be created)
+- Code of Conduct (to be created)
+- Development setup in README.md
+
+---
+
+**Last Updated:** October 2, 2025 (10:42 PM)
+**Next Review:** After Phase 8c completion (Auto File Reading)
+- One-click setup with VSCode DevContainers
+- Persistent volumes for pip cache, config, and command history
+- Automated development shortcuts and tools integration
+
+**Performance and Reliability:**
+- Faster CI/CD with container caching and parallel execution
+- Reliable builds with locked container dependencies
+- Comprehensive testing in production-like environment
+- Automated validation and health checking
+
+**Maintenance and Operations:**
+- Container-first documentation and workflows
+- Simplified onboarding for new developers
+- Standardized tooling and configuration management
+- Future-ready for deployment and scaling
 
 ## Phase 8: Extended Command Set
 

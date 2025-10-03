@@ -777,9 +777,9 @@ class ProjectContext:
         """Format file size in human readable format."""
         for unit in ["B", "KB", "MB", "GB"]:
             if size_bytes < 1024:
-                return f"{size_bytes:.1f} {unit}"
+                return f"{int(size_bytes):.1f} {unit}"
             size_bytes /= 1024
-        return f"{size_bytes:.1f} TB"
+        return f"{int(size_bytes):.1f} TB"
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics."""
@@ -829,3 +829,395 @@ class ProjectContext:
                 matching_files.append(file_info)
 
         return matching_files
+
+    # Phase 8c: Dynamic Context Building Methods
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """
+        Estimate token count for text.
+
+        Uses the rule of thumb: ~4 characters per token.
+
+        Args:
+            text: Text to estimate tokens for
+
+        Returns:
+            Estimated token count
+        """
+        return len(text) // 4
+
+    def _prioritize_files(
+        self,
+        query: str | None = None,
+        mentioned_files: list[Path] | None = None,
+        recent_files: list[Path] | None = None,
+    ) -> list[FileInfo]:
+        """
+        Prioritize files for context building.
+
+        Priority order:
+        1. Explicitly mentioned files
+        2. Recently accessed/modified files
+        3. Core project files (config, entry points)
+        4. Other relevant files
+
+        Args:
+            query: User query to identify relevant files
+            mentioned_files: Files explicitly mentioned in conversation
+            recent_files: Recently accessed files
+
+        Returns:
+            Sorted list of FileInfo objects by priority
+        """
+        prioritized: list[tuple[FileInfo, float]] = []
+
+        for file_info in self.files.values():
+            # Skip binary files
+            if file_info.is_binary:
+                continue
+
+            priority = 0.0
+
+            # Priority 1: Explicitly mentioned files (highest)
+            if mentioned_files:
+                for mentioned in mentioned_files:
+                    if file_info.path == mentioned or str(mentioned) in str(
+                        file_info.path
+                    ):
+                        priority += 100.0
+                        break
+
+            # Priority 2: Recently accessed files
+            if recent_files:
+                for recent in recent_files:
+                    if file_info.path == recent:
+                        priority += 50.0
+                        break
+
+            # Priority 3: Core project files
+            core_files = {
+                "readme.md",
+                "setup.py",
+                "pyproject.toml",
+                "package.json",
+                "main.py",
+                "__init__.py",
+                "__main__.py",
+                "app.py",
+                "index.js",
+                "index.ts",
+            }
+            if file_info.path.name.lower() in core_files:
+                priority += 30.0
+
+            # Priority 4: Query relevance
+            if query:
+                query_lower = query.lower()
+                path_str = str(file_info.relative_path).lower()
+                file_name = file_info.path.name.lower()
+
+                # Filename match
+                if query_lower in file_name:
+                    priority += 20.0
+                # Path match
+                elif query_lower in path_str:
+                    priority += 10.0
+
+            # Priority 5: File type relevance
+            ext = file_info.path.suffix.lower()
+            if ext in {".py", ".js", ".ts", ".jsx", ".tsx"}:
+                priority += 5.0
+            elif ext in {".md", ".txt", ".json", ".yaml", ".yml"}:
+                priority += 2.0
+
+            # Priority 6: Recency (modification time)
+            age_days = (
+                datetime.now() - file_info.modified_time
+            ).total_seconds() / 86400
+            if age_days < 1:
+                priority += 3.0
+            elif age_days < 7:
+                priority += 1.0
+
+            # Priority 7: Proximity to root (prefer files closer to root)
+            depth = len(file_info.relative_path.parts)
+            priority += float(max(0, 5 - depth))
+
+            prioritized.append((file_info, priority))
+
+        # Sort by priority (descending)
+        prioritized.sort(key=lambda x: x[1], reverse=True)
+
+        return [file_info for file_info, _ in prioritized]
+
+    async def _smart_context_building(
+        self,
+        max_tokens: int,
+        query: str | None = None,
+        mentioned_files: list[Path] | None = None,
+        recent_files: list[Path] | None = None,
+    ) -> str:
+        """
+        Build context using smart prioritization strategy.
+
+        Reads files in priority order until token budget is exhausted.
+
+        Args:
+            max_tokens: Maximum tokens for context
+            query: User query for relevance
+            mentioned_files: Files explicitly mentioned
+            recent_files: Recently accessed files
+
+        Returns:
+            Context string within token budget
+        """
+        context_parts = []
+        current_tokens = 0
+
+        # Add project overview (always include)
+        overview = self._build_project_overview()
+        overview_tokens = self._estimate_tokens(overview)
+        context_parts.append(overview)
+        current_tokens += overview_tokens
+
+        # Reserve tokens for file tree (10% of budget)
+        tree_budget = int(max_tokens * 0.1)
+        if current_tokens + tree_budget < max_tokens:
+            tree_context = self._build_file_tree()
+            if tree_context:
+                tree_tokens = self._estimate_tokens(tree_context)
+                if tree_tokens <= tree_budget:
+                    context_parts.append(tree_context)
+                    current_tokens += tree_tokens
+
+        # Prioritize files
+        prioritized_files = self._prioritize_files(query, mentioned_files, recent_files)
+
+        # Add files until token budget exhausted (reserve 5% for safety)
+        token_limit = int(max_tokens * 0.95)
+
+        for file_info in prioritized_files:
+            if current_tokens >= token_limit:
+                break
+
+            content = await self.read_file_content(file_info.path)
+            if not content:
+                continue
+
+            # Check if file fits
+            file_tokens = self._estimate_tokens(content)
+            header = f"\n## File: {file_info.relative_path}\n```\n"
+            footer = "\n```"
+            total_tokens = self._estimate_tokens(header + footer) + file_tokens
+
+            if current_tokens + total_tokens <= token_limit:
+                # Include full file
+                file_section = f"{header}{content}{footer}"
+                context_parts.append(file_section)
+                current_tokens += total_tokens
+            else:
+                # Try to summarize/truncate
+                remaining_tokens = token_limit - current_tokens - self._estimate_tokens(
+                    header + footer
+                )
+                if remaining_tokens > 100:  # Minimum useful content
+                    summarized = await self._summarize_file(content, remaining_tokens)
+                    file_section = f"{header}{summarized}{footer}"
+                    context_parts.append(file_section)
+                    current_tokens += self._estimate_tokens(file_section)
+                break
+
+        logger.info(
+            f"Smart context built: {current_tokens}/{max_tokens} tokens "
+            f"({len(context_parts)} sections)"
+        )
+
+        return "\n\n".join(context_parts)
+
+    async def _read_whole_repo_chunked(
+        self, max_tokens: int, query: str | None = None
+    ) -> str:
+        """
+        Read entire repository with intelligent chunking.
+
+        Attempts to include all text files, summarizing as needed.
+
+        Args:
+            max_tokens: Maximum tokens for context
+            query: Optional query for file ordering
+
+        Returns:
+            Context string with repository contents
+        """
+        context_parts = []
+        current_tokens = 0
+
+        # Add overview
+        overview = self._build_project_overview()
+        context_parts.append(overview)
+        current_tokens += self._estimate_tokens(overview)
+
+        # Get all text files
+        all_files = [f for f in self.files.values() if not f.is_binary]
+
+        # Sort by priority if query provided, otherwise by path
+        if query:
+            all_files = self._prioritize_files(query=query)
+        else:
+            all_files.sort(key=lambda f: str(f.relative_path))
+
+        # Calculate average tokens per file
+        token_budget = int(max_tokens * 0.95) - current_tokens
+        tokens_per_file = token_budget // max(len(all_files), 1)
+
+        for file_info in all_files:
+            if current_tokens >= token_budget:
+                break
+
+            content = await self.read_file_content(file_info.path)
+            if not content:
+                continue
+
+            file_tokens = self._estimate_tokens(content)
+            header = f"\n## File: {file_info.relative_path}\n```\n"
+            footer = "\n```"
+
+            if file_tokens <= tokens_per_file:
+                # Include full file
+                file_section = f"{header}{content}{footer}"
+            else:
+                # Summarize to fit budget
+                summarized = await self._summarize_file(content, tokens_per_file)
+                file_section = f"{header}{summarized}{footer}"
+
+            section_tokens = self._estimate_tokens(file_section)
+            if current_tokens + section_tokens <= token_budget:
+                context_parts.append(file_section)
+                current_tokens += section_tokens
+
+        logger.info(
+            f"Whole repo context built: {current_tokens}/{max_tokens} tokens "
+            f"({len(all_files)} files)"
+        )
+
+        return "\n\n".join(context_parts)
+
+    async def _iterative_reading(
+        self, max_tokens: int, max_iterations: int = 10
+    ) -> str:
+        """
+        Build context iteratively, expanding based on previous content.
+
+        This is a placeholder for future LLM-guided iterative reading.
+
+        Args:
+            max_tokens: Maximum tokens for context
+            max_iterations: Maximum number of iterations
+
+        Returns:
+            Context string built iteratively
+        """
+        # For now, use smart context building as fallback
+        logger.info(
+            f"Iterative reading (max {max_iterations} iterations) - "
+            "using smart strategy as fallback"
+        )
+        return await self._smart_context_building(max_tokens)
+
+    async def _summarize_file(self, content: str, max_tokens: int) -> str:
+        """
+        Summarize or truncate file content to fit token budget.
+
+        Args:
+            content: Full file content
+            max_tokens: Maximum tokens allowed
+
+        Returns:
+            Summarized/truncated content
+        """
+        max_chars = max_tokens * 4  # Approximate characters
+
+        if len(content) <= max_chars:
+            return content
+
+        # Smart truncation strategies
+        lines = content.split("\n")
+
+        # Strategy 1: Include beginning and end
+        if len(lines) > 20:
+            # Calculate how many lines we can fit
+            avg_line_length = len(content) // len(lines)
+            max_lines = max_chars // max(avg_line_length, 1)
+
+            if max_lines >= 10:
+                # Take first 60% and last 20%
+                start_lines = int(max_lines * 0.6)
+                end_lines = int(max_lines * 0.2)
+
+                start_content = "\n".join(lines[:start_lines])
+                end_content = "\n".join(lines[-end_lines:])
+
+                omitted_lines = len(lines) - start_lines - end_lines
+
+                return (
+                    f"{start_content}\n\n"
+                    f"... [{omitted_lines} lines omitted] ...\n\n"
+                    f"{end_content}"
+                )
+
+        # Strategy 2: Simple truncation
+        truncated = content[:max_chars]
+        return f"{truncated}\n\n... [truncated, {len(content) - max_chars} chars omitted]"
+
+    async def build_dynamic_context(
+        self,
+        query: str | None = None,
+        max_tokens: int = 4000,
+        strategy: str = "smart",
+        mentioned_files: list[Path] | None = None,
+        recent_files: list[Path] | None = None,
+    ) -> str:
+        """
+        Build context dynamically based on token budget and strategy.
+
+        Main orchestrator for Phase 8c context building.
+
+        Args:
+            query: User query for context relevance
+            max_tokens: Maximum tokens for context (based on model capability)
+            strategy: Context building strategy ('smart', 'whole_repo', 'iterative', 'off')
+            mentioned_files: Files explicitly mentioned in conversation
+            recent_files: Recently accessed files
+
+        Returns:
+            Context string within token budget
+        """
+        if strategy == "off":
+            return ""
+
+        logger.info(
+            f"Building dynamic context: strategy={strategy}, max_tokens={max_tokens}"
+        )
+
+        try:
+            if strategy == "smart":
+                return await self._smart_context_building(
+                    max_tokens, query, mentioned_files, recent_files
+                )
+            elif strategy == "whole_repo":
+                return await self._read_whole_repo_chunked(max_tokens, query)
+            elif strategy == "iterative":
+                return await self._iterative_reading(max_tokens)
+            else:
+                logger.warning(f"Unknown strategy '{strategy}', using 'smart'")
+                return await self._smart_context_building(
+                    max_tokens, query, mentioned_files, recent_files
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to build dynamic context: {e}")
+            # Fallback to basic context
+            return await self.build_context_prompt(
+                query=query, max_context_length=max_tokens * 4
+            )
