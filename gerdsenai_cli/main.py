@@ -110,8 +110,9 @@ class GerdsenAICLI:
                     show_error("Setup cancelled or failed.")
                     return False
 
-            # Initialize LLM client
+            # Initialize LLM client with async context manager
             self.llm_client = LLMClient(self.settings)
+            await self.llm_client.__aenter__()  # Enter async context
 
             # Test connection to LLM server
             show_info("Testing connection to LLM server...")
@@ -253,41 +254,37 @@ class GerdsenAICLI:
             # Test connection to LLM server with timeout
             show_info("Testing connection to LLM server...")
 
-            temp_client = LLMClient(
-                Settings(protocol=protocol, llm_host=host, llm_port=port)
-            )
+            temp_settings = Settings(protocol=protocol, llm_host=host, llm_port=port)
 
             try:
-                # Wrap the entire connection test in a timeout to prevent hanging
-                print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
-                connected = await asyncio.wait_for(
-                    temp_client.connect(),
-                    timeout=15.0,  # 15 second total timeout for setup
-                )
-                print(f"[DEBUG] Connection result: {connected}")
+                # Use async context manager for proper client lifecycle
+                async with LLMClient(temp_settings) as temp_client:
+                    # Wrap the entire connection test in a timeout to prevent hanging
+                    print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
+                    connected = await asyncio.wait_for(
+                        temp_client.connect(),
+                        timeout=15.0,  # 15 second total timeout for setup
+                    )
+                    print(f"[DEBUG] Connection result: {connected}")
+
+                    if not connected:
+                        show_error(
+                            "Could not connect to the LLM server. Please check the URL and try again."
+                        )
+                        return None
+
+                    # Get available models
+                    models = await temp_client.list_models()
             except asyncio.TimeoutError:
                 print("[DEBUG] Connection test timed out after 15 seconds")
                 show_error(
-                    "Connection test timed out. Please check if Ollama is running and accessible."
+                    "Connection test timed out. Please check if your LLM server is running and accessible."
                 )
-                await temp_client.close()
                 return None
             except Exception as e:
                 print(f"[DEBUG] Connection test failed with exception: {e}")
                 show_error(f"Connection test failed: {e}")
-                await temp_client.close()
                 return None
-
-            if not connected:
-                show_error(
-                    "Could not connect to the LLM server. Please check the URL and try again."
-                )
-                await temp_client.close()
-                return None
-
-            # Get available models
-            models = await temp_client.list_models()
-            await temp_client.close()
 
             default_model = ""
             if models:

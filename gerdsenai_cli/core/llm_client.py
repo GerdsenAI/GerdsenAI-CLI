@@ -355,11 +355,11 @@ class LLMClient:
 
             # If none of the health endpoints work, raise an exception to trigger retry
             print(f"[DEBUG] All endpoints failed for {self.base_url}")
-            print("[DEBUG] Common Ollama troubleshooting:")
-            print("[DEBUG] 1. Make sure Ollama is running: 'ollama serve'")
-            print(f"[DEBUG] 2. Check if Ollama is listening on {self.base_url}")
-            print(f"[DEBUG] 3. Try: 'curl {self.base_url}/api/tags' to test manually")
-            print("[DEBUG] 4. Verify Ollama version is compatible (>= 0.1.0)")
+            print("[DEBUG] Common troubleshooting steps:")
+            print("[DEBUG] 1. Make sure your LLM server is running")
+            print(f"[DEBUG] 2. Verify the server is listening on {self.base_url}")
+            print(f"[DEBUG] 3. Test manually: 'curl {self.base_url}/v1/models'")
+            print("[DEBUG] 4. Check server logs for errors")
             raise httpx.ConnectError(
                 f"Unable to connect to LLM server at {self.base_url} (tried {len(health_endpoints)} endpoints)"
             )
@@ -371,7 +371,7 @@ class LLMClient:
             print(f"[DEBUG] Connection test failed completely: {e}")
             logger.error(f"Connection test failed after retries: {e}")
             show_error(
-                f"Unable to connect to LLM server at {self.base_url}. Is Ollama running?"
+                f"Unable to connect to LLM server at {self.base_url}. Is the server running?"
             )
             return False
 
