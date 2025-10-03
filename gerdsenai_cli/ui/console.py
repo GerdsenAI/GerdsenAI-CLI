@@ -133,6 +133,40 @@ class EnhancedConsole:
             self.console.print(f"[bold blue]GerdsenAI:[/bold blue]")
             self._render_response_with_syntax(ai_response)
 
+    def start_streaming(self, user_input: str) -> None:
+        """Start streaming response display.
+        
+        Args:
+            user_input: User's input to display
+        """
+        if self.use_tui:
+            self.layout.update_input(user_input)
+            self.layout.update_response("", is_code=False)
+            self.layout.render()
+        else:
+            self.console.print(f"[bold green]You:[/bold green] {user_input}")
+            self.console.print("[bold blue]GerdsenAI:[/bold blue]", end=" ")
+
+    def stream_chunk(self, chunk: str, accumulated_response: str) -> None:
+        """Stream a chunk of the response.
+        
+        Args:
+            chunk: The new chunk to display
+            accumulated_response: Full response so far (including this chunk)
+        """
+        if self.use_tui:
+            # Update TUI with accumulated response
+            self.layout.update_response(accumulated_response, is_code=False)
+            self.layout.render()
+        else:
+            # Print chunk without newline for streaming effect
+            self.console.print(chunk, end="", style="white")
+
+    def finish_streaming(self) -> None:
+        """Finish streaming response display."""
+        if not self.use_tui:
+            self.console.print()  # Final newline for non-TUI mode
+
     def update_status(
         self,
         model: Optional[str] = None,
