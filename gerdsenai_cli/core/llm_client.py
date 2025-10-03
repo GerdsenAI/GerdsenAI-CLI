@@ -714,3 +714,98 @@ class LLMClient:
             * 100,
             "total_request_time_s": self._total_request_time,
         }
+
+    def get_model_context_window(self, model_id: str) -> int:
+        """
+        Auto-detect context window size for a given model.
+        
+        Uses pattern matching against known model families to determine
+        the maximum context window size in tokens.
+        
+        Args:
+            model_id: Model identifier (e.g., "gpt-4-turbo", "gemini-pro")
+            
+        Returns:
+            Context window size in tokens (defaults to 4096 for unknown models)
+        """
+        model_lower = model_id.lower()
+        
+        # GPT-4 models (OpenAI)
+        if "gpt-4-turbo" in model_lower or "gpt-4-1106" in model_lower:
+            return 128_000  # 128K tokens
+        elif "gpt-4-32k" in model_lower:
+            return 32_768   # 32K tokens
+        elif "gpt-4" in model_lower:
+            return 8_192    # 8K tokens (base GPT-4)
+            
+        # GPT-3.5 models (OpenAI)
+        elif "gpt-3.5-turbo-16k" in model_lower:
+            return 16_384   # 16K tokens
+        elif "gpt-3.5" in model_lower:
+            return 4_096    # 4K tokens
+            
+        # Gemini models (Google)
+        elif "gemini-pro" in model_lower or "gemini-1.5-pro" in model_lower:
+            return 1_000_000  # 1M tokens
+        elif "gemini" in model_lower:
+            return 32_768     # 32K tokens (earlier Gemini models)
+            
+        # Claude models (Anthropic)
+        elif "claude-3" in model_lower:
+            return 200_000  # 200K tokens
+        elif "claude-2" in model_lower:
+            return 100_000  # 100K tokens
+        elif "claude" in model_lower:
+            return 100_000  # 100K tokens (default)
+            
+        # Llama models
+        elif "llama-3" in model_lower or "llama3" in model_lower:
+            if "70b" in model_lower or "405b" in model_lower:
+                return 8_192    # 8K tokens for larger Llama 3
+            return 8_192        # 8K tokens (Llama 3)
+        elif "llama-2" in model_lower or "llama2" in model_lower:
+            return 4_096        # 4K tokens (Llama 2)
+        elif "llama" in model_lower:
+            return 4_096        # 4K tokens (conservative default)
+            
+        # Mistral models
+        elif "mixtral" in model_lower:
+            return 32_768       # 32K tokens (Mixtral 8x7B)
+        elif "mistral" in model_lower:
+            if "7b" in model_lower:
+                return 8_192    # 8K tokens (Mistral 7B)
+            return 32_768       # 32K tokens (larger Mistral models)
+            
+        # Qwen models
+        elif "qwen" in model_lower:
+            if "72b" in model_lower or "110b" in model_lower:
+                return 32_768   # 32K tokens for larger Qwen
+            return 8_192        # 8K tokens (smaller Qwen models)
+            
+        # Yi models
+        elif "yi-34b" in model_lower:
+            return 200_000      # 200K tokens
+        elif "yi" in model_lower:
+            return 4_096        # 4K tokens (smaller Yi models)
+            
+        # DeepSeek models
+        elif "deepseek" in model_lower:
+            return 32_768       # 32K tokens
+            
+        # Phi models (Microsoft)
+        elif "phi-3" in model_lower:
+            return 128_000      # 128K tokens
+        elif "phi" in model_lower:
+            return 2_048        # 2K tokens (earlier Phi models)
+            
+        # Solar models
+        elif "solar" in model_lower:
+            return 4_096        # 4K tokens
+            
+        # Conservative default for unknown models
+        else:
+            logger.warning(
+                f"Unknown model '{model_id}', defaulting to 4096 token context window. "
+                "You can override this in settings."
+            )
+            return 4_096  # Conservative 4K default

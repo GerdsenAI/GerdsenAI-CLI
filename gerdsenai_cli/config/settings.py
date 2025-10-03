@@ -40,6 +40,32 @@ class Settings(BaseModel):
         default=30.0, ge=1.0, le=300.0, description="API timeout in seconds"
     )
 
+    # Phase 8c: Dynamic Context Management
+    model_context_window: int | None = Field(
+        default=None,
+        description="Context window size in tokens (auto-detected from model, user can override)",
+    )
+    context_window_usage: float = Field(
+        default=0.8,
+        ge=0.1,
+        le=1.0,
+        description="Percentage of context window to use (default 0.8 = 80% for context, 20% for response)",
+    )
+    auto_read_strategy: str = Field(
+        default="smart",
+        description="Strategy for auto-reading files: 'smart' (prioritized), 'whole_repo' (all files), 'iterative' (keep reading), 'off' (disabled)",
+    )
+    enable_file_summarization: bool = Field(
+        default=True,
+        description="Enable intelligent file summarization when files don't fit in context",
+    )
+    max_iterative_reads: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum number of iterations for iterative reading strategy",
+    )
+
     # User Preferences
     user_preferences: dict[str, Any] = Field(
         default_factory=lambda: {
@@ -112,6 +138,17 @@ class Settings(BaseModel):
         if v_upper not in valid_levels:
             raise ValueError(f"Log level must be one of: {', '.join(valid_levels)}")
         return v_upper
+
+    @field_validator("auto_read_strategy")
+    def validate_auto_read_strategy(cls, v: str) -> str:
+        """Validate auto-read strategy."""
+        valid_strategies = ["smart", "whole_repo", "iterative", "off"]
+        v_lower = v.lower().strip()
+        if v_lower not in valid_strategies:
+            raise ValueError(
+                f"Auto-read strategy must be one of: {', '.join(valid_strategies)}"
+            )
+        return v_lower
 
     def get_preference(self, key: str, default: Any = None) -> Any:
         """Get a user preference value with optional default."""
