@@ -56,6 +56,7 @@ from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
+from .ui.console import EnhancedConsole
 from .ui.input_handler import EnhancedInputHandler
 from .utils.display import (
     show_error,
@@ -89,6 +90,7 @@ class GerdsenAICLI:
         self.agent: Agent | None = None
         self.command_parser: CommandParser | None = None
         self.input_handler: EnhancedInputHandler | None = None
+        self.enhanced_console: EnhancedConsole | None = None
 
     async def initialize(self) -> bool:
         """
@@ -152,6 +154,17 @@ class GerdsenAICLI:
             # Initialize enhanced input handler
             self.input_handler = EnhancedInputHandler(
                 command_parser=self.command_parser
+            )
+
+            # Initialize enhanced console with TUI
+            self.enhanced_console = EnhancedConsole(console)
+            
+            # Update status bar with initial info
+            context_files = len(self.agent.context_manager.files) if self.agent and hasattr(self.agent, 'context_manager') else 0
+            self.enhanced_console.update_status(
+                model=self.settings.current_model,
+                context_files=context_files,
+                token_count=0
             )
 
             show_success("GerdsenAI CLI initialized successfully!")
@@ -403,9 +416,16 @@ class GerdsenAICLI:
             response = await self.agent.process_user_input(message)
 
             if response:
-                console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
-                console.print(response)
-                console.print()
+                # Use enhanced console for rich formatting and syntax highlighting
+                if self.enhanced_console:
+                    self.enhanced_console.print_message(
+                        user_input=message,
+                        ai_response=response
+                    )
+                else:
+                    console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
+                    console.print(response)
+                    console.print()
             else:
                 show_error("Failed to get response from AI agent")
 
