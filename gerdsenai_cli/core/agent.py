@@ -22,6 +22,7 @@ from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
 from .llm_client import ChatMessage, LLMClient
+from .planner import TaskPlanner
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -448,6 +449,53 @@ class IntentParser:
             return for_match.group(1)
 
         return None
+    
+    def detect_complexity(self, user_input: str) -> str:
+        """Detect if query is simple, medium, or complex.
+        
+        Args:
+            user_input: User's query
+            
+        Returns:
+            "simple", "medium", or "complex"
+        """
+        user_lower = user_input.lower()
+        
+        # Complex task indicators
+        complex_keywords = [
+            "refactor all", "update all", "add to all", "modify all",
+            "migrate", "convert all", "restructure", "rewrite",
+            "implement feature", "add system", "create module",
+            "integrate", "build", "setup", "configure",
+        ]
+        
+        # Medium complexity indicators
+        medium_keywords = [
+            "refactor", "update multiple", "create several",
+            "modify and test", "implement and test", "add and test",
+            "create new", "build a", "add feature",
+        ]
+        
+        # Check for multiple file references
+        file_count = len(re.findall(r'\b\w+\.\w+\b', user_input))
+        if file_count > 3:
+            return "complex"
+        elif file_count > 1:
+            return "medium"
+        
+        # Check for complexity keywords
+        if any(keyword in user_lower for keyword in complex_keywords):
+            return "complex"
+        elif any(keyword in user_lower for keyword in medium_keywords):
+            return "medium"
+        
+        # Check length as a simple heuristic
+        if len(user_input.split()) > 30:
+            return "complex"
+        elif len(user_input.split()) > 15:
+            return "medium"
+        
+        return "simple"
 
 
 class Agent:
@@ -467,9 +515,13 @@ class Agent:
         self.context_manager = ProjectContext(project_root)
         self.file_editor = FileEditor()
         self.intent_parser = IntentParser()
+        self.planner = TaskPlanner(llm_client, self)
 
         # Conversation state
         self.conversation = ConversationContext()
+        
+        # Planning state
+        self.planning_mode = False
 
         # Agent settings
         self.max_context_length = settings.get_preference("max_context_length", 4000)

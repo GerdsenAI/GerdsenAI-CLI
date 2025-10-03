@@ -27,6 +27,7 @@ from .model import (
     SwitchModelCommand,
 )
 from .parser import CommandParser
+from .planning import PlanCommand
 from .system import (
     AboutCommand,
     ConfigCommand,
@@ -65,6 +66,7 @@ __all__ = [
     "RefreshContextCommand",
     "ResetCommand",
     "AgentConfigCommand",
+    "PlanCommand",
     # File commands
     "FilesCommand",
     "ReadCommand",
