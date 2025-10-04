@@ -13,6 +13,7 @@ from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
 
 from .layout import GerdsenAILayout
+from .status_display import IntelligenceActivity, StatusDisplayManager
 from ..utils.status_messages import OperationType, get_status_message
 
 
@@ -28,6 +29,7 @@ class EnhancedConsole:
         self.console = console or Console()
         self.layout = GerdsenAILayout(self.console)
         self.use_tui: bool = True
+        self.status_display = StatusDisplayManager(self.console)
 
     def set_tui_mode(self, enabled: bool) -> None:
         """Enable or disable TUI mode.
@@ -269,3 +271,64 @@ class EnhancedConsole:
             message: Warning message
         """
         self.console.print(f"[bold yellow]Warning:[/bold yellow] {message}")
+
+    def set_intelligence_activity(
+        self,
+        activity: IntelligenceActivity,
+        message: str,
+        progress: float | None = None,
+        details: dict | None = None,
+        step_info: str | None = None,
+    ) -> None:
+        """Set current intelligence activity for display.
+
+        Args:
+            activity: Type of intelligence activity
+            message: Display message
+            progress: Optional progress (0.0 to 1.0)
+            details: Optional activity details
+            step_info: Optional step information (e.g., "Step 2/5")
+        """
+        self.status_display.set_activity(activity, message, progress, details, step_info)
+
+        # Update layout with new status
+        if self.use_tui:
+            status_line = self.status_display.get_status_line()
+            self.layout.update_status(current_task=status_line)
+
+    def update_intelligence_progress(
+        self, progress: float, step_info: str | None = None
+    ) -> None:
+        """Update progress of current intelligence activity.
+
+        Args:
+            progress: New progress value (0.0 to 1.0)
+            step_info: Optional updated step information
+        """
+        self.status_display.update_progress(progress, step_info)
+
+        if self.use_tui:
+            status_line = self.status_display.get_status_line()
+            self.layout.update_status(current_task=status_line)
+
+    def clear_intelligence_activity(self) -> None:
+        """Clear current intelligence activity."""
+        self.status_display.clear_activity()
+
+        if self.use_tui:
+            self.layout.update_status(current_task="💤 Ready")
+
+    def show_intelligence_details(self) -> None:
+        """Show detailed intelligence activity history."""
+        table = self.status_display.get_detailed_status()
+        self.console.print("\n")
+        self.console.print(table)
+        self.console.print("\n")
+
+    def get_intelligence_summary(self) -> dict:
+        """Get summary of intelligence activity statistics.
+
+        Returns:
+            Dictionary with activity counts and timing info
+        """
+        return self.status_display.get_activity_summary()

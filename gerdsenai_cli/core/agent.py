@@ -18,6 +18,7 @@ from typing import Any, AsyncGenerator
 from rich.console import Console
 
 from ..config.settings import Settings
+from ..ui.status_display import IntelligenceActivity
 from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
@@ -508,10 +509,12 @@ class Agent:
         llm_client: LLMClient,
         settings: Settings,
         project_root: Path | None = None,
+        console: Any | None = None,
     ):
         """Initialize the agent with required components."""
         self.llm_client = llm_client
         self.settings = settings
+        self._console = console  # Enhanced console with status display
 
         # Initialize core components
         self.context_manager = ProjectContext(project_root)
@@ -580,6 +583,14 @@ class Agent:
         """
         if not suggestions:
             return ""
+        
+        # Show suggestion generation activity
+        if self._console and suggestions:
+            self._console.set_intelligence_activity(
+                IntelligenceActivity.GENERATING_SUGGESTIONS,
+                f"Generated {len(suggestions)} suggestions",
+                progress=0.9
+            )
         
         # Check if suggestions are enabled
         if not self.settings.get_preference("show_suggestions", True):
@@ -659,6 +670,14 @@ class Agent:
             use_planning = Confirm.ask("\n[bold]Use planning mode?[/bold]", default=True)
             
             if use_planning:
+                # Show planning activity
+                if self._console:
+                    self._console.set_intelligence_activity(
+                        IntelligenceActivity.PLANNING,
+                        "Creating multi-step plan",
+                        progress=0.2
+                    )
+                
                 # Create a plan using the planner
                 console.print("\n[cyan]Creating plan...[/cyan]")
                 
@@ -687,17 +706,45 @@ class Agent:
                         )
                         
                         if execute_now:
+                            # Show plan execution activity
+                            if self._console:
+                                self._console.set_intelligence_activity(
+                                    IntelligenceActivity.EXECUTING_PLAN,
+                                    f"Executing plan with {len(plan.steps)} steps",
+                                    progress=0.0
+                                )
+                            
                             # Execute the plan
                             self.planning_mode = True
+                            
+                            # Enhanced status callback with activity tracking
+                            def status_with_activity(status: str) -> None:
+                                console.print(f"[dim]{status}[/dim]")
+                                if self._console and "Step" in status:
+                                    # Extract step info if available
+                                    import re
+                                    match = re.search(r'Step (\d+)/(\d+)', status)
+                                    if match:
+                                        current, total = int(match.group(1)), int(match.group(2))
+                                        progress = current / total
+                                        self._console.update_intelligence_progress(
+                                            progress=progress,
+                                            step_info=f"Step {current}/{total}"
+                                        )
+                            
                             await self.planner.execute_plan(
                                 plan,
-                                status_callback=lambda status: console.print(f"[dim]{status}[/dim]"),
+                                status_callback=status_with_activity,
                                 confirm_callback=lambda step_desc: Confirm.ask(
                                     f"\n[bold]Execute step: {step_desc}?[/bold]",
                                     default=True
                                 )
                             )
                             self.planning_mode = False
+                            
+                            if self._console:
+                                self._console.clear_intelligence_activity()
+                            
                             return "✅ Plan completed!"
                         else:
                             return "Plan created. Use `/plan continue` to execute it later."
@@ -730,6 +777,14 @@ class Agent:
             Clarification message or None if user provides input
         """
         from rich.prompt import Prompt
+        
+        # Show clarification activity
+        if self._console:
+            self._console.set_intelligence_activity(
+                IntelligenceActivity.ASKING_CLARIFICATION,
+                "Requesting clarification",
+                progress=0.5
+            )
         
         # Build clarification message
         clarification_msg = (
@@ -858,6 +913,14 @@ class Agent:
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
         try:
+            # Show intent detection activity
+            if self._console:
+                self._console.set_intelligence_activity(
+                    IntelligenceActivity.DETECTING_INTENT,
+                    "Analyzing your request",
+                    progress=0.1
+                )
+            
             # Add user message to conversation
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
@@ -877,6 +940,14 @@ class Agent:
             
             if use_llm_intent:
                 try:
+                    # Show intelligence activity
+                    if self._console:
+                        self._console.set_intelligence_activity(
+                            IntelligenceActivity.DETECTING_INTENT,
+                            "Determining action type",
+                            progress=0.2
+                        )
+                    
                     # Get project file list for context
                     project_files = []
                     if self.context_manager.files:
@@ -1143,6 +1214,14 @@ class Agent:
     async def _build_project_context(self, user_query: str = "") -> str:
         """Build project context for LLM using Phase 8c dynamic context building."""
         try:
+            # Show context analysis activity
+            if self._console:
+                self._console.set_intelligence_activity(
+                    IntelligenceActivity.ANALYZING_CONTEXT,
+                    "Building project context",
+                    progress=0.3
+                )
+            
             if not self.context_manager.files:
                 await self._analyze_project_structure()
 

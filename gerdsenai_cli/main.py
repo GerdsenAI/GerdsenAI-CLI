@@ -140,8 +140,15 @@ class GerdsenAICLI:
                     await self.config_manager.save_settings(self.settings)
                     show_info(f"Set default model to: {models[0].id}")
 
-            # Initialize AI agent with agentic capabilities
-            self.agent = Agent(self.llm_client, self.settings)
+            # Initialize enhanced console with TUI first
+            self.enhanced_console = EnhancedConsole(console)
+            
+            # Initialize AI agent with agentic capabilities (pass console for intelligence display)
+            self.agent = Agent(
+                self.llm_client,
+                self.settings,
+                console=self.enhanced_console
+            )
             agent_ready = await self.agent.initialize()
 
             if not agent_ready:
@@ -156,9 +163,6 @@ class GerdsenAICLI:
             self.input_handler = EnhancedInputHandler(
                 command_parser=self.command_parser
             )
-
-            # Initialize enhanced console with TUI
-            self.enhanced_console = EnhancedConsole(console)
             
             # Update status bar with initial info
             context_files = len(self.agent.context_manager.files) if self.agent and hasattr(self.agent, 'context_manager') else 0
