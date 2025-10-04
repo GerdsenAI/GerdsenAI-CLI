@@ -70,6 +70,7 @@ Thumbs.db
 
 # Project specific
 .claude/
+.gerdsenai/
 
 # Config backups
 config_backup_*.json
