@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 
 from .main import GerdsenAICLI
-from .utils.display import show_error, show_startup_sequence
+from .utils.display import show_error
 
 console = Console()
 app = typer.Typer(
@@ -53,10 +53,7 @@ def main(
         return
 
     try:
-        # Show startup sequence
-        show_startup_sequence()
-
-        # Initialize and run the CLI
+        # Initialize and run the CLI (startup sequence shown in run_async)
         cli = GerdsenAICLI(config_path=config_path, debug=debug)
         cli.run()
 
