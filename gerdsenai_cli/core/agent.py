@@ -24,6 +24,7 @@ from .file_editor import EditOperation, FileEditor
 from .llm_client import ChatMessage, LLMClient
 from .memory import ProjectMemory
 from .planner import TaskPlanner
+from .suggestions import ProactiveSuggestor
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -518,6 +519,7 @@ class Agent:
         self.intent_parser = IntentParser()
         self.planner = TaskPlanner(llm_client, self)
         self.memory = ProjectMemory(project_root)
+        self.suggestor = ProactiveSuggestor()
 
         # Conversation state
         self.conversation = ConversationContext()
@@ -565,6 +567,46 @@ class Agent:
             logger.debug(f"Tracked file access: {path_str}")
         except Exception as e:
             logger.warning(f"Failed to track file access: {e}")
+    
+    def _show_suggestions(self, suggestions: list, context: str = "") -> str:
+        """Format and display proactive suggestions.
+        
+        Args:
+            suggestions: List of Suggestion objects
+            context: Context message to show before suggestions
+            
+        Returns:
+            Formatted suggestions string
+        """
+        if not suggestions:
+            return ""
+        
+        # Check if suggestions are enabled
+        if not self.settings.get_preference("show_suggestions", True):
+            return ""
+        
+        result = "\n\n---\n\n"
+        result += "💡 **Suggestions:**\n\n"
+        
+        if context:
+            result += f"{context}\n\n"
+        
+        for i, suggestion in enumerate(suggestions, 1):
+            priority_emoji = {
+                "high": "🔴",
+                "medium": "🟡",
+                "low": "🟢",
+            }.get(suggestion.priority, "⚪")
+            
+            result += f"{i}. {priority_emoji} **{suggestion.title}**\n"
+            result += f"   {suggestion.description}\n"
+            if suggestion.file_path:
+                result += f"   File: `{suggestion.file_path}`\n"
+            result += "\n"
+        
+        result += "_Tip: Disable suggestions with `/config set show_suggestions false`_\n"
+        
+        return result
     
     async def _suggest_planning_mode(
         self, complexity: str, user_input: str
@@ -1256,6 +1298,18 @@ How can I help you with your code today?"""
             )
             for ext, count in sorted_langs[:10]:
                 result += f"- {ext}: {count} files\n"
+        
+        # Add proactive suggestions for project structure
+        try:
+            file_dict = {str(k): v for k, v in self.context_manager.files.items()} if self.context_manager.files else {}
+            suggestions = self.suggestor.analyze_project_structure(
+                files=file_dict,
+                context={"stats": stats}
+            )
+            filtered = self.suggestor.filter_suggestions(suggestions, max_count=3)
+            result += self._show_suggestions(filtered, "Based on your project structure:")
+        except Exception as e:
+            logger.warning(f"Failed to generate project suggestions: {e}")
 
         return result
 
@@ -1285,7 +1339,21 @@ How can I help you with your code today?"""
         if success:
             self.files_modified += 1
             self._track_file_access(file_path, "editing")
-            return f"Successfully edited file: {file_path}"
+            
+            # Generate suggestions after edit
+            result = f"Successfully edited file: {file_path}"
+            try:
+                suggestions = self.suggestor.suggest_after_edit(
+                    file_path=file_path,
+                    operation="modify",
+                    content=new_content
+                )
+                filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
+                result += self._show_suggestions(filtered, "After editing this file:")
+            except Exception as e:
+                logger.warning(f"Failed to generate suggestions after edit: {e}")
+            
+            return result
         else:
             return f"Failed to edit file: {file_path}"
 
@@ -1317,7 +1385,21 @@ How can I help you with your code today?"""
         if success:
             self.files_modified += 1
             self._track_file_access(file_path, "creation")
-            return f"Successfully created file: {file_path}"
+            
+            # Generate suggestions after creation
+            result = f"Successfully created file: {file_path}"
+            try:
+                suggestions = self.suggestor.suggest_after_edit(
+                    file_path=file_path,
+                    operation="create",
+                    content=new_content
+                )
+                filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
+                result += self._show_suggestions(filtered, "After creating this file:")
+            except Exception as e:
+                logger.warning(f"Failed to generate suggestions after creation: {e}")
+            
+            return result
         else:
             return f"Failed to create file: {file_path}"
 
