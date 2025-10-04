@@ -13,6 +13,7 @@ from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
 
 from .layout import GerdsenAILayout
+from ..utils.status_messages import OperationType, get_status_message
 
 
 class EnhancedConsole:
@@ -173,6 +174,7 @@ class EnhancedConsole:
         context_files: Optional[int] = None,
         token_count: Optional[int] = None,
         current_task: Optional[str] = None,
+        operation: Optional[str] = None,
     ) -> None:
         """Update status bar.
         
@@ -181,7 +183,13 @@ class EnhancedConsole:
             context_files: Number of context files
             token_count: Token count
             current_task: Current task description
+            operation: Operation type (e.g., 'thinking', 'reading', 'analyzing')
         """
+        # If operation is provided, generate a sophisticated status message
+        if operation and operation.upper() in OperationType.__members__:
+            op_type = OperationType[operation.upper()]
+            current_task = get_status_message(op_type)
+        
         if self.use_tui:
             self.layout.update_status(
                 model=model,
@@ -189,6 +197,15 @@ class EnhancedConsole:
                 token_count=token_count,
                 current_task=current_task,
             )
+    
+    def set_operation(self, operation: str) -> None:
+        """Set current operation with sophisticated status message.
+        
+        Args:
+            operation: Operation type (thinking, reading, analyzing, writing, planning,
+                      searching, processing, streaming, contextualizing, synthesizing, evaluating)
+        """
+        self.update_status(operation=operation)
 
     def get_input(self, prompt: str = ">>> ") -> str:
         """Get user input.

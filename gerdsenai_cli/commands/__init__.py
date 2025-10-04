@@ -20,6 +20,7 @@ from .files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .memory import MemoryCommand
 from .model import (
     ListModelsCommand,
     ModelInfoCommand,
@@ -27,6 +28,7 @@ from .model import (
     SwitchModelCommand,
 )
 from .parser import CommandParser
+from .planning import PlanCommand
 from .system import (
     AboutCommand,
     ConfigCommand,
@@ -65,6 +67,8 @@ __all__ = [
     "RefreshContextCommand",
     "ResetCommand",
     "AgentConfigCommand",
+    "PlanCommand",
+    "MemoryCommand",
     # File commands
     "FilesCommand",
     "ReadCommand",

@@ -22,6 +22,9 @@ from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
 from .llm_client import ChatMessage, LLMClient
+from .memory import ProjectMemory
+from .planner import TaskPlanner
+from .suggestions import ProactiveSuggestor
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -448,6 +451,53 @@ class IntentParser:
             return for_match.group(1)
 
         return None
+    
+    def detect_complexity(self, user_input: str) -> str:
+        """Detect if query is simple, medium, or complex.
+        
+        Args:
+            user_input: User's query
+            
+        Returns:
+            "simple", "medium", or "complex"
+        """
+        user_lower = user_input.lower()
+        
+        # Complex task indicators
+        complex_keywords = [
+            "refactor all", "update all", "add to all", "modify all",
+            "migrate", "convert all", "restructure", "rewrite",
+            "implement feature", "add system", "create module",
+            "integrate", "build", "setup", "configure",
+        ]
+        
+        # Medium complexity indicators
+        medium_keywords = [
+            "refactor", "update multiple", "create several",
+            "modify and test", "implement and test", "add and test",
+            "create new", "build a", "add feature",
+        ]
+        
+        # Check for multiple file references
+        file_count = len(re.findall(r'\b\w+\.\w+\b', user_input))
+        if file_count > 3:
+            return "complex"
+        elif file_count > 1:
+            return "medium"
+        
+        # Check for complexity keywords
+        if any(keyword in user_lower for keyword in complex_keywords):
+            return "complex"
+        elif any(keyword in user_lower for keyword in medium_keywords):
+            return "medium"
+        
+        # Check length as a simple heuristic
+        if len(user_input.split()) > 30:
+            return "complex"
+        elif len(user_input.split()) > 15:
+            return "medium"
+        
+        return "simple"
 
 
 class Agent:
@@ -467,9 +517,15 @@ class Agent:
         self.context_manager = ProjectContext(project_root)
         self.file_editor = FileEditor()
         self.intent_parser = IntentParser()
+        self.planner = TaskPlanner(llm_client, self)
+        self.memory = ProjectMemory(project_root)
+        self.suggestor = ProactiveSuggestor()
 
         # Conversation state
         self.conversation = ConversationContext()
+        
+        # Planning state
+        self.planning_mode = False
 
         # Agent settings
         self.max_context_length = settings.get_preference("max_context_length", 4000)
@@ -497,6 +553,307 @@ class Agent:
             logger.error(f"Failed to initialize agent: {e}")
             show_error(f"Failed to initialize agent: {e}")
             return False
+    
+    def _track_file_access(self, file_path: str | Path, topic: str | None = None) -> None:
+        """Track file access in memory system.
+        
+        Args:
+            file_path: Path to the file being accessed
+            topic: Optional topic associated with the access
+        """
+        try:
+            path_str = str(file_path)
+            self.memory.remember_file(path_str, topic)
+            logger.debug(f"Tracked file access: {path_str}")
+        except Exception as e:
+            logger.warning(f"Failed to track file access: {e}")
+    
+    def _show_suggestions(self, suggestions: list, context: str = "") -> str:
+        """Format and display proactive suggestions.
+        
+        Args:
+            suggestions: List of Suggestion objects
+            context: Context message to show before suggestions
+            
+        Returns:
+            Formatted suggestions string
+        """
+        if not suggestions:
+            return ""
+        
+        # Check if suggestions are enabled
+        if not self.settings.get_preference("show_suggestions", True):
+            return ""
+        
+        result = "\n\n---\n\n"
+        result += "💡 **Suggestions:**\n\n"
+        
+        if context:
+            result += f"{context}\n\n"
+        
+        for i, suggestion in enumerate(suggestions, 1):
+            priority_emoji = {
+                "high": "🔴",
+                "medium": "🟡",
+                "low": "🟢",
+            }.get(suggestion.priority, "⚪")
+            
+            result += f"{i}. {priority_emoji} **{suggestion.title}**\n"
+            result += f"   {suggestion.description}\n"
+            if suggestion.file_path:
+                result += f"   File: `{suggestion.file_path}`\n"
+            result += "\n"
+        
+        result += "_Tip: Disable suggestions with `/config set show_suggestions false`_\n"
+        
+        return result
+    
+    async def _suggest_planning_mode(
+        self, complexity: str, user_input: str
+    ) -> str | None:
+        """Suggest using planning mode for complex tasks.
+        
+        Args:
+            complexity: "medium" or "complex"
+            user_input: Original user input
+            
+        Returns:
+            Planning suggestion message or None to continue normally
+        """
+        from rich.prompt import Confirm
+        
+        # Don't suggest if already in planning mode
+        if self.planning_mode:
+            return None
+        
+        # Don't suggest for every medium task - only offer for complex
+        # or if user preference is set
+        auto_suggest = self.settings.get_preference("auto_suggest_planning", True)
+        if not auto_suggest:
+            return None
+        
+        if complexity == "medium":
+            # Less aggressive for medium complexity
+            threshold = 0.3  # 30% chance to suggest
+        else:  # complex
+            threshold = 0.8  # 80% chance to suggest
+        
+        import random
+        if random.random() > threshold:
+            return None
+        
+        # Build suggestion message
+        console.print("\n[yellow]This seems like a complex task that might benefit from planning.[/yellow]")
+        
+        if complexity == "complex":
+            console.print("[dim]Complex tasks work better when broken into steps.[/dim]")
+        else:
+            console.print("[dim]Planning helps track progress on multi-step tasks.[/dim]")
+        
+        console.print("\n[bold cyan]Would you like me to create a plan first?[/bold cyan]")
+        console.print("  • A plan will break this into manageable steps")
+        console.print("  • You can review and approve each step")
+        console.print("  • Progress will be tracked automatically")
+        
+        try:
+            use_planning = Confirm.ask("\n[bold]Use planning mode?[/bold]", default=True)
+            
+            if use_planning:
+                # Create a plan using the planner
+                console.print("\n[cyan]Creating plan...[/cyan]")
+                
+                try:
+                    # Build context for plan creation
+                    context_info = (
+                        f"Project root: {self.context_manager.project_root}\n"
+                        f"File count: {len(self.context_manager.files) if self.context_manager.files else 0}\n"
+                        f"Task complexity: {complexity}"
+                    )
+                    
+                    # Create the plan
+                    plan = await self.planner.create_plan(
+                        user_request=user_input,
+                        context=context_info
+                    )
+                    
+                    if plan:
+                        # Show plan preview
+                        self.planner.show_plan_preview(plan)
+                        
+                        # Ask if they want to execute now
+                        execute_now = Confirm.ask(
+                            "\n[bold]Execute this plan now?[/bold]",
+                            default=True
+                        )
+                        
+                        if execute_now:
+                            # Execute the plan
+                            self.planning_mode = True
+                            await self.planner.execute_plan(
+                                plan,
+                                status_callback=lambda status: console.print(f"[dim]{status}[/dim]"),
+                                confirm_callback=lambda step_desc: Confirm.ask(
+                                    f"\n[bold]Execute step: {step_desc}?[/bold]",
+                                    default=True
+                                )
+                            )
+                            self.planning_mode = False
+                            return "✅ Plan completed!"
+                        else:
+                            return "Plan created. Use `/plan continue` to execute it later."
+                    else:
+                        console.print("[yellow]Failed to create plan. Proceeding with normal processing.[/yellow]")
+                        return None
+                
+                except Exception as e:
+                    logger.error(f"Failed to create plan: {e}")
+                    console.print(f"[red]Error creating plan: {e}[/red]")
+                    console.print("[yellow]Proceeding with normal processing...[/yellow]")
+                    return None
+            else:
+                # User declined - continue normally
+                return None
+        
+        except (KeyboardInterrupt, EOFError):
+            return None
+    
+    async def _ask_for_clarification(
+        self, intent: ActionIntent, user_input: str
+    ) -> str | None:
+        """Ask user for clarification when intent confidence is medium.
+        
+        Args:
+            intent: The detected intent with medium confidence
+            user_input: Original user input
+            
+        Returns:
+            Clarification message or None if user provides input
+        """
+        from rich.prompt import Prompt
+        
+        # Build clarification message
+        clarification_msg = (
+            f"\n[yellow]I'm not quite sure what you want to do "
+            f"(confidence: {intent.confidence:.0%}).[/yellow]\n\n"
+        )
+        
+        # Suggest what we think the user wants
+        clarification_msg += f"My best guess: [cyan]{self._describe_intent(intent)}[/cyan]\n\n"
+        
+        # Offer alternative interpretations
+        alternatives = self._generate_alternative_interpretations(intent, user_input)
+        if alternatives:
+            clarification_msg += "[bold]Other possibilities:[/bold]\n"
+            for i, alt in enumerate(alternatives, 1):
+                clarification_msg += f"  {i}. {alt}\n"
+            clarification_msg += "\n"
+        
+        # Ask for clarification
+        clarification_msg += "[bold]What would you like me to do?[/bold]\n"
+        clarification_msg += "  • Press Enter to proceed with my best guess\n"
+        clarification_msg += "  • Type a number to select an alternative\n"
+        clarification_msg += "  • Rephrase your request for better clarity\n"
+        
+        console.print(clarification_msg)
+        
+        try:
+            response = Prompt.ask("[bold cyan]Your choice[/bold cyan]", default="")
+            
+            if not response:
+                # User wants to proceed with best guess
+                logger.info(f"User confirmed intent: {intent.action_type.value}")
+                return None  # Continue with current intent
+            
+            elif response.isdigit():
+                # User selected an alternative
+                alt_idx = int(response) - 1
+                if 0 <= alt_idx < len(alternatives):
+                    return f"Proceeding with alternative: {alternatives[alt_idx]}"
+                else:
+                    return "Invalid alternative selection. Please try again."
+            
+            else:
+                # User rephrased - return their new input
+                return await self.process_user_input(response)
+        
+        except (KeyboardInterrupt, EOFError):
+            return "Clarification cancelled."
+    
+    def _describe_intent(self, intent: ActionIntent) -> str:
+        """Generate a human-readable description of the intent.
+        
+        Args:
+            intent: The action intent to describe
+            
+        Returns:
+            Human-readable description
+        """
+        action = intent.action_type.value.replace("_", " ").title()
+        
+        if intent.parameters:
+            # Add relevant parameters
+            file_path = intent.parameters.get("file_path")
+            search_term = intent.parameters.get("search_term")
+            
+            if file_path:
+                return f"{action} '{file_path}'"
+            elif search_term:
+                return f"{action} for '{search_term}'"
+        
+        if intent.reasoning:
+            return f"{action} - {intent.reasoning}"
+        
+        return action
+    
+    def _generate_alternative_interpretations(
+        self, intent: ActionIntent, user_input: str
+    ) -> list[str]:
+        """Generate alternative interpretations of user input.
+        
+        Args:
+            intent: The detected intent
+            user_input: Original user input
+            
+        Returns:
+            List of alternative interpretations
+        """
+        alternatives = []
+        
+        # Common alternative interpretations based on keywords
+        user_lower = user_input.lower()
+        
+        # If they mentioned "file" but intent isn't file-related
+        if "file" in user_lower and intent.action_type not in [
+            ActionType.READ_FILE, ActionType.EDIT_FILE, ActionType.CREATE_FILE
+        ]:
+            alternatives.append("Read or edit a specific file")
+        
+        # If they mentioned "project" or "codebase"
+        if any(kw in user_lower for kw in ["project", "codebase", "repository", "repo"]):
+            if intent.action_type != ActionType.ANALYZE_PROJECT:
+                alternatives.append("Analyze the entire project structure")
+        
+        # If they mentioned "find" or "search"
+        if any(kw in user_lower for kw in ["find", "search", "locate", "where"]):
+            if intent.action_type != ActionType.SEARCH_FILES:
+                alternatives.append("Search for code patterns across files")
+        
+        # If they mentioned "explain" or "understand"
+        if any(kw in user_lower for kw in ["explain", "understand", "how", "what"]):
+            if intent.action_type != ActionType.EXPLAIN_CODE:
+                alternatives.append("Explain how specific code works")
+        
+        # If they mentioned "create" or "new"
+        if any(kw in user_lower for kw in ["create", "new", "add", "make"]):
+            if intent.action_type != ActionType.CREATE_FILE:
+                alternatives.append("Create a new file or feature")
+        
+        # Generic fallback
+        if not alternatives:
+            alternatives.append("Just have a conversation about it")
+            alternatives.append("Get help with available commands")
+        
+        return alternatives[:3]  # Limit to 3 alternatives
 
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
@@ -504,6 +861,15 @@ class Agent:
             # Add user message to conversation
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
+
+            # Detect task complexity (Phase 8d-5)
+            complexity = self.intent_parser.detect_complexity(user_input)
+            if complexity in ["medium", "complex"]:
+                # Suggest using planning mode for complex tasks
+                planning_suggestion = await self._suggest_planning_mode(complexity, user_input)
+                if planning_suggestion:
+                    # User wants to use planning mode
+                    return planning_suggestion
 
             # Try LLM-based intent detection first (Phase 8b feature)
             intent = None
@@ -525,8 +891,9 @@ class Agent:
                         project_files=project_files
                     )
                     
-                    # If confidence is high, use LLM intent
+                    # Check confidence levels and handle accordingly
                     if intent and intent.confidence >= 0.7:
+                        # High confidence - use LLM intent
                         logger.info(
                             f"LLM intent detection: {intent.action_type.value} "
                             f"(confidence: {intent.confidence:.2f})"
@@ -549,10 +916,19 @@ class Agent:
                             action_result = await self._execute_action(intent, user_input, "")
                             if action_result:
                                 return action_result
+                    
+                    elif intent and 0.4 <= intent.confidence < 0.7:
+                        # Medium confidence - ask for clarification
+                        clarification = await self._ask_for_clarification(intent, user_input)
+                        if clarification:
+                            return clarification
+                        # If user doesn't provide clarification, fall through to normal processing
+                        intent = None
+                    
                     else:
-                        # Low confidence, fall back to regex
+                        # Low confidence - fall back to regex
                         logger.info(
-                            f"LLM intent confidence too low ({intent.confidence:.2f}), "
+                            f"LLM intent confidence too low ({intent.confidence if intent else 0:.2f}), "
                             "falling back to regex"
                         )
                         intent = None
@@ -626,12 +1002,13 @@ class Agent:
             return f"I encountered an error while processing your request: {e}"
 
     async def process_user_input_stream(
-        self, user_input: str
+        self, user_input: str, status_callback=None
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Process user input and yield streaming response chunks.
         
         Args:
             user_input: User's input message
+            status_callback: Optional callback(operation: str) for status updates
             
         Yields:
             Tuples of (chunk, accumulated_response)
@@ -647,6 +1024,10 @@ class Agent:
             
             if use_llm_intent:
                 try:
+                    # Notify: analyzing intent
+                    if status_callback:
+                        status_callback("analyzing")
+                    
                     project_files = []
                     if self.context_manager.files:
                         project_files = [
@@ -662,6 +1043,15 @@ class Agent:
                     # For high-confidence file operations, execute directly
                     if intent and intent.confidence >= 0.7:
                         if intent.action_type in [ActionType.READ_FILE, ActionType.ANALYZE_PROJECT, ActionType.SEARCH_FILES]:
+                            # Notify: executing action
+                            if status_callback:
+                                if intent.action_type == ActionType.READ_FILE:
+                                    status_callback("reading")
+                                elif intent.action_type == ActionType.SEARCH_FILES:
+                                    status_callback("searching")
+                                else:
+                                    status_callback("processing")
+                            
                             action_result = await self._execute_action(intent, user_input, "")
                             if action_result:
                                 # Yield complete result as single chunk
@@ -677,10 +1067,17 @@ class Agent:
             # Build context for LLM if needed
             context_prompt = ""
             if not self.conversation.project_context_built:
+                # Notify: building context
+                if status_callback:
+                    status_callback("contextualizing")
+                
                 context_prompt = await self._build_project_context(user_input)
                 self.conversation.project_context_built = True
 
             # Prepare messages for LLM
+            if status_callback:
+                status_callback("thinking")
+            
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
             # Stream the response
@@ -901,6 +1298,18 @@ How can I help you with your code today?"""
             )
             for ext, count in sorted_langs[:10]:
                 result += f"- {ext}: {count} files\n"
+        
+        # Add proactive suggestions for project structure
+        try:
+            file_dict = {str(k): v for k, v in self.context_manager.files.items()} if self.context_manager.files else {}
+            suggestions = self.suggestor.analyze_project_structure(
+                files=file_dict,
+                context={"stats": stats}
+            )
+            filtered = self.suggestor.filter_suggestions(suggestions, max_count=3)
+            result += self._show_suggestions(filtered, "Based on your project structure:")
+        except Exception as e:
+            logger.warning(f"Failed to generate project suggestions: {e}")
 
         return result
 
@@ -929,7 +1338,22 @@ How can I help you with your code today?"""
 
         if success:
             self.files_modified += 1
-            return f"Successfully edited file: {file_path}"
+            self._track_file_access(file_path, "editing")
+            
+            # Generate suggestions after edit
+            result = f"Successfully edited file: {file_path}"
+            try:
+                suggestions = self.suggestor.suggest_after_edit(
+                    file_path=file_path,
+                    operation="modify",
+                    content=new_content
+                )
+                filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
+                result += self._show_suggestions(filtered, "After editing this file:")
+            except Exception as e:
+                logger.warning(f"Failed to generate suggestions after edit: {e}")
+            
+            return result
         else:
             return f"Failed to edit file: {file_path}"
 
@@ -960,7 +1384,22 @@ How can I help you with your code today?"""
 
         if success:
             self.files_modified += 1
-            return f"Successfully created file: {file_path}"
+            self._track_file_access(file_path, "creation")
+            
+            # Generate suggestions after creation
+            result = f"Successfully created file: {file_path}"
+            try:
+                suggestions = self.suggestor.suggest_after_edit(
+                    file_path=file_path,
+                    operation="create",
+                    content=new_content
+                )
+                filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
+                result += self._show_suggestions(filtered, "After creating this file:")
+            except Exception as e:
+                logger.warning(f"Failed to generate suggestions after creation: {e}")
+            
+            return result
         else:
             return f"Failed to create file: {file_path}"
 
@@ -971,6 +1410,9 @@ How can I help you with your code today?"""
             return "No file path specified for reading."
 
         file_path = Path(file_path_str)
+
+        # Track file access
+        self._track_file_access(file_path, "reading")
 
         # Read file content
         content = await self.context_manager.read_file_content(file_path)
@@ -1123,6 +1565,17 @@ How can I help you with your code today?"""
         """Clear conversation history."""
         self.conversation = ConversationContext()
         show_info("Conversation history cleared")
+
+    async def cleanup(self) -> None:
+        """Cleanup agent resources and save memory."""
+        try:
+            # Save memory to disk
+            if self.memory.save():
+                logger.info("Agent memory saved successfully")
+            else:
+                logger.warning("Failed to save agent memory")
+        except Exception as e:
+            logger.error(f"Error during agent cleanup: {e}")
 
     async def refresh_project_context(self) -> None:
         """Refresh project context by rescanning the directory."""
