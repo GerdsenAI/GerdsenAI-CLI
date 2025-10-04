@@ -24,6 +24,7 @@ from .commands.files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .commands.intelligence import IntelligenceCommand
 from .commands.model import (
     ListModelsCommand,
     ModelInfoCommand,
@@ -220,6 +221,10 @@ class GerdsenAICLI:
         self.command_parser.register_command(RefreshContextCommand())
         self.command_parser.register_command(ResetCommand())
         self.command_parser.register_command(AgentConfigCommand())
+        if self.agent:
+            self.command_parser.register_command(
+                IntelligenceCommand(self.agent, self.enhanced_console)
+            )
 
         # Register file commands
         self.command_parser.register_command(FilesCommand())
