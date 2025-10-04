@@ -565,6 +565,144 @@ class Agent:
             logger.debug(f"Tracked file access: {path_str}")
         except Exception as e:
             logger.warning(f"Failed to track file access: {e}")
+    
+    async def _ask_for_clarification(
+        self, intent: ActionIntent, user_input: str
+    ) -> str | None:
+        """Ask user for clarification when intent confidence is medium.
+        
+        Args:
+            intent: The detected intent with medium confidence
+            user_input: Original user input
+            
+        Returns:
+            Clarification message or None if user provides input
+        """
+        from rich.prompt import Prompt
+        
+        # Build clarification message
+        clarification_msg = (
+            f"\n[yellow]I'm not quite sure what you want to do "
+            f"(confidence: {intent.confidence:.0%}).[/yellow]\n\n"
+        )
+        
+        # Suggest what we think the user wants
+        clarification_msg += f"My best guess: [cyan]{self._describe_intent(intent)}[/cyan]\n\n"
+        
+        # Offer alternative interpretations
+        alternatives = self._generate_alternative_interpretations(intent, user_input)
+        if alternatives:
+            clarification_msg += "[bold]Other possibilities:[/bold]\n"
+            for i, alt in enumerate(alternatives, 1):
+                clarification_msg += f"  {i}. {alt}\n"
+            clarification_msg += "\n"
+        
+        # Ask for clarification
+        clarification_msg += "[bold]What would you like me to do?[/bold]\n"
+        clarification_msg += "  • Press Enter to proceed with my best guess\n"
+        clarification_msg += "  • Type a number to select an alternative\n"
+        clarification_msg += "  • Rephrase your request for better clarity\n"
+        
+        console.print(clarification_msg)
+        
+        try:
+            response = Prompt.ask("[bold cyan]Your choice[/bold cyan]", default="")
+            
+            if not response:
+                # User wants to proceed with best guess
+                logger.info(f"User confirmed intent: {intent.action_type.value}")
+                return None  # Continue with current intent
+            
+            elif response.isdigit():
+                # User selected an alternative
+                alt_idx = int(response) - 1
+                if 0 <= alt_idx < len(alternatives):
+                    return f"Proceeding with alternative: {alternatives[alt_idx]}"
+                else:
+                    return "Invalid alternative selection. Please try again."
+            
+            else:
+                # User rephrased - return their new input
+                return await self.process_user_input(response)
+        
+        except (KeyboardInterrupt, EOFError):
+            return "Clarification cancelled."
+    
+    def _describe_intent(self, intent: ActionIntent) -> str:
+        """Generate a human-readable description of the intent.
+        
+        Args:
+            intent: The action intent to describe
+            
+        Returns:
+            Human-readable description
+        """
+        action = intent.action_type.value.replace("_", " ").title()
+        
+        if intent.parameters:
+            # Add relevant parameters
+            file_path = intent.parameters.get("file_path")
+            search_term = intent.parameters.get("search_term")
+            
+            if file_path:
+                return f"{action} '{file_path}'"
+            elif search_term:
+                return f"{action} for '{search_term}'"
+        
+        if intent.reasoning:
+            return f"{action} - {intent.reasoning}"
+        
+        return action
+    
+    def _generate_alternative_interpretations(
+        self, intent: ActionIntent, user_input: str
+    ) -> list[str]:
+        """Generate alternative interpretations of user input.
+        
+        Args:
+            intent: The detected intent
+            user_input: Original user input
+            
+        Returns:
+            List of alternative interpretations
+        """
+        alternatives = []
+        
+        # Common alternative interpretations based on keywords
+        user_lower = user_input.lower()
+        
+        # If they mentioned "file" but intent isn't file-related
+        if "file" in user_lower and intent.action_type not in [
+            ActionType.READ_FILE, ActionType.EDIT_FILE, ActionType.CREATE_FILE
+        ]:
+            alternatives.append("Read or edit a specific file")
+        
+        # If they mentioned "project" or "codebase"
+        if any(kw in user_lower for kw in ["project", "codebase", "repository", "repo"]):
+            if intent.action_type != ActionType.ANALYZE_PROJECT:
+                alternatives.append("Analyze the entire project structure")
+        
+        # If they mentioned "find" or "search"
+        if any(kw in user_lower for kw in ["find", "search", "locate", "where"]):
+            if intent.action_type != ActionType.SEARCH_FILES:
+                alternatives.append("Search for code patterns across files")
+        
+        # If they mentioned "explain" or "understand"
+        if any(kw in user_lower for kw in ["explain", "understand", "how", "what"]):
+            if intent.action_type != ActionType.EXPLAIN_CODE:
+                alternatives.append("Explain how specific code works")
+        
+        # If they mentioned "create" or "new"
+        if any(kw in user_lower for kw in ["create", "new", "add", "make"]):
+            if intent.action_type != ActionType.CREATE_FILE:
+                alternatives.append("Create a new file or feature")
+        
+        # Generic fallback
+        if not alternatives:
+            alternatives.append("Just have a conversation about it")
+            alternatives.append("Get help with available commands")
+        
+        return alternatives[:3]  # Limit to 3 alternatives
 
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
@@ -593,8 +731,9 @@ class Agent:
                         project_files=project_files
                     )
                     
-                    # If confidence is high, use LLM intent
+                    # Check confidence levels and handle accordingly
                     if intent and intent.confidence >= 0.7:
+                        # High confidence - use LLM intent
                         logger.info(
                             f"LLM intent detection: {intent.action_type.value} "
                             f"(confidence: {intent.confidence:.2f})"
@@ -617,10 +756,19 @@ class Agent:
                             action_result = await self._execute_action(intent, user_input, "")
                             if action_result:
                                 return action_result
+                    
+                    elif intent and 0.4 <= intent.confidence < 0.7:
+                        # Medium confidence - ask for clarification
+                        clarification = await self._ask_for_clarification(intent, user_input)
+                        if clarification:
+                            return clarification
+                        # If user doesn't provide clarification, fall through to normal processing
+                        intent = None
+                    
                     else:
-                        # Low confidence, fall back to regex
+                        # Low confidence - fall back to regex
                         logger.info(
-                            f"LLM intent confidence too low ({intent.confidence:.2f}), "
+                            f"LLM intent confidence too low ({intent.confidence if intent else 0:.2f}), "
                             "falling back to regex"
                         )
                         intent = None
