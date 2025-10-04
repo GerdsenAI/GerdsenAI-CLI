@@ -22,6 +22,7 @@ from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
 from .llm_client import ChatMessage, LLMClient
+from .memory import ProjectMemory
 from .planner import TaskPlanner
 
 logger = logging.getLogger(__name__)
@@ -516,6 +517,7 @@ class Agent:
         self.file_editor = FileEditor()
         self.intent_parser = IntentParser()
         self.planner = TaskPlanner(llm_client, self)
+        self.memory = ProjectMemory(project_root)
 
         # Conversation state
         self.conversation = ConversationContext()
@@ -549,6 +551,20 @@ class Agent:
             logger.error(f"Failed to initialize agent: {e}")
             show_error(f"Failed to initialize agent: {e}")
             return False
+    
+    def _track_file_access(self, file_path: str | Path, topic: str | None = None) -> None:
+        """Track file access in memory system.
+        
+        Args:
+            file_path: Path to the file being accessed
+            topic: Optional topic associated with the access
+        """
+        try:
+            path_str = str(file_path)
+            self.memory.remember_file(path_str, topic)
+            logger.debug(f"Tracked file access: {path_str}")
+        except Exception as e:
+            logger.warning(f"Failed to track file access: {e}")
 
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
@@ -1002,6 +1018,7 @@ How can I help you with your code today?"""
 
         if success:
             self.files_modified += 1
+            self._track_file_access(file_path, "editing")
             return f"Successfully edited file: {file_path}"
         else:
             return f"Failed to edit file: {file_path}"
@@ -1033,6 +1050,7 @@ How can I help you with your code today?"""
 
         if success:
             self.files_modified += 1
+            self._track_file_access(file_path, "creation")
             return f"Successfully created file: {file_path}"
         else:
             return f"Failed to create file: {file_path}"
@@ -1044,6 +1062,9 @@ How can I help you with your code today?"""
             return "No file path specified for reading."
 
         file_path = Path(file_path_str)
+
+        # Track file access
+        self._track_file_access(file_path, "reading")
 
         # Read file content
         content = await self.context_manager.read_file_content(file_path)
@@ -1196,6 +1217,17 @@ How can I help you with your code today?"""
         """Clear conversation history."""
         self.conversation = ConversationContext()
         show_info("Conversation history cleared")
+
+    async def cleanup(self) -> None:
+        """Cleanup agent resources and save memory."""
+        try:
+            # Save memory to disk
+            if self.memory.save():
+                logger.info("Agent memory saved successfully")
+            else:
+                logger.warning("Failed to save agent memory")
+        except Exception as e:
+            logger.error(f"Error during agent cleanup: {e}")
 
     async def refresh_project_context(self) -> None:
         """Refresh project context by rescanning the directory."""

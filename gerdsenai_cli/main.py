@@ -528,6 +528,8 @@ class GerdsenAICLI:
                 console.print_exception()
         finally:
             # Clean up resources
+            if self.agent:
+                await self.agent.cleanup()
             if self.input_handler:
                 await self.input_handler.cleanup()
             if self.llm_client:

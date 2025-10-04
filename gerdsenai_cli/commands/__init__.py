@@ -20,6 +20,7 @@ from .files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .memory import MemoryCommand
 from .model import (
     ListModelsCommand,
     ModelInfoCommand,
@@ -67,6 +68,7 @@ __all__ = [
     "ResetCommand",
     "AgentConfigCommand",
     "PlanCommand",
+    "MemoryCommand",
     # File commands
     "FilesCommand",
     "ReadCommand",
