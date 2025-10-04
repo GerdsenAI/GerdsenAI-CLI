@@ -94,6 +94,9 @@ Examples:
     
     async def _show_memory(self, args: str) -> str:
         """Show memory contents."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         # Parse what to show
@@ -169,6 +172,9 @@ Examples:
     
     async def _show_stats(self) -> str:
         """Show memory statistics."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         console.print("\n[bold cyan]📊 Memory Statistics[/bold cyan]\n")
@@ -201,6 +207,9 @@ Examples:
     
     async def _recall(self, args: str) -> str:
         """Recall information about a file or topic."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         parts = args.strip().split(maxsplit=1)
@@ -243,6 +252,9 @@ Examples:
     
     async def _forget(self, args: str) -> str:
         """Forget a file or topic from memory."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         parts = args.strip().split(maxsplit=1)
@@ -270,6 +282,9 @@ Examples:
     
     async def _clear_memory(self) -> str:
         """Clear all memory (requires confirmation)."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         console.print("\n[bold red]⚠️  Warning: This will clear ALL memory![/bold red]")
@@ -284,6 +299,9 @@ Examples:
     
     async def _save_memory(self) -> str:
         """Manually save memory to disk."""
+        if not self.agent or not self.agent.memory:
+            return "❌ Memory system not available"
+        
         memory = self.agent.memory
         
         if memory.save():

@@ -566,6 +566,115 @@ class Agent:
         except Exception as e:
             logger.warning(f"Failed to track file access: {e}")
     
+    async def _suggest_planning_mode(
+        self, complexity: str, user_input: str
+    ) -> str | None:
+        """Suggest using planning mode for complex tasks.
+        
+        Args:
+            complexity: "medium" or "complex"
+            user_input: Original user input
+            
+        Returns:
+            Planning suggestion message or None to continue normally
+        """
+        from rich.prompt import Confirm
+        
+        # Don't suggest if already in planning mode
+        if self.planning_mode:
+            return None
+        
+        # Don't suggest for every medium task - only offer for complex
+        # or if user preference is set
+        auto_suggest = self.settings.get_preference("auto_suggest_planning", True)
+        if not auto_suggest:
+            return None
+        
+        if complexity == "medium":
+            # Less aggressive for medium complexity
+            threshold = 0.3  # 30% chance to suggest
+        else:  # complex
+            threshold = 0.8  # 80% chance to suggest
+        
+        import random
+        if random.random() > threshold:
+            return None
+        
+        # Build suggestion message
+        console.print("\n[yellow]This seems like a complex task that might benefit from planning.[/yellow]")
+        
+        if complexity == "complex":
+            console.print("[dim]Complex tasks work better when broken into steps.[/dim]")
+        else:
+            console.print("[dim]Planning helps track progress on multi-step tasks.[/dim]")
+        
+        console.print("\n[bold cyan]Would you like me to create a plan first?[/bold cyan]")
+        console.print("  • A plan will break this into manageable steps")
+        console.print("  • You can review and approve each step")
+        console.print("  • Progress will be tracked automatically")
+        
+        try:
+            use_planning = Confirm.ask("\n[bold]Use planning mode?[/bold]", default=True)
+            
+            if use_planning:
+                # Create a plan using the planner
+                console.print("\n[cyan]Creating plan...[/cyan]")
+                
+                try:
+                    # Build context for plan creation
+                    context_info = (
+                        f"Project root: {self.context_manager.project_root}\n"
+                        f"File count: {len(self.context_manager.files) if self.context_manager.files else 0}\n"
+                        f"Task complexity: {complexity}"
+                    )
+                    
+                    # Create the plan
+                    plan = await self.planner.create_plan(
+                        user_request=user_input,
+                        context=context_info
+                    )
+                    
+                    if plan:
+                        # Show plan preview
+                        self.planner.show_plan_preview(plan)
+                        
+                        # Ask if they want to execute now
+                        execute_now = Confirm.ask(
+                            "\n[bold]Execute this plan now?[/bold]",
+                            default=True
+                        )
+                        
+                        if execute_now:
+                            # Execute the plan
+                            self.planning_mode = True
+                            await self.planner.execute_plan(
+                                plan,
+                                status_callback=lambda status: console.print(f"[dim]{status}[/dim]"),
+                                confirm_callback=lambda step_desc: Confirm.ask(
+                                    f"\n[bold]Execute step: {step_desc}?[/bold]",
+                                    default=True
+                                )
+                            )
+                            self.planning_mode = False
+                            return "✅ Plan completed!"
+                        else:
+                            return "Plan created. Use `/plan continue` to execute it later."
+                    else:
+                        console.print("[yellow]Failed to create plan. Proceeding with normal processing.[/yellow]")
+                        return None
+                
+                except Exception as e:
+                    logger.error(f"Failed to create plan: {e}")
+                    console.print(f"[red]Error creating plan: {e}[/red]")
+                    console.print("[yellow]Proceeding with normal processing...[/yellow]")
+                    return None
+            else:
+                # User declined - continue normally
+                return None
+        
+        except (KeyboardInterrupt, EOFError):
+            return None
+    
     async def _ask_for_clarification(
         self, intent: ActionIntent, user_input: str
     ) -> str | None:
@@ -710,6 +819,15 @@ class Agent:
             # Add user message to conversation
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
+
+            # Detect task complexity (Phase 8d-5)
+            complexity = self.intent_parser.detect_complexity(user_input)
+            if complexity in ["medium", "complex"]:
+                # Suggest using planning mode for complex tasks
+                planning_suggestion = await self._suggest_planning_mode(complexity, user_input)
+                if planning_suggestion:
+                    # User wants to use planning mode
+                    return planning_suggestion
 
             # Try LLM-based intent detection first (Phase 8b feature)
             intent = None
