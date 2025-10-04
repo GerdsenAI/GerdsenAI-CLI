@@ -22,6 +22,11 @@ from ..ui.status_display import IntelligenceActivity
 from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
+from .input_validator import (
+    InputValidator,
+    create_defensive_system_prompt,
+    get_validator,
+)
 from .llm_client import ChatMessage, LLMClient
 from .memory import ProjectMemory
 from .planner import TaskPlanner
@@ -270,10 +275,10 @@ class IntentParser:
     
     def _parse_intent_json(self, response: str) -> dict[str, Any] | None:
         """Parse JSON from LLM response.
-        
+
         Args:
             response: Raw LLM response text
-            
+
         Returns:
             Parsed JSON dict or None if parsing fails
         """
@@ -283,19 +288,39 @@ class IntentParser:
             r"```\s*\n?(.*?)\n?```",      # Generic code block
             r"(\{.*\})",                   # Raw JSON object
         ]
-        
+
         for pattern in json_patterns:
             match = re.search(pattern, response, re.DOTALL)
             if match:
                 json_str = match.group(1).strip()
                 try:
-                    return json.loads(json_str)
+                    parsed_json = json.loads(json_str)
+
+                    # Security: Validate the parsed response
+                    is_valid, error_msg = self.input_validator.validate_intent_response(
+                        parsed_json, required_fields=["action", "confidence"]
+                    )
+                    if not is_valid:
+                        logger.warning(f"Intent response validation failed: {error_msg}")
+                        continue
+
+                    return parsed_json
                 except json.JSONDecodeError:
                     continue
-        
+
         # Try parsing the entire response as JSON
         try:
-            return json.loads(response.strip())
+            parsed_json = json.loads(response.strip())
+
+            # Security: Validate the parsed response
+            is_valid, error_msg = self.input_validator.validate_intent_response(
+                parsed_json, required_fields=["action", "confidence"]
+            )
+            if not is_valid:
+                logger.warning(f"Intent response validation failed: {error_msg}")
+                return None
+
+            return parsed_json
         except json.JSONDecodeError:
             logger.warning(f"Failed to parse intent JSON from response: {response[:100]}")
             return None
@@ -523,6 +548,11 @@ class Agent:
         self.planner = TaskPlanner(llm_client, self)
         self.memory = ProjectMemory(project_root)
         self.suggestor = ProactiveSuggestor()
+
+        # Security: Input validation and sanitization
+        self.input_validator = get_validator(
+            strict_mode=settings.get_preference("strict_input_validation", True)
+        )
 
         # Conversation state
         self.conversation = ConversationContext()
@@ -913,6 +943,21 @@ class Agent:
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
         try:
+            # Security: Sanitize user input first
+            sanitized_input, warnings = self.input_validator.sanitize_user_input(user_input)
+
+            # Show warnings if any were detected
+            if warnings:
+                for warning in warnings:
+                    show_warning(warning)
+
+                # If input was blocked (empty after sanitization), return early
+                if not sanitized_input:
+                    return "Your input was blocked due to security concerns. Please rephrase your request."
+
+            # Use sanitized input for the rest of processing
+            user_input = sanitized_input
+
             # Show intent detection activity
             if self._console:
                 self._console.set_intelligence_activity(
@@ -920,7 +965,7 @@ class Agent:
                     "Analyzing your request",
                     progress=0.1
                 )
-            
+
             # Add user message to conversation
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
@@ -1283,19 +1328,35 @@ class Agent:
         # Add system message with context
         system_content = self._build_system_prompt()
         if context_prompt:
-            system_content += f"\n\n# Current Project Context\n{context_prompt}"
+            # Security: Wrap context in tags to prevent injection
+            escaped_context = self.input_validator.escape_for_context(
+                context_prompt, "project_context"
+            )
+            system_content += f"\n\n# Current Project Context\n{escaped_context}"
 
         messages.append(ChatMessage(role="system", content=system_content))
 
         # Add conversation history (limit to recent messages to stay within context)
-        recent_messages = self.conversation.messages[-10:]  # Last 10 messages
+        # Security: Escape historical user messages
+        recent_messages = []
+        for msg in self.conversation.messages[-10:]:  # Last 10 messages
+            if msg.role == "user":
+                # Wrap user messages in security tags
+                escaped_msg = ChatMessage(
+                    role="user",
+                    content=self.input_validator.escape_for_context(msg.content, "user_input")
+                )
+                recent_messages.append(escaped_msg)
+            else:
+                recent_messages.append(msg)
+
         messages.extend(recent_messages)
 
         return messages
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt for the LLM."""
-        return """You are GerdsenAI, an intelligent coding assistant with the ability to understand and modify codebases. You can:
+        """Build system prompt for the LLM with security defenses."""
+        base_prompt = """You are GerdsenAI, an intelligent coding assistant with the ability to understand and modify codebases. You can:
 
 1. **Analyze Projects**: Understand code structure, architecture, and file relationships
 2. **Edit Files**: Make precise changes to existing files with proper diff previews
@@ -1324,6 +1385,9 @@ When working with files, I will:
 4. Provide rollback options if needed
 
 How can I help you with your code today?"""
+
+        # Add defensive security instructions
+        return create_defensive_system_prompt(base_prompt)
 
     async def _execute_action(
         self, intent: ActionIntent, user_input: str, llm_response: str
@@ -1498,7 +1562,20 @@ How can I help you with your code today?"""
         if content is None:
             return f"Could not read file: {file_path}"
 
-        return f"\n## File Contents: {file_path}\n\n```\n{content}\n```"
+        # Security: Scan file content for injection patterns
+        is_safe, warnings = self.input_validator.scan_file_content(
+            content, str(file_path)
+        )
+        if warnings:
+            for warning in warnings:
+                show_warning(warning)
+
+        # Wrap file content in security tags
+        escaped_content = self.input_validator.escape_for_context(
+            content, "file_content"
+        )
+
+        return f"\n## File Contents: {file_path}\n\n```\n{escaped_content}\n```"
 
     async def _handle_file_search(self, intent: ActionIntent) -> str:
         """Handle file search request."""

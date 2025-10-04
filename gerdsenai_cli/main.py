@@ -536,6 +536,105 @@ class GerdsenAICLI:
             if self.llm_client:
                 await self.llm_client.close()
     
+    async def _handle_tui_command(self, command: str, args: list[str]) -> str:
+        """Handle TUI commands like /model, /save, /load, /export.
+        
+        Args:
+            command: The command string (e.g., '/model')
+            args: List of command arguments
+            
+        Returns:
+            Response string to display to user
+        """
+        from datetime import datetime
+        from pathlib import Path
+        
+        if command == '/model':
+            if not args:
+                # Show current model
+                current = self.settings.current_model if self.settings and self.settings.current_model else "not set"
+                return f"Current model: {current}\n\nUse '/model <name>' to switch models."
+            else:
+                # Switch to new model
+                new_model = args[0]
+                if self.settings:
+                    self.settings.current_model = new_model
+                    if self.agent and hasattr(self.agent, 'settings'):
+                        self.agent.settings.current_model = new_model
+                    return f"Switched to model: {new_model}"
+                else:
+                    return "Error: Settings not initialized"
+        
+        elif command == '/save':
+            if not args:
+                return "Usage: /save <filename>\n\nExample: /save my_conversation"
+            
+            filename = args[0]
+            if not filename.endswith('.json'):
+                filename += '.json'
+            
+            save_dir = Path.home() / ".gerdsenai" / "conversations"
+            save_dir.mkdir(parents=True, exist_ok=True)
+            filepath = save_dir / filename
+            
+            try:
+                # Get conversation from TUI (we'll need to pass tui reference)
+                # For now, return placeholder
+                return f"Conversation save feature coming soon!\nWould save to: {filepath}"
+            except Exception as e:
+                return f"Error saving conversation: {str(e)}"
+        
+        elif command == '/load':
+            if not args:
+                # List available conversations
+                save_dir = Path.home() / ".gerdsenai" / "conversations"
+                if save_dir.exists():
+                    files = list(save_dir.glob("*.json"))
+                    if files:
+                        file_list = "\n".join([f"  - {f.stem}" for f in files])
+                        return f"Available conversations:\n{file_list}\n\nUse: /load <filename>"
+                    else:
+                        return "No saved conversations found."
+                else:
+                    return "No saved conversations found."
+            
+            filename = args[0]
+            if not filename.endswith('.json'):
+                filename += '.json'
+            
+            filepath = Path.home() / ".gerdsenai" / "conversations" / filename
+            
+            if not filepath.exists():
+                return f"Conversation file not found: {filename}"
+            
+            try:
+                # Load conversation (placeholder)
+                return f"Conversation load feature coming soon!\nWould load from: {filepath}"
+            except Exception as e:
+                return f"Error loading conversation: {str(e)}"
+        
+        elif command == '/export':
+            if not args:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"conversation_{timestamp}.md"
+            else:
+                filename = args[0]
+                if not filename.endswith('.md'):
+                    filename += '.md'
+            
+            export_dir = Path.home() / ".gerdsenai" / "exports"
+            export_dir.mkdir(parents=True, exist_ok=True)
+            filepath = export_dir / filename
+            
+            try:
+                # Export to markdown (placeholder)
+                return f"Conversation export feature coming soon!\nWould export to: {filepath}"
+            except Exception as e:
+                return f"Error exporting conversation: {str(e)}"
+        
+        # Unknown command
+        return f"Unknown command: {command}\n\nType /help to see available commands."
+
     async def _run_persistent_tui_mode(self) -> None:
         """Run in persistent TUI mode with embedded input using prompt_toolkit."""
         import logging
@@ -650,6 +749,9 @@ class GerdsenAICLI:
         
         # Set message callback
         tui.set_message_callback(handle_message)
+        
+        # Set command callback
+        tui.set_command_callback(self._handle_tui_command)
         
         try:
             # Run the TUI (blocks until exit)
