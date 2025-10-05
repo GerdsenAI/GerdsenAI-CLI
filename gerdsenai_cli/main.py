@@ -6,6 +6,12 @@ This module contains the core application logic and interactive loop.
 
 import asyncio
 import logging
+from datetime import datetime
+
+from rich.console import Console
+from rich.prompt import Prompt
+
+logger = logging.getLogger(__name__)
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -50,6 +56,7 @@ from .commands.system import (
     ToolsCommand,
     TuiCommand,
 )
+from .utils.conversation_io import ConversationManager
 from .commands.terminal import (
     ClearHistoryCommand,
     HistoryCommand,
@@ -96,6 +103,7 @@ class GerdsenAICLI:
         self.command_parser: CommandParser | None = None
         self.input_handler: EnhancedInputHandler | None = None
         self.enhanced_console: EnhancedConsole | None = None
+        self.conversation_manager = ConversationManager()
 
     async def initialize(self) -> bool:
         """
@@ -536,104 +544,151 @@ class GerdsenAICLI:
             if self.llm_client:
                 await self.llm_client.close()
     
-    async def _handle_tui_command(self, command: str, args: list[str]) -> str:
+    async def _handle_tui_command(self, command: str, args: list[str], tui=None) -> str:
         """Handle TUI commands like /model, /save, /load, /export.
         
         Args:
             command: The command string (e.g., '/model')
             args: List of command arguments
+            tui: Optional TUI instance for accessing conversation data
             
         Returns:
             Response string to display to user
         """
-        from datetime import datetime
-        from pathlib import Path
-        
-        if command == '/model':
-            if not args:
-                # Show current model
-                current = self.settings.current_model if self.settings and self.settings.current_model else "not set"
-                return f"Current model: {current}\n\nUse '/model <name>' to switch models."
-            else:
-                # Switch to new model
-                new_model = args[0]
-                if self.settings:
-                    self.settings.current_model = new_model
-                    if self.agent and hasattr(self.agent, 'settings'):
-                        self.agent.settings.current_model = new_model
-                    return f"Switched to model: {new_model}"
+        try:
+            if command == '/model':
+                if not args:
+                    # Show current model
+                    current = self.settings.current_model if self.settings and self.settings.current_model else "not set"
+                    return f"Current model: {current}\n\nUse '/model <name>' to switch models."
                 else:
-                    return "Error: Settings not initialized"
-        
-        elif command == '/save':
-            if not args:
-                return "Usage: /save <filename>\n\nExample: /save my_conversation"
-            
-            filename = args[0]
-            if not filename.endswith('.json'):
-                filename += '.json'
-            
-            save_dir = Path.home() / ".gerdsenai" / "conversations"
-            save_dir.mkdir(parents=True, exist_ok=True)
-            filepath = save_dir / filename
-            
-            try:
-                # Get conversation from TUI (we'll need to pass tui reference)
-                # For now, return placeholder
-                return f"Conversation save feature coming soon!\nWould save to: {filepath}"
-            except Exception as e:
-                return f"Error saving conversation: {str(e)}"
-        
-        elif command == '/load':
-            if not args:
-                # List available conversations
-                save_dir = Path.home() / ".gerdsenai" / "conversations"
-                if save_dir.exists():
-                    files = list(save_dir.glob("*.json"))
-                    if files:
-                        file_list = "\n".join([f"  - {f.stem}" for f in files])
-                        return f"Available conversations:\n{file_list}\n\nUse: /load <filename>"
+                    # Switch to new model
+                    new_model = args[0]
+                    if self.settings:
+                        self.settings.current_model = new_model
+                        if self.agent and hasattr(self.agent, 'settings'):
+                            self.agent.settings.current_model = new_model
+                        
+                        # Update TUI footer if TUI is available
+                        if tui:
+                            tui.set_system_footer(f"Model: {new_model}")
+                        
+                        return f"Switched to model: {new_model}"
                     else:
-                        return "No saved conversations found."
-                else:
-                    return "No saved conversations found."
+                        return "Error: Settings not initialized"
             
-            filename = args[0]
-            if not filename.endswith('.json'):
-                filename += '.json'
-            
-            filepath = Path.home() / ".gerdsenai" / "conversations" / filename
-            
-            if not filepath.exists():
-                return f"Conversation file not found: {filename}"
-            
-            try:
-                # Load conversation (placeholder)
-                return f"Conversation load feature coming soon!\nWould load from: {filepath}"
-            except Exception as e:
-                return f"Error loading conversation: {str(e)}"
-        
-        elif command == '/export':
-            if not args:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"conversation_{timestamp}.md"
-            else:
+            elif command == '/save':
+                if not args:
+                    return "Usage: /save <filename>\n\nExample: /save my_conversation"
+                
+                if not tui:
+                    return "Error: TUI not available for save operation"
+                
                 filename = args[0]
-                if not filename.endswith('.md'):
-                    filename += '.md'
+                
+                # Get conversation messages from TUI
+                messages = tui.conversation.messages
+                
+                if not messages:
+                    return "No messages to save. Start a conversation first."
+                
+                # Prepare metadata
+                metadata = {
+                    "model": self.settings.current_model if self.settings else "unknown",
+                    "message_count": len(messages),
+                }
+                
+                # Save conversation
+                try:
+                    filepath = self.conversation_manager.save_conversation(filename, messages, metadata)
+                    return f"Conversation saved successfully!\n\nFile: {filepath}\nMessages: {len(messages)}"
+                except Exception as e:
+                    logger.error(f"Error saving conversation: {e}", exc_info=True)
+                    return f"Error saving conversation: {str(e)}"
             
-            export_dir = Path.home() / ".gerdsenai" / "exports"
-            export_dir.mkdir(parents=True, exist_ok=True)
-            filepath = export_dir / filename
+            elif command == '/load':
+                if not args:
+                    # List available conversations
+                    conversations = self.conversation_manager.list_conversations()
+                    if not conversations:
+                        return "No saved conversations found.\n\nUse '/save <filename>' to save a conversation."
+                    
+                    lines = ["Available conversations:", ""]
+                    for conv_file in conversations:
+                        lines.append(f"  - {conv_file.stem}")
+                    lines.append("")
+                    lines.append("Use '/load <filename>' to load a conversation.")
+                    return "\n".join(lines)
+                
+                if not tui:
+                    return "Error: TUI not available for load operation"
+                
+                filename = args[0]
+                
+                # Load conversation
+                try:
+                    messages, metadata = self.conversation_manager.load_conversation(filename)
+                    
+                    # Clear current conversation
+                    tui.conversation.clear_messages()
+                    
+                    # Load messages into TUI
+                    for role, content, _ in messages:
+                        tui.conversation.add_message(role, content)
+                    
+                    # Build response
+                    msg_count = len(messages)
+                    lines = [
+                        f"Conversation loaded successfully!",
+                        f"\nFile: {filename}",
+                        f"Messages: {msg_count}",
+                    ]
+                    
+                    if metadata:
+                        lines.append("\nMetadata:")
+                        for key, value in metadata.items():
+                            lines.append(f"  {key}: {value}")
+                    
+                    return "\n".join(lines)
+                    
+                except FileNotFoundError:
+                    return f"Conversation not found: {filename}\n\nUse '/load' without arguments to list available conversations."
+                except Exception as e:
+                    logger.error(f"Error loading conversation: {e}", exc_info=True)
+                    return f"Error loading conversation: {str(e)}"
             
-            try:
-                # Export to markdown (placeholder)
-                return f"Conversation export feature coming soon!\nWould export to: {filepath}"
-            except Exception as e:
-                return f"Error exporting conversation: {str(e)}"
-        
-        # Unknown command
-        return f"Unknown command: {command}\n\nType /help to see available commands."
+            elif command == '/export':
+                if not tui:
+                    return "Error: TUI not available for export operation"
+                
+                # Get conversation messages from TUI
+                messages = tui.conversation.messages
+                
+                if not messages:
+                    return "No messages to export. Start a conversation first."
+                
+                filename = args[0] if args else None
+                
+                # Prepare metadata
+                metadata = {
+                    "model": self.settings.current_model if self.settings else "unknown",
+                    "message_count": len(messages),
+                    "exported_at": datetime.now().isoformat(),
+                }
+                
+                # Export conversation
+                try:
+                    filepath = self.conversation_manager.export_conversation(filename, messages, metadata)
+                    return f"Conversation exported successfully!\n\nFile: {filepath}\nFormat: Markdown\nMessages: {len(messages)}"
+                except Exception as e:
+                    logger.error(f"Error exporting conversation: {e}", exc_info=True)
+                    return f"Error exporting conversation: {str(e)}"
+            
+            return f"Unknown command: {command}"
+            
+        except Exception as e:
+            logger.error(f"Command handler error: {e}", exc_info=True)
+            return f"Command error: {str(e)}"
 
     async def _run_persistent_tui_mode(self) -> None:
         """Run in persistent TUI mode with embedded input using prompt_toolkit."""
@@ -750,8 +805,12 @@ class GerdsenAICLI:
         # Set message callback
         tui.set_message_callback(handle_message)
         
-        # Set command callback
-        tui.set_command_callback(self._handle_tui_command)
+        # Set command callback with TUI reference
+        async def command_handler(command: str, args: list[str]) -> str:
+            """Wrapper to pass TUI instance to command handler."""
+            return await self._handle_tui_command(command, args, tui=tui)
+        
+        tui.set_command_callback(command_handler)
         
         try:
             # Run the TUI (blocks until exit)
