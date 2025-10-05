@@ -5,7 +5,8 @@ Enhanced with:
     COMMANDS = {
         '/help': 'Show available commands',
         '/clear': 'Clear conversation history',
-        '/model': 'Show or switch AI model',
+        '/model': 'Show or switch AI model (usage: /model [name])',
+        '/mode': 'Show or switch execution mode (usage: /mode [architect|execute])',
         '/debug': 'Toggle debug mode',
         '/save': 'Save conversation to file',
         '/load': 'Load conversation from file',
@@ -60,6 +61,8 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
+from ..core.modes import ExecutionMode, ModeManager
 
 # Set up logging
 log_dir = Path.home() / ".gerdsenai" / "logs"
@@ -123,6 +126,12 @@ class CommandParser:
         """Generate formatted keyboard shortcuts reference."""
         lines = [
             "Keyboard Shortcuts:",
+            "",
+            "Execution Modes:",
+            "  Shift+Tab       - Toggle between Architect/Execute modes",
+            "  /mode           - Show current mode info",
+            "  /mode architect - Switch to Architect mode (plan first)",
+            "  /mode execute   - Switch to Execute mode (immediate action)",
             "",
             "Message Input:",
             "  Enter           - Send message (single line) or submit",
@@ -476,6 +485,10 @@ class PromptToolkitTUI:
         self.conversation_window: Optional[Window] = None  # Store reference for scrolling
         self.input_window: Optional[Window] = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
+        
+        # Initialize mode manager
+        self.mode_manager = ModeManager(default_mode=ExecutionMode.ARCHITECT)
+        logger.info(f"TUI initialized in {self.mode_manager.get_mode().value} mode")
 
         # Create keybindings
         self.kb = self._create_keybindings()
@@ -555,6 +568,36 @@ class PromptToolkitTUI:
                     elif command == '/shortcuts':
                         shortcuts_text = CommandParser.get_shortcuts_text()
                         self.conversation.add_message("command", shortcuts_text)
+                    
+                    elif command == '/mode':
+                        if not args:
+                            # Show current mode
+                            current_mode = self.mode_manager.get_mode()
+                            mode_name = current_mode.value.title()
+                            description = self.mode_manager.get_mode_description()
+                            
+                            message = (
+                                f"Current Mode: {mode_name}\n\n"
+                                f"{description}\n\n"
+                                "Use '/mode architect' or '/mode execute' to switch modes.\n"
+                                "Or press Shift+Tab to toggle."
+                            )
+                            self.conversation.add_message("command", message)
+                        else:
+                            # Switch mode
+                            mode_arg = args[0].lower()
+                            if mode_arg == 'architect':
+                                self.mode_manager.set_mode(ExecutionMode.ARCHITECT)
+                                description = self.mode_manager.get_mode_description(ExecutionMode.ARCHITECT)
+                                self.conversation.add_message("command", f"Switched to Architect Mode\n\n{description}")
+                                self.status_text = "Architect Mode active"
+                            elif mode_arg == 'execute':
+                                self.mode_manager.set_mode(ExecutionMode.EXECUTE)
+                                description = self.mode_manager.get_mode_description(ExecutionMode.EXECUTE)
+                                self.conversation.add_message("command", f"Switched to Execute Mode\n\n{description}")
+                                self.status_text = "Execute Mode active"
+                            else:
+                                self.conversation.add_message("command", f"Unknown mode: {mode_arg}\n\nAvailable modes: architect, execute")
                     
                     else:
                         # External command - use callback if set
@@ -654,6 +697,21 @@ class PromptToolkitTUI:
             # User can restart the TUI after copying
             event.app.exit()
 
+        @kb.add('s-tab')  # Shift+Tab
+        def toggle_mode(event):
+            """Toggle between Architect and Execute modes."""
+            new_mode = self.mode_manager.toggle_mode()
+            mode_name = new_mode.value.title()
+            description = self.mode_manager.get_mode_description(new_mode)
+            
+            message = f"Switched to {mode_name} Mode\n\n{description}"
+            self.conversation.add_message("command", message)
+            
+            # Update status
+            self.status_text = f"{mode_name} Mode active"
+            
+            event.app.invalidate()
+
         return kb
 
     def _create_layout(self) -> Layout:
@@ -719,7 +777,7 @@ class PromptToolkitTUI:
         status_window = Window(
             content=FormattedTextControl(
                 text=lambda: FormattedText([
-                    ("class:status", f"  {len(self.conversation.messages)} messages{scroll_indicator} | {self.status_text} | Scroll: mouse/PgUp/PgDn | Ctrl+S: copy text | Ctrl+C: exit  ")
+                    ("class:status", f"  {self.mode_manager.format_status_line()} | {len(self.conversation.messages)} messages{scroll_indicator} | {self.status_text} | Scroll: mouse/PgUp/PgDn | Ctrl+S: copy text | Ctrl+C: exit  ")
                 ])
             ),
             height=1,
@@ -766,6 +824,14 @@ class PromptToolkitTUI:
         """Clear the system footer."""
         self.system_footer_text = ""
         self.app.invalidate()
+
+    def get_mode(self) -> ExecutionMode:
+        """Get the current execution mode.
+        
+        Returns:
+            Current ExecutionMode (ARCHITECT or EXECUTE)
+        """
+        return self.mode_manager.get_mode()
 
     def _auto_scroll_to_bottom(self):
         """Scroll conversation buffer to bottom if auto-scroll is enabled.
