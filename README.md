@@ -9,7 +9,8 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 - **Project Context Awareness** - Intelligent file scanning and context building
 - **Safe File Operations** - AI-assisted editing with diff previews and automatic backups
 - **Terminal Integration** - Secure command execution with user confirmation
-- **Session Management** - Save and restore conversation sessions
+- **Conversation Management** - Save, load, and export conversations (`/save`, `/load`, `/export`)
+- **Interactive TUI Mode** - Enhanced terminal UI with real-time streaming and conversation history
 
 ### Command Categories
 - **System Tools** - Configuration, status, help, and debugging
