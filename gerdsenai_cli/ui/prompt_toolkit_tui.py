@@ -353,7 +353,7 @@ class ConversationControl:
             self.system_info = content
         else:
             self.messages.append((role, content, datetime.now()))
-            self._update_buffer()
+            self._update_buffer(move_to_end=True)  # Move cursor to end for new messages
 
     def clear_messages(self):
         """Clear all conversation messages."""
@@ -461,8 +461,12 @@ class ConversationControl:
         result.append(("", "\n"))
         return FormattedText(result)
 
-    def _update_buffer(self):
+    def _update_buffer(self, move_to_end: bool = False):
         """Update buffer content and formatted lines when conversation changes.
+
+        Args:
+            move_to_end: If True, move cursor to end of buffer (for new messages)
+                        If False, preserve current cursor position (for streaming updates)
 
         This method:
         1. Generates formatted text from current messages
@@ -475,8 +479,19 @@ class ConversationControl:
         # Convert to plain text for the buffer
         plain_text = fragment_list_to_text(formatted_text)
 
+        # Determine cursor position
+        if move_to_end:
+            # Move to end for new messages
+            cursor_pos = len(plain_text)
+        else:
+            # Preserve cursor position (don't reset to 0)
+            # This allows auto-scroll logic to work correctly
+            current_cursor = self.buffer.cursor_position
+            # Clamp cursor to valid range
+            cursor_pos = min(current_cursor, len(plain_text))
+        
         # Update buffer with plain text
-        self.buffer.set_document(Document(plain_text, 0), bypass_readonly=True)
+        self.buffer.set_document(Document(plain_text, cursor_pos), bypass_readonly=True)
 
         # Update formatted lines in the control for the processor
         self.control.formatted_lines = self.control._parse_formatted_text(formatted_text)
@@ -844,26 +859,18 @@ class PromptToolkitTUI:
             """Cycle through execution modes."""
             new_mode = self.mode_manager.toggle_mode()
             mode_name = new_mode.value.upper()
-            description = self.mode_manager.get_mode_description(new_mode)
 
             # Update style to match new mode
             self.update_mode_style()
 
-            # Show special message for LLVL mode
+            # Update status bar with brief feedback (no conversation message)
             if new_mode == ExecutionMode.LLVL:
-                warning = (
-                    "\n"
-                    "🎸 LIVIN' LA VIDA LOCA MODE ACTIVATED 🎸\n"
-                    "Safety checks disabled. Make sure you have version control!\n"
-                )
-                message = f"{warning}\n{description}"
+                self.status_text = "🎸 LLVL Mode: LIVIN' LA VIDA LOCA! (Safety checks disabled)"
             else:
-                message = f"Switched to {mode_name} Mode\n\n{description}"
+                self.status_text = f"Switched to {mode_name} Mode"
 
-            self.conversation.add_message("command", message)
-
-            # Update status
-            self.status_text = f"{mode_name} Mode active"
+            # Log the mode change
+            logger.info(f"Mode switched to {mode_name} via Shift+Tab")
 
             event.app.invalidate()
 
