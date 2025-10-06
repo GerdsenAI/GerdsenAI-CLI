@@ -1,5 +1,25 @@
 # 🧪 Manual Testing Guide - Animation System & Approval Workflow
 
+---
+
+> **🚨 CRITICAL: Activate Virtual Environment First**
+> 
+> **Before running ANY tests, you MUST activate the virtual environment:**
+> ```bash
+> source .venv/bin/activate
+> ```
+> 
+> **Verify activation:**
+> ```bash
+> which python  # Should show: <project-path>/.venv/bin/python
+> echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
+> ```
+>
+> **❌ DO NOT run tests with system Python**  
+> **✅ ALWAYS use .venv Python**
+
+---
+
 ## ✅ Current Status
 The TUI is **running and ready** for testing! All code has been implemented:
 - ✅ Animation system created

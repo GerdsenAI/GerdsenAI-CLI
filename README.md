@@ -2,6 +2,18 @@
 
 A terminal-based agentic coding tool that connects to local AI models for intelligent code assistance.
 
+---
+
+> **⚠️ IMPORTANT: Virtual Environment Required**
+> 
+> **Always use the project virtual environment:** `.venv`
+> ```bash
+> source .venv/bin/activate  # Required before ANY command
+> ```
+> See [Virtual Environment Setup](#-virtual-environment-setup) for details.
+
+---
+
 ## 🚀 Features
 
 ### Core Capabilities
@@ -21,9 +33,11 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 
 ## 📋 Requirements
 
-- **Python 3.11+** (required)
+- **Python 3.11+** (required, currently using 3.11.13)
+  - Supported versions: 3.11, 3.12, 3.13
+  - Virtual environment uses Python 3.11.13
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-- **Virtual Environment** - Recommended for isolation
+- **Virtual Environment** - `.venv` (mandatory for development)
 
 ## 🛠 Installation
 
@@ -40,26 +54,39 @@ gerdsenai --version
 ```
 
 ### 🔧 Development Installation
+
+**🚨 CRITICAL: You MUST use the project's `.venv` virtual environment**
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/GerdsenAI/GerdsenAI-CLI.git
 cd GerdsenAI-CLI
 
-# Create virtual environment with Python 3.11+
-python3.11 -m venv .venv --prompt "gerdsenai-cli"
+# 2. Create virtual environment (if it doesn't exist)
+python3.11 -m venv .venv
+
+# 3. ACTIVATE the virtual environment (REQUIRED)
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
-# Install in development mode
+# 4. Verify you're in the venv
+which python  # Should show: <project-path>/.venv/bin/python
+echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
+
+# 5. Install in development mode
 pip install -e ".[dev]"
 
-# Install pre-commit hooks (optional)
-pre-commit install
-
-# Verify installation
+# 6. Verify installation
 python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
 gerdsenai --version
 ```
+
+**⚠️ Common Mistakes to Avoid:**
+- ❌ Running `pip install` without activating venv
+- ❌ Using system Python at `/opt/homebrew/bin/python3`
+- ❌ Using `--break-system-packages` flag
+- ❌ Installing with homebrew's pip
+- ✅ **ALWAYS** `source .venv/bin/activate` first
 
 ### 🏗️ Alternative Installation Methods
 ```bash
@@ -70,7 +97,91 @@ pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
 pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 ```
 
-## 🚀 Quick Start
+## � Virtual Environment Setup
+
+### Why Virtual Environment is Mandatory
+
+**Problem:** System Python installations cause dependency conflicts, version mismatches, and "module not found" errors.
+
+**Solution:** Use the project's dedicated `.venv` virtual environment.
+
+### Quick Setup
+
+```bash
+# Navigate to project
+cd GerdsenAI-CLI
+
+# Activate venv (do this EVERY time you work on the project)
+source .venv/bin/activate
+
+# Verify activation
+echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
+which python       # Should show: <project-path>/.venv/bin/python
+```
+
+### Creating venv (First Time Only)
+
+```bash
+# If .venv doesn't exist
+python3.11 -m venv .venv
+
+# Activate it
+source .venv/bin/activate
+
+# Install dependencies
+pip install -e ".[dev]"
+```
+
+### Troubleshooting
+
+**Q: How do I know if venv is active?**
+```bash
+# Check these indicators:
+echo $VIRTUAL_ENV        # Shows path if active
+which python             # Should point to .venv/bin/python
+python --version         # Should match venv Python (3.11.x or 3.13.x)
+
+# Your prompt should also show: (.venv) in front
+```
+
+**Q: I see "module not found" errors**
+```bash
+# 1. Ensure venv is active
+source .venv/bin/activate
+
+# 2. Reinstall in editable mode
+pip install -e ".[dev]"
+
+# 3. Verify
+python -c "import gerdsenai_cli; print('OK')"
+```
+
+**Q: Commands fail with ImportError**
+```bash
+# DON'T use system Python
+❌ /opt/homebrew/bin/python3 -m gerdsenai_cli
+
+# DO use venv Python
+✅ source .venv/bin/activate
+✅ python -m gerdsenai_cli
+```
+
+### Best Practices
+
+1. **Always activate venv first**: `source .venv/bin/activate`
+2. **One venv per project**: Don't mix projects
+3. **Keep it updated**: `pip install --upgrade pip`
+4. **Never commit .venv**: Already in `.gitignore`
+5. **Document venv location**: `.venv/README.md` has setup instructions
+
+### VS Code Integration
+
+The project is configured to use `.venv` automatically:
+- `.vscode/settings.json` points to `.venv/bin/python`
+- Tests run in venv automatically
+- Terminal activates venv on open
+
+## �🚀 Quick Start
 
 1. **Start the CLI**
    ```bash
