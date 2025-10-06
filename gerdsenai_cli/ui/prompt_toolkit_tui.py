@@ -88,7 +88,11 @@ class CommandParser:
     COMMANDS = {
         '/help': 'Show available commands',
         '/clear': 'Clear conversation history',
+        '/copy': 'Copy conversation to clipboard (or use Ctrl+Y)',
         '/model': 'Show or switch AI model (usage: /model [name])',
+        '/mode': 'Show or switch execution mode (usage: /mode [chat|architect|execute|llvl])',
+        '/thinking': 'Toggle AI thinking display (shows/hides reasoning process)',
+        '/mcp': 'Manage MCP servers (usage: /mcp [list|add|remove|connect|status])',
         '/debug': 'Toggle debug mode',
         '/save': 'Save conversation to file',
         '/load': 'Load conversation from file',
@@ -147,13 +151,15 @@ class CommandParser:
             "  Page Down       - Scroll conversation down",
             "  Mouse Wheel     - Scroll conversation",
             "",
-            "Text Selection:",
+            "Text Selection & Copy:",
+            "  Ctrl+Y          - Copy conversation to clipboard",
             "  Ctrl+S          - Enable text selection mode",
             "  Mouse Drag      - Select text (when enabled)",
             "",
             "General:",
             "  Ctrl+C          - Exit application",
             "  /help           - Show command list",
+            "  /copy           - Copy conversation to clipboard",
         ]
         return "\n".join(lines)
 
@@ -397,13 +403,21 @@ class ConversationControl:
         for role, content, timestamp in self.messages:
             time_str = timestamp.strftime("%H:%M:%S")
 
-            if role == "user":
+            if role == "ascii":
+                # ASCII art displayed at startup - dim gray with timestamp
+                result.append(("class:dim", f"\n  GerdsenAI · {time_str}\n"))
+                result.append(("class:dim", "  " + "─" * 70 + "\n"))
+                # Display ASCII art with dim styling
+                for line in content.split("\n"):
+                    result.append(("class:dim", f"  {line}\n"))
+
+            elif role == "user":
                 result.append(("class:user-label", f"\n  You · {time_str}\n"))
                 result.append(("class:user-border", "  " + "─" * 70 + "\n"))
                 # Add padding to content lines
                 for line in content.split("\n"):
                     result.append(("class:user-text", f"  {line}\n"))
-            
+
             elif role == "assistant":
                 result.append(("class:ai-label", f"\n  GerdsenAI · {time_str}\n"))
                 result.append(("class:ai-border", "  " + "─" * 70 + "\n"))
@@ -482,26 +496,36 @@ class PromptToolkitTUI:
         self.conversation = ConversationControl()
         self.input_buffer = Buffer(multiline=True)  # Support multiline input
         self.status_text = "Ready. Type your message and press Enter."
-        self.system_footer_text = ""  # For model info, context window, etc.
         self.running = False
         self.message_callback: Optional[Callable[[str], Awaitable[None]]] = None
         self.command_callback: Optional[Callable[[str, list[str]], Awaitable[str]]] = None
         self.conversation_window: Optional[Window] = None  # Store reference for scrolling
         self.input_window: Optional[Window] = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
-        
+
         # Streaming configuration for smooth animation
         self.streaming_chunk_delay = 0.01  # 10ms default delay between chunks
         self.streaming_refresh_interval = 3  # Refresh every N chunks
-        
+
         # Animation and approval state
         self.current_animation: Optional[StatusAnimation] = None
         self.pending_plan: Optional[dict] = None
         self.approval_mode = False
-        
+
+        # Thinking mode - shows/hides AI reasoning
+        self.thinking_enabled = False
+
+        # Info bar state (above prompt) - tracks operational info
+        self.token_count = 0
+        self.context_usage = 0.0
+        self.current_activity = "Ready"
+
         # Initialize mode manager with CHAT as safe default
         self.mode_manager = ModeManager(default_mode=ExecutionMode.CHAT)
         logger.info(f"TUI initialized in {self.mode_manager.get_mode().value} mode")
+
+        # Load and display ASCII art at startup
+        self._load_ascii_art()
 
         # Create keybindings
         self.kb = self._create_keybindings()
@@ -509,14 +533,35 @@ class PromptToolkitTUI:
         # Create layout
         self.layout = self._create_layout()
 
-        # Create application
+        # Create application with mode-specific style
         self.app = Application(
             layout=self.layout,
             key_bindings=self.kb,
-            style=STYLE,
+            style=get_mode_style(self.mode_manager.get_mode()),
             full_screen=True,
             mouse_support=True,
         )
+
+    def _load_ascii_art(self):
+        """Load and display ASCII art from file at startup."""
+        try:
+            # Get path to ASCII art file (assuming it's in the project root)
+            ascii_art_path = Path(__file__).parent.parent.parent / "gerdsenai-ascii-art.txt"
+
+            if ascii_art_path.exists():
+                with open(ascii_art_path, 'r', encoding='utf-8') as f:
+                    ascii_art = f.read()
+
+                # Add ASCII art as first message with timestamp
+                timestamp = datetime.now()
+                # Store directly in messages with a special "ascii" role that will be styled dim
+                self.conversation.messages.append(("ascii", ascii_art, timestamp))
+                self.conversation._update_buffer()
+                logger.info(f"Loaded ASCII art from {ascii_art_path}")
+            else:
+                logger.warning(f"ASCII art file not found at {ascii_art_path}")
+        except Exception as e:
+            logger.error(f"Failed to load ASCII art: {e}", exc_info=True)
 
     def _is_at_bottom(self) -> bool:
         """Check if viewport is currently scrolled to bottom.
@@ -581,7 +626,28 @@ class PromptToolkitTUI:
                     elif command == '/shortcuts':
                         shortcuts_text = CommandParser.get_shortcuts_text()
                         self.conversation.add_message("command", shortcuts_text)
-                    
+
+                    elif command == '/thinking':
+                        self.thinking_enabled = not self.thinking_enabled
+                        status = "enabled" if self.thinking_enabled else "disabled"
+                        message = (
+                            f"Thinking mode {status}.\n\n"
+                            f"{'AI reasoning and internal thought processes will be displayed.' if self.thinking_enabled else 'AI will show only final responses.'}\n\n"
+                            "When thinking is enabled, you'll see:\n"
+                            "  • Detailed planning steps\n"
+                            "  • Internal reasoning process\n"
+                            "  • Analysis animations with status updates"
+                        )
+                        self.conversation.add_message("command", message)
+                        logger.info(f"Thinking mode {status}")
+
+                    elif command == '/copy':
+                        success, message = self.copy_conversation_to_clipboard()
+                        if success:
+                            self.conversation.add_message("command", f"✅ {message}\n\nYou can now paste the conversation anywhere (Cmd+V on macOS, Ctrl+V on other platforms).")
+                        else:
+                            self.conversation.add_message("command", f"❌ {message}")
+
                     elif command == '/mode':
                         if not args:
                             # Show current mode
@@ -605,22 +671,26 @@ class PromptToolkitTUI:
                             mode_arg = args[0].lower()
                             if mode_arg == 'chat':
                                 self.mode_manager.set_mode(ExecutionMode.CHAT)
+                                self.update_mode_style()
                                 description = self.mode_manager.get_mode_description(ExecutionMode.CHAT)
                                 self.conversation.add_message("command", f"Switched to Chat Mode\n\n{description}")
                                 self.status_text = "Chat Mode active"
                             elif mode_arg == 'architect':
                                 self.mode_manager.set_mode(ExecutionMode.ARCHITECT)
+                                self.update_mode_style()
                                 description = self.mode_manager.get_mode_description(ExecutionMode.ARCHITECT)
                                 self.conversation.add_message("command", f"Switched to Architect Mode\n\n{description}")
                                 self.status_text = "Architect Mode active"
                             elif mode_arg == 'execute':
                                 self.mode_manager.set_mode(ExecutionMode.EXECUTE)
+                                self.update_mode_style()
                                 description = self.mode_manager.get_mode_description(ExecutionMode.EXECUTE)
                                 self.conversation.add_message("command", f"Switched to Execute Mode\n\n{description}")
                                 self.status_text = "Execute Mode active"
                             elif mode_arg == 'llvl':
                                 # Show extra message for LLVL mode
                                 self.mode_manager.set_mode(ExecutionMode.LLVL)
+                                self.update_mode_style()
                                 description = self.mode_manager.get_mode_description(ExecutionMode.LLVL)
                                 warning = (
                                     "🎸 LIVIN' LA VIDA LOCA MODE ACTIVATED 🎸\n"
@@ -695,8 +765,6 @@ class PromptToolkitTUI:
 
                 # Invalidate to trigger redraw
                 event.app.invalidate()
-                # Invalidate to trigger redraw
-                event.app.invalidate()
 
         @kb.add('escape')
         def clear_input(event):
@@ -761,13 +829,26 @@ class PromptToolkitTUI:
             # User can restart the TUI after copying
             event.app.exit()
 
+        @kb.add('c-y')
+        def copy_conversation(event):
+            """Copy conversation to clipboard (Ctrl+Y)."""
+            success, message = self.copy_conversation_to_clipboard()
+            if success:
+                self.conversation.add_message("command", f"✅ {message}")
+            else:
+                self.conversation.add_message("command", f"❌ {message}")
+            event.app.invalidate()
+
         @kb.add('s-tab')  # Shift+Tab
         def toggle_mode(event):
             """Cycle through execution modes."""
             new_mode = self.mode_manager.toggle_mode()
             mode_name = new_mode.value.upper()
             description = self.mode_manager.get_mode_description(new_mode)
-            
+
+            # Update style to match new mode
+            self.update_mode_style()
+
             # Show special message for LLVL mode
             if new_mode == ExecutionMode.LLVL:
                 warning = (
@@ -778,15 +859,27 @@ class PromptToolkitTUI:
                 message = f"{warning}\n{description}"
             else:
                 message = f"Switched to {mode_name} Mode\n\n{description}"
-            
+
             self.conversation.add_message("command", message)
-            
+
             # Update status
             self.status_text = f"{mode_name} Mode active"
-            
+
             event.app.invalidate()
 
         return kb
+
+    def _get_info_bar_text(self) -> FormattedText:
+        """Format info bar text with operational status.
+
+        Returns:
+            FormattedText for info bar display
+        """
+        return FormattedText([
+            ("class:info-text", f"  📊 Tokens: {self.token_count:,} | "),
+            ("class:info-text", f"Context: {int(self.context_usage * 100)}% | "),
+            ("class:info-text", f"🔄 {self.current_activity}  "),
+        ])
 
     def _create_layout(self) -> Layout:
         """Create the TUI layout structure.
@@ -794,9 +887,9 @@ class PromptToolkitTUI:
         Layout consists of:
         - Header (fixed, 1 line)
         - Conversation (flexible, scrollable)
+        - Info bar (fixed, 1 line) - operational info
         - Input (fixed, 3 lines with frame)
-        - System footer (conditional)
-        - Status bar (fixed, 1 line)
+        - Status bar (fixed, 1 line) - mode/thinking
         """
 
         # Header window
@@ -835,23 +928,25 @@ class PromptToolkitTUI:
             title="Type your message (Enter to send, Shift+Enter for newline, Esc to clear)",
         )
 
-        # System info footer (for model info, warnings, context window, etc.)
-        system_footer = Window(
+        # Info bar - displays operational info (integrated with conversation)
+        info_bar = Window(
             content=FormattedTextControl(
-                text=lambda: FormattedText([
-                    ("class:system-footer", f"  {self.system_footer_text}" if self.system_footer_text else "")
-                ])
+                text=lambda: self._get_info_bar_text()
             ),
-            height=lambda: 1 if self.system_footer_text else 0,  # Hide when empty
-            style="class:system-footer-bg",
+            height=1,
+            style="class:info-bar",
         )
 
-        # Status bar window
+        # Status bar window - simplified to show only mode and thinking status
         scroll_indicator = " [SCROLLED UP ↑]" if not self._is_at_bottom() else ""
+        thinking_status = "ON" if self.thinking_enabled else "OFF"
         status_window = Window(
             content=FormattedTextControl(
                 text=lambda: FormattedText([
-                    ("class:status", f"  {self.mode_manager.format_status_line()} | {len(self.conversation.messages)} messages{scroll_indicator} | {self.status_text} | Scroll: mouse/PgUp/PgDn | Ctrl+S: copy text | Ctrl+C: exit  ")
+                    ("class:status", f"  {self.mode_manager.format_status_line()} | "),
+                    ("class:status", f"Thinking: {thinking_status if self.thinking_enabled else 'OFF'} | "),
+                    ("class:status", f"{len(self.conversation.messages)} messages{scroll_indicator if not self._is_at_bottom() else ''} | "),
+                    ("class:status", f"Ctrl+Y: copy | Shift+Tab: mode | /help  "),
                 ])
             ),
             height=1,
@@ -862,9 +957,9 @@ class PromptToolkitTUI:
         root_container = HSplit([
             header,                   # Fixed at top
             self.conversation_window, # Takes remaining space (scrollable)
-            input_frame,              # Fixed above system footer
-            system_footer,            # System info (model, warnings)
-            status_window,            # Fixed at bottom
+            info_bar,                 # Info bar (above input, integrated look)
+            input_frame,              # User input
+            status_window,            # Fixed at bottom (mode/thinking)
         ])
 
         return Layout(root_container)
@@ -886,26 +981,107 @@ class PromptToolkitTUI:
         self.command_callback = callback
 
     def set_system_footer(self, text: str):
-        """Set system footer text (model info, warnings, etc).
+        """DEPRECATED: Use update_info_bar() instead.
+
+        Legacy method for compatibility. Maps to info bar activity field.
 
         Args:
-            text: Text to display in system footer
+            text: Text to display
         """
-        self.system_footer_text = text
-        self.app.invalidate()
+        self.update_info_bar(activity=text if text else "Ready")
 
     def clear_system_footer(self):
-        """Clear the system footer."""
-        self.system_footer_text = ""
-        self.app.invalidate()
+        """DEPRECATED: Use update_info_bar() instead.
+
+        Legacy method for compatibility.
+        """
+        self.update_info_bar(activity="Ready")
 
     def get_mode(self) -> ExecutionMode:
         """Get the current execution mode.
-        
+
         Returns:
             Current ExecutionMode (ARCHITECT or EXECUTE)
         """
         return self.mode_manager.get_mode()
+
+    def update_mode_style(self):
+        """Update application style to match current mode."""
+        new_style = get_mode_style(self.mode_manager.get_mode())
+        self.app.style = new_style
+        self.app.invalidate()
+
+    def update_info_bar(self, tokens: int | None = None, context: float | None = None, activity: str | None = None):
+        """Update info bar display with operational status.
+
+        Args:
+            tokens: Token count (optional)
+            context: Context usage as float 0.0-1.0 (optional)
+            activity: Current activity description (optional)
+        """
+        if tokens is not None:
+            self.token_count = tokens
+        if context is not None:
+            self.context_usage = context
+        if activity is not None:
+            self.current_activity = activity
+        if self.running:
+            self.app.invalidate()
+
+    def copy_conversation_to_clipboard(self) -> tuple[bool, str]:
+        """Copy conversation as markdown to clipboard.
+
+        Returns:
+            (success, message) tuple
+        """
+        try:
+            # Convert conversation to markdown
+            markdown_lines = ["# GerdsenAI Conversation", ""]
+
+            for role, content, timestamp in self.conversation.messages:
+                time_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
+                if role == "ascii":
+                    markdown_lines.append(f"## GerdsenAI · {time_str}")
+                    markdown_lines.append("```")
+                    markdown_lines.append(content)
+                    markdown_lines.append("```")
+                    markdown_lines.append("")
+                elif role == "user":
+                    markdown_lines.append(f"### You · {time_str}")
+                    markdown_lines.append(content)
+                    markdown_lines.append("")
+                elif role == "assistant":
+                    markdown_lines.append(f"### GerdsenAI · {time_str}")
+                    markdown_lines.append(content)
+                    markdown_lines.append("")
+                elif role == "command":
+                    markdown_lines.append(f"### Command Result · {time_str}")
+                    markdown_lines.append(f"```\n{content}\n```")
+                    markdown_lines.append("")
+
+            markdown_text = "\n".join(markdown_lines)
+
+            # Try to copy to clipboard using pbcopy on macOS
+            import subprocess
+            process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+            process.communicate(markdown_text.encode('utf-8'))
+
+            message_count = len(self.conversation.messages)
+            return True, f"Copied {message_count} messages to clipboard"
+
+        except FileNotFoundError:
+            # pbcopy not available, try pyperclip
+            try:
+                import pyperclip
+                pyperclip.copy(markdown_text)
+                message_count = len(self.conversation.messages)
+                return True, f"Copied {message_count} messages to clipboard"
+            except ImportError:
+                return False, "Clipboard copy failed: pyperclip not installed and pbcopy not available"
+        except Exception as e:
+            logger.error(f"Failed to copy conversation: {e}", exc_info=True)
+            return False, f"Failed to copy conversation: {str(e)}"
 
     def set_streaming_speed(self, speed: str) -> None:
         """Set streaming animation speed.
@@ -1078,26 +1254,64 @@ class PromptToolkitTUI:
             self.app.exit()
 
 
-# Color scheme for the TUI
-STYLE = Style.from_dict({
-    'header': 'bg:#008888 #ffffff bold',
-    'header-bg': 'bg:#006666',
-    'status': '#ffffff',
-    'status-bg': 'bg:#444444',
-    'user-label': '#00ffff bold',
-    'user-border': '#00aaaa',
-    'user-text': '#ffffff',
-    'ai-label': '#00ff00 bold',
-    'ai-border': '#00aa00',
-    'ai-text': '#ffffff',
-    'command-label': '#ffaa00 bold',
-    'command-border': '#aa8800',
-    'command-text': '#ffddaa',
-    'system-label': '#ffaa00 bold',
-    'system-border': '#aa8800',
-    'system-text': '#ffddaa',
-    'system-footer': '#888888',  # Dim gray for system info
-    'system-footer-bg': 'bg:#2a2a2a',  # Dark gray background
-    'cursor': '#ffff00 blink',
-    'dim': '#888888 italic',
-})
+# Mode-specific color schemes
+def get_mode_style(mode: ExecutionMode) -> Style:
+    """Get color scheme for specific execution mode.
+
+    Args:
+        mode: ExecutionMode to get colors for
+
+    Returns:
+        Style object with mode-specific colors
+    """
+    # Define mode-specific colors
+    mode_colors = {
+        ExecutionMode.CHAT: {
+            'primary': '#0066ff',      # Blue
+            'primary_bg': '#004499',   # Dark blue
+            'border': '#0088ff',       # Light blue
+        },
+        ExecutionMode.ARCHITECT: {
+            'primary': '#ffaa00',      # Yellow/Orange
+            'primary_bg': '#cc8800',   # Dark orange
+            'border': '#ffcc00',       # Light yellow
+        },
+        ExecutionMode.EXECUTE: {
+            'primary': '#00ff00',      # Green
+            'primary_bg': '#00aa00',   # Dark green
+            'border': '#00ff88',       # Light green
+        },
+        ExecutionMode.LLVL: {
+            'primary': '#ff00ff',      # Magenta
+            'primary_bg': '#cc00cc',   # Dark magenta
+            'border': '#ff44ff',       # Light magenta
+        },
+    }
+
+    colors = mode_colors.get(mode, mode_colors[ExecutionMode.CHAT])
+
+    return Style.from_dict({
+        'header': f'bg:{colors["primary"]} #ffffff bold',
+        'header-bg': f'bg:{colors["primary_bg"]}',
+        'status': '#ffffff',
+        'status-bg': 'bg:#444444',
+        'user-label': f'{colors["primary"]} bold',
+        'user-border': colors['border'],
+        'user-text': '#ffffff',
+        'ai-label': f'{colors["primary"]} bold',
+        'ai-border': colors['border'],
+        'ai-text': '#ffffff',
+        'command-label': '#ffaa00 bold',
+        'command-border': '#aa8800',
+        'command-text': '#ffddaa',
+        'system-label': '#ffaa00 bold',
+        'system-border': '#aa8800',
+        'system-text': '#ffddaa',
+        'system-footer': '#888888',
+        'system-footer-bg': 'bg:#2a2a2a',
+        'info-bar': 'bg:#1a1a1a',         # Subtle dark bg (integrated look)
+        'info-text': '#888888',           # Dim gray text
+        'cursor': '#ffff00 blink',
+        'dim': '#888888 italic',
+        'frame.border': colors['border'],  # For input frame border
+    })

@@ -11,6 +11,8 @@ from datetime import datetime
 from rich.console import Console
 from rich.prompt import Prompt
 
+from .core.capabilities import CapabilityDetector, ModelCapabilities
+
 logger = logging.getLogger(__name__)
 
 from rich.console import Console
@@ -56,6 +58,7 @@ from .commands.system import (
     ToolsCommand,
     TuiCommand,
 )
+from .commands.mcp import MCPCommand
 from .utils.conversation_io import ConversationManager
 from .commands.terminal import (
     ClearHistoryCommand,
@@ -219,6 +222,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(InitCommand())
         self.command_parser.register_command(ToolsCommand())
         self.command_parser.register_command(TuiCommand())
+        self.command_parser.register_command(MCPCommand())
 
         # Register model commands
         self.command_parser.register_command(ListModelsCommand())
@@ -734,9 +738,14 @@ class GerdsenAICLI:
         else:
             tui.set_system_footer(f"Model: {model_name}")
         
+        # Track model capabilities (detect once on first use)
+        capabilities: ModelCapabilities | None = None
+        
         # Define message handler with robust error handling
         async def handle_message(text: str) -> None:
             """Handle user message submission with comprehensive error handling."""
+            nonlocal capabilities
+            
             try:
                 # Check for exit commands
                 if text.lower() in ["/exit", "/quit"]:
@@ -760,6 +769,23 @@ class GerdsenAICLI:
                     tui.conversation.add_message("system", "Error: Agent not initialized")
                     tui.app.invalidate()
                     return
+                
+                # Detect capabilities on first message if not already done
+                if capabilities is None:
+                    try:
+                        model_name = self.settings.current_model if self.settings else None
+                        if model_name:
+                            capabilities = CapabilityDetector.detect_from_model_name(model_name)
+                            logger.info(f"Detected capabilities for {model_name}: thinking={capabilities.supports_thinking}, vision={capabilities.supports_vision}, tools={capabilities.supports_tools}")
+                            
+                            # Show thinking status if enabled but not supported
+                            if tui.thinking_enabled and not capabilities.supports_thinking:
+                                tui.conversation.add_message("system", "⚠️  Thinking mode is enabled but not supported by current model")
+                                tui.app.invalidate()
+                    except Exception as e:
+                        logger.warning(f"Failed to detect capabilities: {e}")
+                        # Use defaults if detection fails
+                        capabilities = ModelCapabilities()
                 
                 # Import for plan capture
                 from .ui.animations import PlanCapture
