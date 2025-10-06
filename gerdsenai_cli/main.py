@@ -761,31 +761,158 @@ class GerdsenAICLI:
                     tui.app.invalidate()
                     return
                 
-                # Start streaming AI response
-                tui.start_streaming_response()
+                # Import for plan capture
+                from .ui.animations import PlanCapture
                 
-                # Stream response from agent with timeout protection
-                chunk_count = 0
-                try:
-                    async for chunk, _ in self.agent.process_user_input_stream(text):
-                        tui.append_streaming_chunk(chunk)
-                        chunk_count += 1
+                # Check if we're in approval mode
+                if tui.approval_mode and tui.pending_plan:
+                    # Handle approval response
+                    approved = await tui.handle_approval_response(text)
                     
-                    # If no chunks received, show error
-                    if chunk_count == 0:
-                        tui.conversation.add_message("system", "Warning: No response received from AI")
+                    if approved:
+                        # Switch to EXECUTE mode and execute the plan
+                        from .core.modes import ExecutionMode
+                        old_mode = tui.mode_manager.get_mode()
+                        tui.mode_manager.set_mode(ExecutionMode.EXECUTE)
+                        
+                        # Show executing animation
+                        tui.show_animation("Executing plan", "executing")
+                        
+                        try:
+                            # Get the original user request from pending_plan metadata
+                            # For now, use the full response as context
+                            original_request = tui.pending_plan.get('original_request', text)
+                            
+                            # Execute with streaming display
+                            await asyncio.sleep(0.5)  # Brief pause for UX
+                            tui.hide_animation()
+                            tui.start_streaming_response()
+                            
+                            chunk_count = 0
+                            async for chunk, _ in self.agent.process_user_input_stream(original_request):
+                                tui.append_streaming_chunk(chunk)
+                                chunk_count += 1
+                                
+                                if tui.streaming_chunk_delay > 0:
+                                    await asyncio.sleep(tui.streaming_chunk_delay)
+                                
+                                if chunk_count % tui.streaming_refresh_interval == 0:
+                                    tui.app.invalidate()
+                            
+                            tui.finish_streaming_response()
+                            tui.conversation.add_message("command", "✅ Execution complete!")
+                            
+                        except Exception as e:
+                            tui.hide_animation()
+                            tui.finish_streaming_response()
+                            tui.conversation.add_message("system", f"Execution error: {str(e)}")
+                            logger.error(f"Execution error: {e}", exc_info=True)
+                        
+                        finally:
+                            # Restore original mode
+                            tui.mode_manager.set_mode(old_mode)
+                            mode_name = old_mode.value.upper()
+                            tui.status_text = f"[{mode_name}] Ready. Type your message and press Enter."
+                            tui.pending_plan = None
+                    
+                    tui.app.invalidate()
+                    return
+                
+                # Get current mode
+                current_mode = tui.get_mode()
+                from .core.modes import ExecutionMode
+                
+                # In CHAT mode, check if user is requesting action
+                if current_mode == ExecutionMode.CHAT:
+                    action_keywords = ['create', 'delete', 'modify', 'update', 'change', 'fix', 'add', 'remove', 'refactor', 'write', 'edit', 'implement']
+                    if any(keyword in text.lower() for keyword in action_keywords):
+                        suggestion = (
+                            "💡 It looks like you're requesting an action. "
+                            "In CHAT mode, I can only provide information and guidance.\n\n"
+                            "To execute actions:\n"
+                            "  • Switch to ARCHITECT mode (/mode architect) to plan changes\n"
+                            "  • Switch to EXECUTE mode (/mode execute) to make changes directly\n"
+                            "  • Use Shift+Tab to cycle through modes"
+                        )
+                        tui.conversation.add_message("system", suggestion)
                         tui.app.invalidate()
+                        return
                 
-                except asyncio.TimeoutError:
-                    tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                # In ARCHITECT mode, show thinking animation and capture response for approval
+                if current_mode == ExecutionMode.ARCHITECT:
+                    # Show thinking animation
+                    tui.show_animation("Analyzing your request", "thinking")
+                    await asyncio.sleep(0.5)  # Brief pause for UX
+                    
+                    tui.show_animation("Creating execution plan", "planning")
+                    
+                    try:
+                        # Capture AI response silently (don't stream to screen)
+                        full_response = ""
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            full_response += chunk
+                            # Update animation message periodically
+                            if len(full_response) % 200 == 0 and tui.current_animation:
+                                tui.current_animation.update_message("Planning... (analyzing complexity)")
+                        
+                        # Stop animation
+                        tui.hide_animation()
+                        
+                        # Extract and show plan summary
+                        plan = PlanCapture.extract_summary(full_response)
+                        plan['original_request'] = text  # Store for later execution
+                        tui.show_plan_for_approval(plan)
+                        
+                    except Exception as e:
+                        tui.hide_animation()
+                        tui.conversation.add_message("system", f"Planning error: {str(e)}")
+                        logger.error(f"Planning error: {e}", exc_info=True)
+                    
                     tui.app.invalidate()
-                except Exception as stream_error:
-                    logger.error(f"Streaming error: {stream_error}", exc_info=True)
-                    tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
-                    tui.app.invalidate()
+                    return
                 
-                # Always finish streaming to unlock the UI
-                tui.finish_streaming_response()
+                # In EXECUTE or LLVL mode, execute immediately with brief animation
+                if current_mode in [ExecutionMode.EXECUTE, ExecutionMode.LLVL]:
+                    tui.show_animation("Executing", "executing")
+                    
+                    # Brief delay for UX
+                    await asyncio.sleep(0.3)
+                    
+                    # Execute with streaming
+                    tui.hide_animation()
+                    tui.start_streaming_response()
+                    
+                    chunk_count = 0
+                    try:
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            tui.append_streaming_chunk(chunk)
+                            chunk_count += 1
+                            
+                            # Add configurable delay for smooth typewriter animation
+                            if tui.streaming_chunk_delay > 0:
+                                await asyncio.sleep(tui.streaming_chunk_delay)
+                            
+                            # Periodic refresh for smooth rendering
+                            if chunk_count % tui.streaming_refresh_interval == 0:
+                                tui.app.invalidate()
+                        
+                        # If no chunks received, show error
+                        if chunk_count == 0:
+                            tui.conversation.add_message("system", "Warning: No response received from AI")
+                            tui.app.invalidate()
+                    
+                    except asyncio.TimeoutError:
+                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        tui.app.invalidate()
+                    except Exception as stream_error:
+                        logger.error(f"Streaming error: {stream_error}", exc_info=True)
+                        tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
+                        tui.app.invalidate()
+                    
+                    # Always finish streaming to unlock the UI
+                    tui.finish_streaming_response()
+                    tui.app.invalidate()
+                    return
                 
             except KeyboardInterrupt:
                 # User interrupted streaming

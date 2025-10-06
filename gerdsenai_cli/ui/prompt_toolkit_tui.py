@@ -6,7 +6,8 @@ Enhanced with:
         '/help': 'Show available commands',
         '/clear': 'Clear conversation history',
         '/model': 'Show or switch AI model (usage: /model [name])',
-        '/mode': 'Show or switch execution mode (usage: /mode [architect|execute])',
+        '/mode': 'Show or switch execution mode (usage: /mode [chat|architect|execute|llvl])',
+        '/speed': 'Set streaming speed (usage: /speed [slow|medium|fast|instant])',
         '/debug': 'Toggle debug mode',
         '/save': 'Save conversation to file',
         '/load': 'Load conversation from file',
@@ -63,6 +64,7 @@ except ImportError:
     RICH_AVAILABLE = False
 
 from ..core.modes import ExecutionMode, ModeManager
+from .animations import AnimationFrames, PlanCapture, StatusAnimation
 
 # Set up logging
 log_dir = Path.home() / ".gerdsenai" / "logs"
@@ -128,10 +130,12 @@ class CommandParser:
             "Keyboard Shortcuts:",
             "",
             "Execution Modes:",
-            "  Shift+Tab       - Toggle between Architect/Execute modes",
+            "  Shift+Tab       - Cycle through modes (Chat -> Architect -> Execute -> LLVL)",
             "  /mode           - Show current mode info",
+            "  /mode chat      - Switch to Chat mode (conversation only)",
             "  /mode architect - Switch to Architect mode (plan first)",
             "  /mode execute   - Switch to Execute mode (immediate action)",
+            "  /mode llvl      - Switch to LLVL mode (Livin' La Vida Loca!)",
             "",
             "Message Input:",
             "  Enter           - Send message (single line) or submit",
@@ -486,8 +490,17 @@ class PromptToolkitTUI:
         self.input_window: Optional[Window] = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
         
-        # Initialize mode manager
-        self.mode_manager = ModeManager(default_mode=ExecutionMode.ARCHITECT)
+        # Streaming configuration for smooth animation
+        self.streaming_chunk_delay = 0.01  # 10ms default delay between chunks
+        self.streaming_refresh_interval = 3  # Refresh every N chunks
+        
+        # Animation and approval state
+        self.current_animation: Optional[StatusAnimation] = None
+        self.pending_plan: Optional[dict] = None
+        self.approval_mode = False
+        
+        # Initialize mode manager with CHAT as safe default
+        self.mode_manager = ModeManager(default_mode=ExecutionMode.CHAT)
         logger.info(f"TUI initialized in {self.mode_manager.get_mode().value} mode")
 
         # Create keybindings
@@ -573,20 +586,29 @@ class PromptToolkitTUI:
                         if not args:
                             # Show current mode
                             current_mode = self.mode_manager.get_mode()
-                            mode_name = current_mode.value.title()
+                            mode_name = current_mode.value.upper()
                             description = self.mode_manager.get_mode_description()
                             
                             message = (
                                 f"Current Mode: {mode_name}\n\n"
                                 f"{description}\n\n"
-                                "Use '/mode architect' or '/mode execute' to switch modes.\n"
-                                "Or press Shift+Tab to toggle."
+                                "Available modes:\n"
+                                "  • chat      - Conversation only, suggests mode switches\n"
+                                "  • architect - Plan first, wait for approval\n"
+                                "  • execute   - Immediate action without confirmation\n"
+                                "  • llvl      - Livin' La Vida Loca (maximum speed, no safety)\n\n"
+                                "Use '/mode <mode>' to switch, or press Shift+Tab to cycle."
                             )
                             self.conversation.add_message("command", message)
                         else:
                             # Switch mode
                             mode_arg = args[0].lower()
-                            if mode_arg == 'architect':
+                            if mode_arg == 'chat':
+                                self.mode_manager.set_mode(ExecutionMode.CHAT)
+                                description = self.mode_manager.get_mode_description(ExecutionMode.CHAT)
+                                self.conversation.add_message("command", f"Switched to Chat Mode\n\n{description}")
+                                self.status_text = "Chat Mode active"
+                            elif mode_arg == 'architect':
                                 self.mode_manager.set_mode(ExecutionMode.ARCHITECT)
                                 description = self.mode_manager.get_mode_description(ExecutionMode.ARCHITECT)
                                 self.conversation.add_message("command", f"Switched to Architect Mode\n\n{description}")
@@ -596,8 +618,50 @@ class PromptToolkitTUI:
                                 description = self.mode_manager.get_mode_description(ExecutionMode.EXECUTE)
                                 self.conversation.add_message("command", f"Switched to Execute Mode\n\n{description}")
                                 self.status_text = "Execute Mode active"
+                            elif mode_arg == 'llvl':
+                                # Show extra message for LLVL mode
+                                self.mode_manager.set_mode(ExecutionMode.LLVL)
+                                description = self.mode_manager.get_mode_description(ExecutionMode.LLVL)
+                                warning = (
+                                    "🎸 LIVIN' LA VIDA LOCA MODE ACTIVATED 🎸\n"
+                                    "All safety checks disabled!\n"
+                                    "Make sure you have version control enabled!\n\n"
+                                )
+                                self.conversation.add_message("command", f"{warning}{description}")
+                                self.status_text = "LLVL Mode active - LIVIN' LA VIDA LOCA!"
                             else:
-                                self.conversation.add_message("command", f"Unknown mode: {mode_arg}\n\nAvailable modes: architect, execute")
+                                self.conversation.add_message(
+                                    "command",
+                                    f"Unknown mode: {mode_arg}\n\n"
+                                    "Available modes: chat, architect, execute, llvl"
+                                )
+                    
+                    elif command == '/speed':
+                        if not args:
+                            # Show current speed
+                            current_delay = self.streaming_chunk_delay * 1000  # Convert to ms
+                            message = (
+                                f"Current streaming speed: {current_delay}ms delay between chunks\n\n"
+                                "Available speeds:\n"
+                                "  • slow    - 50ms delay (most visible, typewriter effect)\n"
+                                "  • medium  - 10ms delay (default, smooth)\n"
+                                "  • fast    - 5ms delay (quick but visible)\n"
+                                "  • instant - No delay (immediate display)\n\n"
+                                "Use '/speed <speed>' to change."
+                            )
+                            self.conversation.add_message("command", message)
+                        else:
+                            speed_arg = args[0].lower()
+                            if speed_arg in ['slow', 'medium', 'fast', 'instant']:
+                                self.set_streaming_speed(speed_arg)
+                                self.conversation.add_message("command", f"Streaming speed set to: {speed_arg}")
+                                self.status_text = f"Streaming: {speed_arg}"
+                            else:
+                                self.conversation.add_message(
+                                    "command",
+                                    f"Unknown speed: {speed_arg}\n\n"
+                                    "Available speeds: slow, medium, fast, instant"
+                                )
                     
                     else:
                         # External command - use callback if set
@@ -699,12 +763,22 @@ class PromptToolkitTUI:
 
         @kb.add('s-tab')  # Shift+Tab
         def toggle_mode(event):
-            """Toggle between Architect and Execute modes."""
+            """Cycle through execution modes."""
             new_mode = self.mode_manager.toggle_mode()
-            mode_name = new_mode.value.title()
+            mode_name = new_mode.value.upper()
             description = self.mode_manager.get_mode_description(new_mode)
             
-            message = f"Switched to {mode_name} Mode\n\n{description}"
+            # Show special message for LLVL mode
+            if new_mode == ExecutionMode.LLVL:
+                warning = (
+                    "\n"
+                    "🎸 LIVIN' LA VIDA LOCA MODE ACTIVATED 🎸\n"
+                    "Safety checks disabled. Make sure you have version control!\n"
+                )
+                message = f"{warning}\n{description}"
+            else:
+                message = f"Switched to {mode_name} Mode\n\n{description}"
+            
             self.conversation.add_message("command", message)
             
             # Update status
@@ -832,6 +906,118 @@ class PromptToolkitTUI:
             Current ExecutionMode (ARCHITECT or EXECUTE)
         """
         return self.mode_manager.get_mode()
+
+    def set_streaming_speed(self, speed: str) -> None:
+        """Set streaming animation speed.
+        
+        Args:
+            speed: 'slow', 'medium', 'fast', or 'instant'
+        """
+        speed_settings = {
+            'slow': (0.05, 5),      # 50ms delay, refresh every 5 chunks
+            'medium': (0.01, 3),    # 10ms delay, refresh every 3 chunks
+            'fast': (0.005, 2),     # 5ms delay, refresh every 2 chunks
+            'instant': (0.0, 1),    # No delay, refresh every chunk
+        }
+        
+        if speed in speed_settings:
+            self.streaming_chunk_delay, self.streaming_refresh_interval = speed_settings[speed]
+            logger.info(f"Streaming speed set to: {speed}")
+    
+    def show_animation(self, message: str, animation_type: str = "spinner"):
+        """Show animated status message.
+        
+        Args:
+            message: Status message
+            animation_type: Type of animation (spinner, thinking, planning, analyzing, executing, dots)
+        """
+        # Stop any existing animation
+        if self.current_animation:
+            self.current_animation.stop()
+        
+        # Get animation frames
+        frames_map = {
+            "spinner": AnimationFrames.SPINNER,
+            "thinking": AnimationFrames.THINKING,
+            "planning": AnimationFrames.PLANNING,
+            "analyzing": AnimationFrames.ANALYZING,
+            "executing": AnimationFrames.EXECUTING,
+            "dots": AnimationFrames.DOTS,
+        }
+        frames = frames_map.get(animation_type, AnimationFrames.SPINNER)
+        
+        # Create and start animation
+        self.current_animation = StatusAnimation(self, message, frames)
+        self.current_animation.start()
+        logger.debug(f"Started {animation_type} animation: {message}")
+    
+    def hide_animation(self):
+        """Stop and hide current animation."""
+        if self.current_animation:
+            self.current_animation.stop()
+            self.current_animation = None
+            mode_name = self.mode_manager.get_mode().value.upper()
+            self.status_text = f"[{mode_name}] Ready. Type your message and press Enter."
+            self.app.invalidate()
+            logger.debug("Animation hidden")
+    
+    def show_plan_for_approval(self, plan: dict):
+        """Show plan summary and enter approval mode.
+        
+        Args:
+            plan: Plan dict from PlanCapture.extract_summary
+        """
+        self.pending_plan = plan
+        self.approval_mode = True
+        
+        # Format and display plan
+        preview = PlanCapture.format_plan_preview(plan)
+        self.conversation.add_message("command", preview)
+        
+        # Update status
+        self.status_text = "⏸️  Waiting for approval (yes/no/show full)"
+        self.app.invalidate()
+        logger.info("Plan shown for approval")
+    
+    async def handle_approval_response(self, response: str) -> bool:
+        """Handle user response to approval prompt.
+        
+        Args:
+            response: User's response text
+            
+        Returns:
+            True if plan was approved, False if cancelled
+        """
+        response_lower = response.lower().strip()
+        
+        if response_lower in ['yes', 'approve', 'y', 'proceed', 'go', 'execute']:
+            # User approved
+            self.conversation.add_message("command", "✅ Plan approved! Switching to EXECUTE mode...")
+            self.approval_mode = False
+            logger.info("Plan approved by user")
+            return True
+        
+        elif response_lower in ['no', 'cancel', 'n', 'abort', 'stop']:
+            # User cancelled
+            self.conversation.add_message("command", "❌ Plan cancelled.")
+            self.approval_mode = False
+            self.pending_plan = None
+            logger.info("Plan cancelled by user")
+            return False
+        
+        elif 'show' in response_lower and 'full' in response_lower:
+            # User wants to see full plan
+            if self.pending_plan:
+                full_response = self.pending_plan.get('full_response', 'No details available')
+                self.conversation.add_message("assistant", full_response)
+                self.conversation.add_message("command", "\n" + "━" * 70 + "\nApprove? (yes/no)")
+                logger.info("Showing full plan details")
+            return False
+        
+        else:
+            # Invalid response
+            self.conversation.add_message("command", "⚠️  Please respond with 'yes' to approve or 'no' to cancel.")
+            return False
 
     def _auto_scroll_to_bottom(self):
         """Scroll conversation buffer to bottom if auto-scroll is enabled.
