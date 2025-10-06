@@ -1,0 +1,62 @@
+{
+  "api": {
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
+    "model": "qwen2.5-coder:32b",
+    "timeout": 600,
+    "max_retries": 3,
+    "stream": true
+  },
+  "conversation": {
+    "max_context_messages": 100,
+    "context_window": 128000,
+    "preserve_system_message": true,
+    "auto_save": true,
+    "save_directory": "~/.gerdsenai/conversations"
+  },
+  "file_operations": {
+    "auto_backup": true,
+    "backup_directory": ".backups",
+    "backup_count": 10,
+    "diff_preview": true,
+    "safe_mode": true
+  },
+  "terminal": {
+    "auto_confirm": false,
+    "command_timeout": 120,
+    "shell": "zsh",
+    "allow_dangerous_commands": false
+  },
+  "ui": {
+    "theme": "monokai",
+    "show_timestamps": true,
+    "show_token_count": true,
+    "thinking_enabled": true,
+    "animation_enabled": true,
+    "syntax_highlighting": true
+  },
+  "intelligence": {
+    "enabled": true,
+    "learning_rate": 0.15,
+    "track_patterns": true,
+    "analyze_context": true,
+    "suggest_improvements": true
+  },
+  "mcp": {
+    "enabled": true,
+    "servers": [],
+    "auto_connect": false
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "~/.gerdsenai/logs/gerdsenai.log",
+    "max_size": 10485760,
+    "backup_count": 5
+  },
+  "performance": {
+    "cache_enabled": true,
+    "cache_size": 1000,
+    "parallel_processing": true,
+    "max_workers": 4
+  }
+}
