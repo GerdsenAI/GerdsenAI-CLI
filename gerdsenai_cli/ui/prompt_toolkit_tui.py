@@ -545,8 +545,8 @@ class PromptToolkitTUI:
     def _load_ascii_art(self):
         """Load and display ASCII art from file at startup."""
         try:
-            # Get path to ASCII art file (assuming it's in the project root)
-            ascii_art_path = Path(__file__).parent.parent.parent / "gerdsenai-ascii-art.txt"
+            # Get path to ASCII art file (now in examples/)
+            ascii_art_path = Path(__file__).parent.parent.parent / "examples" / "gerdsenai-ascii-art.txt"
 
             if ascii_art_path.exists():
                 with open(ascii_art_path, 'r', encoding='utf-8') as f:

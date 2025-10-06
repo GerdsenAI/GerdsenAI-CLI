@@ -301,16 +301,48 @@ pytest
 - **Phase 1-7**: ✅ **Complete** - Core functionality, commands, and agent features
 - **Phase 8+**: 🚧 **Planned** - Extended commands, integrations, and advanced features
 
-See [TODO.md](TODO.md) for detailed development roadmap.
+See [docs/TODO.md](docs/TODO.md) for detailed development roadmap.
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+### Quick Links
+- **[Documentation Hub](docs/README.md)** - Central documentation index
+- **[Contributing Guide](docs/development/CONTRIBUTING.md)** - How to contribute
+- **[Testing Guide](docs/development/TESTING_GUIDE.md)** - Running and writing tests
+- **[Feature Documentation](docs/features/)** - Detailed feature documentation
+- **[Example Configs](examples/)** - Sample configuration files
+
+### Configuration Examples
+Ready-to-use configuration examples in `examples/config/`:
+- **[basic.json](examples/config/basic.json)** - Minimal setup for getting started
+- **[power-user.json](examples/config/power-user.json)** - Advanced configuration
+- **[mcp-github.json](examples/config/mcp-github.json)** - GitHub MCP integration
+
+```bash
+# Use an example config
+python -m gerdsenai_cli --config examples/config/basic.json
+```
+
+See [examples/README.md](examples/README.md) for more details on configuration options.
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guide](docs/development/CONTRIBUTING.md) for detailed information.
+
+**Quick Start for Contributors:**
+
 1. Fork the repository
-2. Create a feature branch
-3. Follow the existing code style and patterns
-4. Add tests for new functionality
-5. Update documentation as needed
-6. Submit a pull request
+2. Create and activate virtual environment (`.venv`)
+3. Install development dependencies: `pip install -e ".[dev]"`
+4. Create a feature branch
+5. Make your changes and add tests
+6. Run tests: `pytest -v`
+7. Update documentation as needed
+8. Submit a pull request
+
+**Important:** All development must be done in the project's virtual environment. See [.venv/README.md](.venv/README.md) for details.
 
 ## 📄 License
 

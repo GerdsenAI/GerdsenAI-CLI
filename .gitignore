@@ -83,5 +83,17 @@ profile_*.txt
 # Temporary files
 .temp/
 tmp/
-.clinerules/clinerules.md
-.github/copilot-instructions.md
+.clinerules/
+
+# File operation backups
+.backups/
+*.backup
+*~
+
+# Conversation history
+conversations/
+*.conversation.json
+
+# Test artifacts
+test_output/
+test_results/

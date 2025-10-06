@@ -19,10 +19,10 @@ console = Console()
 
 def get_ascii_art_path() -> Path:
     """Get the path to the ASCII art file."""
-    # Get the project root (where gerdsenai-ascii-art.txt is located)
+    # Get the project root and point to examples/ directory
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent
-    return project_root / "gerdsenai-ascii-art.txt"
+    return project_root / "examples" / "gerdsenai-ascii-art.txt"
 
 
 def apply_color_to_ascii_art(art_lines: list[str]) -> Text:
