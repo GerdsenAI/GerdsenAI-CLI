@@ -15,11 +15,6 @@ from .core.capabilities import CapabilityDetector, ModelCapabilities
 
 logger = logging.getLogger(__name__)
 
-from rich.console import Console
-from rich.prompt import Prompt
-
-logger = logging.getLogger(__name__)
-
 from .commands.agent import (
     AgentConfigCommand,
     AgentStatusCommand,
@@ -171,6 +166,21 @@ class GerdsenAICLI:
                     "Agent initialization failed, some features may be limited"
                 )
 
+            # Auto-refresh workspace context (like Claude CLI or Gemini CLI)
+            # This ensures ARCHITECT mode can see repository files without manual commands
+            if agent_ready and self.agent.context_manager:
+                try:
+                    logger.debug("Auto-loading workspace context...")
+                    # Context is already loaded by agent.initialize() -> _analyze_project_structure()
+                    # Just show user feedback about files loaded
+                    context_files = len(self.agent.context_manager.files)
+                    if context_files > 0:
+                        show_info(f"📂 Loaded {context_files} files into context")
+                    else:
+                        logger.debug("No files loaded into context (empty workspace or scan failed)")
+                except Exception as e:
+                    logger.warning(f"Failed to report workspace context: {e}")
+
             # Initialize command system
             await self._initialize_commands()
 
@@ -292,13 +302,13 @@ class GerdsenAICLI:
                 # Use async context manager for proper client lifecycle
                 async with LLMClient(temp_settings) as temp_client:
                     # Wrap the entire connection test in a timeout to prevent hanging
-                    print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
+                    logger.debug(f"Attempting connection to {protocol}://{host}:{port}")
                     connected = await asyncio.wait_for(
                         temp_client.connect(),
                         timeout=15.0,  # 15 second total timeout for setup
                     )
-                    print(f"[DEBUG] Connection result: {connected}")
-
+                    logger.debug(f"Connection result: {connected}")
+                    
                     if not connected:
                         show_error(
                             "Could not connect to the LLM server. Please check the URL and try again."
@@ -308,13 +318,13 @@ class GerdsenAICLI:
                     # Get available models
                     models = await temp_client.list_models()
             except asyncio.TimeoutError:
-                print("[DEBUG] Connection test timed out after 15 seconds")
+                logger.debug("Connection test timed out after 15 seconds")
                 show_error(
                     "Connection test timed out. Please check if your LLM server is running and accessible."
                 )
                 return None
             except Exception as e:
-                print(f"[DEBUG] Connection test failed with exception: {e}")
+                logger.debug(f"Connection test failed with exception: {e}")
                 show_error(f"Connection test failed: {e}")
                 return None
 
@@ -546,7 +556,8 @@ class GerdsenAICLI:
             if self.input_handler:
                 await self.input_handler.cleanup()
             if self.llm_client:
-                await self.llm_client.close()
+                # Properly exit async context manager
+                await self.llm_client.__aexit__(None, None, None)
     
     async def _handle_tui_command(self, command: str, args: list[str], tui=None) -> str:
         """Handle TUI commands like /model, /save, /load, /export.
@@ -776,11 +787,22 @@ class GerdsenAICLI:
                         model_name = self.settings.current_model if self.settings else None
                         if model_name:
                             capabilities = CapabilityDetector.detect_from_model_name(model_name)
-                            logger.info(f"Detected capabilities for {model_name}: thinking={capabilities.supports_thinking}, vision={capabilities.supports_vision}, tools={capabilities.supports_tools}")
                             
-                            # Show thinking status if enabled but not supported
+                            # Show capability summary to user
+                            cap_msg = f"🔍 Model: {model_name}\n"
+                            cap_msg += f"  • Thinking: {'✅ Supported' if capabilities.supports_thinking else '❌ Not supported'}\n"
+                            cap_msg += f"  • Vision: {'✅ Supported' if capabilities.supports_vision else '❌ Not supported'}\n"
+                            cap_msg += f"  • Tools: {'✅ Supported' if capabilities.supports_tools else '❌ Not supported'}\n"
+                            cap_msg += f"  • Streaming: {'✅ Supported' if capabilities.supports_streaming else '❌ Not supported'}"
+                            
+                            tui.conversation.add_message("system", cap_msg)
+                            tui.app.invalidate()
+                            
+                            logger.info(f"Detected capabilities for {model_name}: thinking={capabilities.supports_thinking}, vision={capabilities.supports_vision}, tools={capabilities.supports_tools}, streaming={capabilities.supports_streaming}")
+                            
+                            # Warn if thinking is enabled but not supported
                             if tui.thinking_enabled and not capabilities.supports_thinking:
-                                tui.conversation.add_message("system", "⚠️  Thinking mode is enabled but not supported by current model")
+                                tui.conversation.add_message("system", "⚠️  Thinking mode is enabled but this model does not support structured thinking output")
                                 tui.app.invalidate()
                     except Exception as e:
                         logger.warning(f"Failed to detect capabilities: {e}")
@@ -863,6 +885,41 @@ class GerdsenAICLI:
                         tui.conversation.add_message("system", suggestion)
                         tui.app.invalidate()
                         return
+                    
+                    # Regular CHAT mode conversation - stream AI response
+                    tui.start_streaming_response()
+                    
+                    chunk_count = 0
+                    try:
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            tui.append_streaming_chunk(chunk)
+                            chunk_count += 1
+                            
+                            # Add configurable delay for smooth typewriter animation
+                            if tui.streaming_chunk_delay > 0:
+                                await asyncio.sleep(tui.streaming_chunk_delay)
+                            
+                            # Periodic refresh for smooth rendering
+                            if chunk_count % tui.streaming_refresh_interval == 0:
+                                tui.app.invalidate()
+                        
+                        # If no chunks received, show error
+                        if chunk_count == 0:
+                            tui.conversation.add_message("system", "Warning: No response received from AI")
+                            tui.app.invalidate()
+                    
+                    except asyncio.TimeoutError:
+                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        tui.app.invalidate()
+                    except Exception as stream_error:
+                        logger.error(f"Streaming error: {stream_error}", exc_info=True)
+                        tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
+                        tui.app.invalidate()
+                    
+                    # Always finish streaming to unlock the UI
+                    tui.finish_streaming_response()
+                    tui.app.invalidate()
+                    return
                 
                 # In ARCHITECT mode, show thinking animation and capture response for approval
                 if current_mode == ExecutionMode.ARCHITECT:
