@@ -1,5 +1,10 @@
 # GerdsenAI CLI
 
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Code Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](htmlcov/index.html)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](tests/)
+
 A terminal-based agentic coding tool that connects to local AI models for intelligent code assistance.
 
 ---

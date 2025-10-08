@@ -115,6 +115,10 @@ class IntentParser:
 
     def __init__(self):
         """Initialize intent parser with patterns and keywords."""
+        # Initialize input validator for security
+        from .input_validator import get_validator
+        self.input_validator = get_validator()
+
         # Patterns for detecting different intent types
         self.file_patterns = {
             "edit": [

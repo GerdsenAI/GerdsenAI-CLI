@@ -499,18 +499,33 @@ Guidelines:
             Result description
         """
         logger.info(f"Executing step {step.id}: {step.title}")
-        
+
         # Update status to show what we're doing
         if status_callback:
             status_callback("analyzing")
-        
-        # Use agent to process the step
-        result = await self.agent.process_user_input(step.description)
-        
-        if status_callback:
-            status_callback("synthesizing")
-        
-        return result or "Step completed"
+
+        # Execute step directly via LLM (avoid recursion through process_user_input)
+        try:
+            from ..core.llm_client import ChatMessage
+
+            messages = [
+                ChatMessage(role="system", content="You are an AI coding assistant executing a planned step."),
+                ChatMessage(role="user", content=f"Execute this task step:\n\n{step.description}\n\nProvide a clear response about what you did.")
+            ]
+
+            result = await self.llm_client.chat(
+                messages=messages,
+                temperature=0.7
+            )
+
+            if status_callback:
+                status_callback("synthesizing")
+
+            return result or "Step completed"
+
+        except Exception as e:
+            logger.error(f"Step execution failed: {e}")
+            return f"Step failed: {str(e)}"
     
     def show_plan_preview(self, plan: TaskPlan) -> str:
         """Generate rich text preview of the plan.

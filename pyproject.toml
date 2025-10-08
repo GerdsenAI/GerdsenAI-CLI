@@ -40,6 +40,7 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.7.0",
@@ -103,7 +104,7 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers --cov=gerdsenai_cli --cov-report=term-missing --cov-report=html --cov-fail-under=90"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]

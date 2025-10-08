@@ -292,8 +292,8 @@ class LLMClient:
             for i, endpoint in enumerate(health_endpoints):
                 try:
                     url = self._get_endpoint(endpoint)
-                    print(
-                        f"[DEBUG] Testing endpoint {i+1}/{len(health_endpoints)}: {url}"
+                    logger.debug(
+                        f"Testing endpoint {i+1}/{len(health_endpoints)}: {url}"
                     )
                     logger.info(f"Testing connection to {url}")
 
@@ -303,72 +303,67 @@ class LLMClient:
                         timeout=OPERATION_TIMEOUTS["health"] + 1.0,  # Extra buffer
                     )
 
-                    print(f"[DEBUG] Response status: {response.status_code}")
-                    print(f"[DEBUG] Response headers: {dict(response.headers)}")
+                    logger.debug(f"Response status: {response.status_code}")
+                    logger.debug(f"Response headers: {dict(response.headers)}")
 
                     # Show response content for debugging (limit to first 200 chars)
                     try:
                         content = response.text[:200]
                         if len(response.text) > 200:
                             content += "..."
-                        print(f"[DEBUG] Response content: {content}")
+                        logger.debug(f"Response content: {content}")
                     except Exception:
-                        print("[DEBUG] Response content: <unable to decode>")
+                        logger.debug("Response content: <unable to decode>")
 
                     if response.status_code == 200:
                         logger.info(
                             f"Successfully connected to LLM server at {self.base_url} via {endpoint}"
                         )
-                        print(f"[DEBUG] Connection successful via {endpoint}")
+                        logger.debug(f"Connection successful via {endpoint}")
                         self._is_connected = True
                         return True
                     else:
-                        print(f"[DEBUG] Non-200 status code: {response.status_code}")
+                        logger.debug(f"Non-200 status code: {response.status_code}")
 
                 except asyncio.TimeoutError:
-                    print(
-                        f"[DEBUG] Timeout on endpoint {endpoint} (>{OPERATION_TIMEOUTS['health']}s)"
+                    logger.debug(
+                        f"Timeout on endpoint {endpoint} (>{OPERATION_TIMEOUTS['health']}s)"
                     )
-                    logger.debug(f"Endpoint {endpoint} timed out")
                     continue
                 except httpx.ConnectError as e:
-                    print(f"[DEBUG] Connection error on {endpoint}: {e}")
-                    print(
-                        "[DEBUG] This usually means the server is not running or not accessible"
+                    logger.debug(f"Connection error on {endpoint}: {e}")
+                    logger.debug(
+                        "This usually means the server is not running or not accessible"
                     )
-                    logger.debug(f"Endpoint {endpoint} connection failed: {e}")
                     continue
                 except httpx.HTTPStatusError as e:
-                    print(
-                        f"[DEBUG] HTTP error on {endpoint}: {e.response.status_code} - {e}"
+                    logger.debug(
+                        f"HTTP error on {endpoint}: {e.response.status_code} - {e}"
                     )
-                    logger.debug(f"Endpoint {endpoint} HTTP error: {e}")
                     continue
                 except httpx.RequestError as e:
-                    print(f"[DEBUG] Request error on {endpoint}: {e}")
-                    logger.debug(f"Endpoint {endpoint} request failed: {e}")
+                    logger.debug(f"Request error on {endpoint}: {e}")
                     continue
                 except Exception as e:
-                    print(f"[DEBUG] Unexpected error on endpoint {endpoint}: {e}")
                     logger.debug(f"Unexpected error on endpoint {endpoint}: {e}")
                     continue
 
             # If none of the health endpoints work, raise an exception to trigger retry
-            print(f"[DEBUG] All endpoints failed for {self.base_url}")
-            print("[DEBUG] Common troubleshooting steps:")
-            print("[DEBUG] 1. Make sure your LLM server is running")
-            print(f"[DEBUG] 2. Verify the server is listening on {self.base_url}")
-            print(f"[DEBUG] 3. Test manually: 'curl {self.base_url}/v1/models'")
-            print("[DEBUG] 4. Check server logs for errors")
+            logger.debug(f"All endpoints failed for {self.base_url}")
+            logger.debug("Common troubleshooting steps:")
+            logger.debug("1. Make sure your LLM server is running")
+            logger.debug(f"2. Verify the server is listening on {self.base_url}")
+            logger.debug(f"3. Test manually: 'curl {self.base_url}/v1/models'")
+            logger.debug("4. Check server logs for errors")
             raise httpx.ConnectError(
                 f"Unable to connect to LLM server at {self.base_url} (tried {len(health_endpoints)} endpoints)"
             )
 
         try:
-            print(f"[DEBUG] Starting connection test to {self.base_url}")
+            logger.debug(f"Starting connection test to {self.base_url}")
             return await self._execute_with_retry("Connection test", _connect_impl)
         except Exception as e:
-            print(f"[DEBUG] Connection test failed completely: {e}")
+            logger.debug(f"Connection test failed completely: {e}")
             logger.error(f"Connection test failed after retries: {e}")
             show_error(
                 f"Unable to connect to LLM server at {self.base_url}. Is the server running?"

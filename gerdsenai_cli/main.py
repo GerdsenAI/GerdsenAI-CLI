@@ -250,6 +250,11 @@ class GerdsenAICLI:
             self.command_parser.register_command(
                 IntelligenceCommand(self.agent, self.enhanced_console)
             )
+            # Register Phase 8d intelligence features
+            from .commands.planning import PlanCommand
+            from .commands.memory import MemoryCommand
+            self.command_parser.register_command(PlanCommand(self.agent))
+            self.command_parser.register_command(MemoryCommand(self.agent))
 
         # Register file commands
         self.command_parser.register_command(FilesCommand())
