@@ -1,6 +1,6 @@
-# 🚦 TUI Launch Status & Requirements
+#  TUI Launch Status & Requirements
 
-## ❌ Current Issue: LLM Server Not Running
+## [FAILED] Current Issue: LLM Server Not Running
 
 ### Error Message:
 ```
@@ -11,7 +11,7 @@
 ### Root Cause:
 The GerdsenAI CLI requires a local LLM server (like LM Studio, Ollama, or similar) to be running to handle AI requests.
 
-## 🔧 Solution Options
+##  Solution Options
 
 ### Option 1: Start Your LLM Server (Recommended)
 
@@ -68,19 +68,19 @@ For testing the animation system specifically, we can create a mock test:
 python test_animation_system.py
 ```
 
-This was already successful! ✅
+This was already successful! [COMPLETE]
 
-## ✅ What's Working (No LLM Required)
+## [COMPLETE] What's Working (No LLM Required)
 
 The animation system itself is fully implemented and tested:
-- ✅ AnimationFrames defined
-- ✅ StatusAnimation working
-- ✅ PlanCapture functioning
-- ✅ File and action detection working
-- ✅ Plan preview formatting correct
-- ✅ All 6 automated tests passing
+- [COMPLETE] AnimationFrames defined
+- [COMPLETE] StatusAnimation working
+- [COMPLETE] PlanCapture functioning
+- [COMPLETE] File and action detection working
+- [COMPLETE] Plan preview formatting correct
+- [COMPLETE] All 6 automated tests passing
 
-## 🎯 What Requires LLM Server
+## GOAL: What Requires LLM Server
 
 To test the **full integration** in the TUI, you need the LLM server for:
 - Generating AI responses
@@ -88,7 +88,7 @@ To test the **full integration** in the TUI, you need the LLM server for:
 - Executing requests in EXECUTE mode
 - Streaming responses
 
-## 📋 Quick Checklist
+## [PLANNED] Quick Checklist
 
 Before launching the TUI:
 - [ ] LLM server software installed (LM Studio, Ollama, etc.)
@@ -97,7 +97,7 @@ Before launching the TUI:
 - [ ] At least one model loaded in the server
 - [ ] Configuration file points to correct server URL
 
-## 🔍 Troubleshooting
+##  Troubleshooting
 
 ### Check if Server is Running:
 ```bash
@@ -127,7 +127,7 @@ cat ~/.gerdsenai/config.json
 grep -r "llm_server_url" ~/.gerdsenai/
 ```
 
-## 💡 Recommended Next Steps
+## [IDEA] Recommended Next Steps
 
 1. **Start your LLM server** (LM Studio, Ollama, etc.)
 2. **Verify it's running** with curl or browser
@@ -140,7 +140,7 @@ grep -r "llm_server_url" ~/.gerdsenai/
    - Make a request: `Create a calculator module`
    - Watch animations and approval workflow!
 
-## 🎉 Alternative: View Test Results
+##  Alternative: View Test Results
 
 Since the automated tests passed, you can see proof that the animation system works:
 
@@ -150,10 +150,10 @@ python test_animation_system.py
 ```
 
 This demonstrates:
-- ✅ All animations are defined
-- ✅ Plan capture extracts files (3 files detected)
-- ✅ Plan capture extracts actions (5-6 actions detected)
-- ✅ Plan formatting works correctly
-- ✅ Animation start/stop/update works
+- [COMPLETE] All animations are defined
+- [COMPLETE] Plan capture extracts files (3 files detected)
+- [COMPLETE] Plan capture extracts actions (5-6 actions detected)
+- [COMPLETE] Plan formatting works correctly
+- [COMPLETE] Animation start/stop/update works
 
-The implementation is complete - it just needs an LLM server to test the full integration! 🚀
+The implementation is complete - it just needs an LLM server to test the full integration! 

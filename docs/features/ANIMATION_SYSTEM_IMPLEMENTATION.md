@@ -1,6 +1,6 @@
 # Animation System & Approval Workflow Implementation
 
-## 🎯 Overview
+## GOAL: Overview
 
 Successfully implemented an animation system with approval workflow that provides:
 - **Animated status indicators** during AI thinking/planning
@@ -9,17 +9,17 @@ Successfully implemented an animation system with approval workflow that provide
 - **Approval workflow** to control execution
 - **Automatic mode switching** from ARCHITECT → EXECUTE
 
-## 📦 What Was Implemented
+##  What Was Implemented
 
 ### 1. Animation Module (`gerdsenai_cli/ui/animations.py`)
 
 #### **AnimationFrames**
 Predefined animation sequences:
-- `SPINNER`: Classic spinner animation (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏)
-- `THINKING`: Thinking emojis (🤔💭🤔💡)
-- `PLANNING`: Planning emojis (📋📝✍️📊)
-- `ANALYZING`: Analysis emojis (🔍🔎🔬📊)
-- `EXECUTING`: Execution emojis (⚡💫✨⚡)
+- `SPINNER`: Classic spinner animation ()
+- `THINKING`: Thinking emojis (🤔🤔[IDEA])
+- `PLANNING`: Planning emojis ([PLANNED]STATUS:)
+- `ANALYZING`: Analysis emojis (STATUS:)
+- `EXECUTING`: Execution emojis ()
 - `DOTS`: Dot animation (   .  .. ...)
 
 #### **StatusAnimation**
@@ -72,8 +72,8 @@ Implemented mode-aware message handling:
 
 #### **Approval Workflow**
 User responses:
-- `yes`/`approve`/`y`/`proceed`/`go`/`execute`: ✅ Approve and execute
-- `no`/`cancel`/`n`/`abort`/`stop`: ❌ Cancel plan
+- `yes`/`approve`/`y`/`proceed`/`go`/`execute`: [COMPLETE] Approve and execute
+- `no`/`cancel`/`n`/`abort`/`stop`: [FAILED] Cancel plan
 - `show full`: Display complete AI response, then re-prompt
 
 On approval:
@@ -88,7 +88,7 @@ On approval:
 2. Stream response with configurable delays
 3. Display results immediately
 
-## 🎨 User Experience Flow
+##  User Experience Flow
 
 ### Example: User in ARCHITECT Mode
 
@@ -98,20 +98,20 @@ User: "Create a new module for user authentication"
 TUI: 🤔 Analyzing your request
      (animated for 0.5s)
 
-TUI: 📋 Creating execution plan
+TUI: [PLANNED] Creating execution plan
      (animated while AI thinks)
 
-TUI: 📋 Plan Summary
-     ══════════════════════════════════════
+TUI: [PLANNED] Plan Summary
+     
      
      I'll create a comprehensive user authentication module...
      
-     📁 Files to be modified:
+      Files to be modified:
        • gerdsenai_cli/auth/user_auth.py
        • gerdsenai_cli/auth/__init__.py
        • tests/test_user_auth.py
      
-     ⚡ Actions:
+      Actions:
        • Create new authentication module
        • Implement login/logout functions
        • Add password hashing
@@ -120,7 +120,7 @@ TUI: 📋 Plan Summary
      
      Complexity: MODERATE
      
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     
      
      Do you want to proceed?
        • Type 'yes' or 'approve' to execute this plan
@@ -129,18 +129,18 @@ TUI: 📋 Plan Summary
 
 User: yes
 
-TUI: ✅ Plan approved! Switching to EXECUTE mode...
-     ⚡ Executing plan
+TUI: [COMPLETE] Plan approved! Switching to EXECUTE mode...
+      Executing plan
      (switches to EXECUTE mode and runs with streaming output)
      
      [Full AI response streams here with typewriter effect]
      
-     ✅ Execution complete!
+     [COMPLETE] Execution complete!
      
      (returns to ARCHITECT mode)
 ```
 
-## 🔧 Configuration
+##  Configuration
 
 ### Animation Speeds
 Already implemented via `/speed` command:
@@ -152,14 +152,14 @@ Already implemented via `/speed` command:
 ### Animation Types
 Use in code:
 ```python
-tui.show_animation("Message", "thinking")   # 🤔💭
-tui.show_animation("Message", "planning")   # 📋📝
-tui.show_animation("Message", "analyzing")  # 🔍🔎
-tui.show_animation("Message", "executing")  # ⚡💫
-tui.show_animation("Message", "spinner")    # ⠋⠙⠹
+tui.show_animation("Message", "thinking")   # 🤔
+tui.show_animation("Message", "planning")   # [PLANNED]
+tui.show_animation("Message", "analyzing")  # 
+tui.show_animation("Message", "executing")  # 
+tui.show_animation("Message", "spinner")    # 
 ```
 
-## 🧪 Testing Guide
+##  Testing Guide
 
 ### Test ARCHITECT Mode with Animations
 
@@ -180,10 +180,10 @@ tui.show_animation("Message", "spinner")    # ⠋⠙⠹
    ```
 
 4. **Observe**:
-   - ✅ "Analyzing" animation should appear
-   - ✅ "Planning" animation should appear
-   - ✅ Plan summary should display (not full verbose output)
-   - ✅ Approval prompt should appear
+   - [COMPLETE] "Analyzing" animation should appear
+   - [COMPLETE] "Planning" animation should appear
+   - [COMPLETE] Plan summary should display (not full verbose output)
+   - [COMPLETE] Approval prompt should appear
 
 5. **Test Approval Responses**:
    - Type `show full` - should display complete AI response
@@ -203,9 +203,9 @@ tui.show_animation("Message", "spinner")    # ⠋⠙⠹
    ```
 
 3. **Observe**:
-   - ✅ Brief "Executing" animation (0.3s)
-   - ✅ Response streams immediately with typewriter effect
-   - ✅ No approval prompt (executes directly)
+   - [COMPLETE] Brief "Executing" animation (0.3s)
+   - [COMPLETE] Response streams immediately with typewriter effect
+   - [COMPLETE] No approval prompt (executes directly)
 
 ### Test CHAT Mode Safety
 
@@ -220,26 +220,26 @@ tui.show_animation("Message", "spinner")    # ⠋⠙⠹
    ```
 
 3. **Observe**:
-   - ✅ System suggests switching to ARCHITECT or EXECUTE mode
-   - ✅ No file creation occurs
+   - [COMPLETE] System suggests switching to ARCHITECT or EXECUTE mode
+   - [COMPLETE] No file creation occurs
 
-## 📊 Success Criteria
+## STATUS: Success Criteria
 
-- ✅ Animations display during AI thinking
-- ✅ Plan capture works (no verbose streaming in ARCHITECT mode)
-- ✅ Plan summary extracts files and actions correctly
-- ✅ Approval workflow accepts yes/no/show full
-- ✅ Auto-switch to EXECUTE mode on approval
-- ✅ Execution displays with streaming
-- ✅ Mode restoration after execution
-- ✅ CHAT mode blocks actions appropriately
-- ✅ No crashes or errors during mode switches
+- [COMPLETE] Animations display during AI thinking
+- [COMPLETE] Plan capture works (no verbose streaming in ARCHITECT mode)
+- [COMPLETE] Plan summary extracts files and actions correctly
+- [COMPLETE] Approval workflow accepts yes/no/show full
+- [COMPLETE] Auto-switch to EXECUTE mode on approval
+- [COMPLETE] Execution displays with streaming
+- [COMPLETE] Mode restoration after execution
+- [COMPLETE] CHAT mode blocks actions appropriately
+- [COMPLETE] No crashes or errors during mode switches
 
-## 🐛 Known Issues
+##  Known Issues
 
 None currently! All implementations complete and working.
 
-## 🚀 Next Steps (Optional Enhancements)
+##  Next Steps (Optional Enhancements)
 
 1. **Enhanced Plan Extraction**:
    - Use LLM to generate better summaries
@@ -266,7 +266,7 @@ None currently! All implementations complete and working.
    - Recall previous plans
    - Compare plan versions
 
-## 📝 Files Modified
+##  Files Modified
 
 1. **Created**: `gerdsenai_cli/ui/animations.py` (new file)
    - AnimationFrames class
@@ -288,7 +288,7 @@ None currently! All implementations complete and working.
    - Added ARCHITECT mode plan capture
    - Added auto-switch to EXECUTE on approval
 
-## 🎉 Summary
+##  Summary
 
 The animation system and approval workflow are **fully implemented and ready for testing**! The TUI now provides a much better UX by:
 - Showing what the AI is doing (thinking/planning/executing)
@@ -297,9 +297,9 @@ The animation system and approval workflow are **fully implemented and ready for
 - Automatically switching modes for seamless workflow
 
 This addresses your requirements:
-✅ Shows animations instead of full scrolling response
-✅ Captures plan silently
-✅ Shows summary for approval
-✅ Asks user to proceed
-✅ Switches to EXECUTE mode on approval
-✅ No longer dumps all text to screen in ARCHITECT mode
+[COMPLETE] Shows animations instead of full scrolling response
+[COMPLETE] Captures plan silently
+[COMPLETE] Shows summary for approval
+[COMPLETE] Asks user to proceed
+[COMPLETE] Switches to EXECUTE mode on approval
+[COMPLETE] No longer dumps all text to screen in ARCHITECT mode

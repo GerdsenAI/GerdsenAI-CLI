@@ -133,15 +133,15 @@ tests/test_conversation_io.py .......................  [23 passed in 0.05s]
 
 ```
 ~/.gerdsenai/
-├── logs/
-│   └── tui.log
-├── conversations/
-│   ├── my_chat.json
-│   ├── debug_session.json
-│   └── project_planning.json
-└── exports/
-    ├── conversation_20251004_120000.md
-    └── important_discussion.md
+ logs/
+    tui.log
+ conversations/
+    my_chat.json
+    debug_session.json
+    project_planning.json
+ exports/
+     conversation_20251004_120000.md
+     important_discussion.md
 ```
 
 ## Usage Examples

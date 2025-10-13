@@ -5,14 +5,14 @@ Successfully implemented a modern, enhanced Text User Interface (TUI) for Gerdse
 
 ## Completed Features
 
-### 1. Core Infrastructure Fixes ✅
+### 1. Core Infrastructure Fixes [COMPLETE]
 - **pytest-asyncio test infrastructure**: Fixed hanging tests by correcting async fixture scope and AsyncClient lifecycle
 - **Pydantic Settings infinite loop**: Resolved validate_assignment recursion using `object.__setattr__` bypass
 - **BaseCommand property compliance**: Converted all command classes to use `@property` decorators
 - **prompt_toolkit HTML markup**: Fixed "not well-formed (invalid token)" error with valid XML attributes
 - **VS Code workspace configuration**: Configured Python 3.13 interpreter and PATH prepending
 
-### 2. Enhanced TUI Layout System ✅
+### 2. Enhanced TUI Layout System [COMPLETE]
 
 #### Files Created:
 - `gerdsenai_cli/ui/layout.py` - 3-panel layout management
@@ -21,22 +21,22 @@ Successfully implemented a modern, enhanced Text User Interface (TUI) for Gerdse
 
 #### Layout Structure:
 ```
-┌─────────────────────────────────────────┐
-│         GerdsenAI (Response)            │  ← Top panel (expandable)
-│  - Syntax highlighting for code blocks  │
-│  - Markdown rendering                    │
-│  - Auto code detection                   │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│  Task: Sublimating... · ↓ 9.6k tokens   │  ← Status bar (middle)
-│  Context: 52 files · Model: magistral   │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│  You > _                                 │  ← Input panel (bottom, 2-3 lines)
-└─────────────────────────────────────────┘
+
+         GerdsenAI (Response)              ← Top panel (expandable)
+  - Syntax highlighting for code blocks  
+  - Markdown rendering                    
+  - Auto code detection                   
+
+
+  Task: Sublimating... · ↓ 9.6k tokens     ← Status bar (middle)
+  Context: 52 files · Model: magistral   
+
+
+  You > _                                   ← Input panel (bottom, 2-3 lines)
+
 ```
 
-### 3. TUI Toggle Command ✅
+### 3. TUI Toggle Command [COMPLETE]
 
 #### Implementation:
 - **Command**: `/tui [on|off|toggle]`
@@ -48,9 +48,9 @@ Successfully implemented a modern, enhanced Text User Interface (TUI) for Gerdse
 #### Features:
 - Persists preference to settings file
 - Toggles between enhanced TUI and simple console output
-- Shows helpful status messages with icons (✨ for enabled, 📝 for disabled)
+- Shows helpful status messages with icons ( for enabled,  for disabled)
 
-### 4. Streaming Responses ✅
+### 4. Streaming Responses [COMPLETE]
 
 #### Implementation:
 - **Agent**: Added `process_user_input_stream()` method in `gerdsenai_cli/core/agent.py`
@@ -130,7 +130,7 @@ python3.13 -m pytest tests/ -v
 
 ## Status
 
-**All 10 planned todos completed! 🎉**
+**All 10 planned todos completed! **
 
 The enhanced TUI is now fully integrated into GerdsenAI CLI with:
 - Modern 3-panel layout matching screenshot design
