@@ -1,33 +1,33 @@
-# 🧪 Manual Testing Guide - Animation System & Approval Workflow
+# Manual Testing Guide - Animation System & Approval Workflow
 
 ---
 
-> **🚨 CRITICAL: Activate Virtual Environment First**
-> 
+> **CRITICAL: Activate Virtual Environment First**
+>
 > **Before running ANY tests, you MUST activate the virtual environment:**
 > ```bash
 > source .venv/bin/activate
 > ```
-> 
+>
 > **Verify activation:**
 > ```bash
 > which python  # Should show: <project-path>/.venv/bin/python
 > echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
 > ```
 >
-> **❌ DO NOT run tests with system Python**  
-> **✅ ALWAYS use .venv Python**
+> **DO NOT run tests with system Python**
+> **ALWAYS use .venv Python**
 
 ---
 
-## ✅ Current Status
+## Current Status
 The TUI is **running and ready** for testing! All code has been implemented:
-- ✅ Animation system created
-- ✅ Plan capture implemented
-- ✅ Approval workflow integrated
-- ✅ Mode-aware message handling complete
+- Animation system created
+- Plan capture implemented
+- Approval workflow integrated
+- Mode-aware message handling complete
 
-## 🎯 Test Scenarios
+## Test Scenarios
 
 ### Test 1: ARCHITECT Mode - Plan with Approval
 
@@ -38,9 +38,9 @@ The TUI is **running and ready** for testing! All code has been implemented:
 4. Press Enter
 
 **Expected Behavior:**
-- 🤔 Animation: "Analyzing your request" (thinking emoji animation)
-- 📋 Animation: "Creating execution plan" (planning emoji animation)
-- 📋 **Plan Summary** appears with:
+- Animation: "Analyzing your request" (thinking emoji animation)
+- Animation: "Creating execution plan" (planning emoji animation)
+- **Plan Summary** appears with:
   - Summary of what will be done
   - Files to be modified
   - Actions to take
@@ -52,10 +52,10 @@ The TUI is **running and ready** for testing! All code has been implemented:
 6. Press Enter
 
 **Expected Behavior:**
-- ✅ Message: "Plan approved! Switching to EXECUTE mode..."
-- ⚡ Animation: "Executing plan" (execution emoji animation)
+- Message: "Plan approved! Switching to EXECUTE mode..."
+- Animation: "Executing plan" (execution emoji animation)
 - Response streams with typewriter effect
-- ✅ Message: "Execution complete!"
+- Message: "Execution complete!"
 - Returns to ARCHITECT mode
 
 ### Test 2: Approval - Show Full Details
@@ -77,7 +77,7 @@ The TUI is **running and ready** for testing! All code has been implemented:
 3. Press Enter
 
 **Expected Behavior:**
-- ❌ Message: "Plan cancelled."
+- Message: "Plan cancelled."
 - Returns to ARCHITECT mode ready for next input
 - No execution happens
 
@@ -90,7 +90,7 @@ The TUI is **running and ready** for testing! All code has been implemented:
 4. Press Enter
 
 **Expected Behavior:**
-- ⚡ Brief animation: "Executing" (0.3 seconds)
+- Brief animation: "Executing" (0.3 seconds)
 - Response streams immediately with typewriter effect
 - **NO approval prompt** (executes directly)
 
@@ -103,7 +103,7 @@ The TUI is **running and ready** for testing! All code has been implemented:
 4. Press Enter
 
 **Expected Behavior:**
-- 💡 System message suggests switching to ARCHITECT or EXECUTE mode
+- System message suggests switching to ARCHITECT or EXECUTE mode
 - Explains that CHAT mode is read-only
 - No file creation occurs
 
@@ -136,7 +136,7 @@ The TUI is **running and ready** for testing! All code has been implemented:
 - Each speed changes the streaming animation rate
 - Status bar shows current speed setting
 
-## 📊 Verification Checklist
+## Verification Checklist
 
 After testing, verify:
 - [ ] Animations display during AI thinking/planning
@@ -150,7 +150,7 @@ After testing, verify:
 - [ ] No crashes or errors during any scenario
 - [ ] Status bar updates correctly
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### If animations don't appear:
 - Check that you're in ARCHITECT mode
@@ -169,23 +169,23 @@ After testing, verify:
 - Use `/mode <modename>` to force switch
 - Try `Shift+Tab` to cycle modes
 
-## 📝 What to Look For
+## What to Look For
 
-### Good Signs ✅
+### Good Signs [PASSED]
 - Smooth animations during thinking/planning
 - Clean, readable plan summaries
 - Clear approval prompts
 - Seamless mode transitions
 - Typewriter streaming effect
 
-### Issues to Report 🐛
+### Issues to Report [FAILED]
 - Animations freeze or don't start
 - Full verbose output appears instead of summary
 - Approval prompt doesn't accept yes/no
 - Mode doesn't switch after approval
 - Errors or crashes
 
-## 🎉 Success Criteria
+## Success Criteria
 
 The implementation is successful if:
 1. **ARCHITECT mode** shows animations → summary → approval
@@ -195,7 +195,7 @@ The implementation is successful if:
 5. **CHAT mode** blocks actions appropriately
 6. **No verbose dumps** in ARCHITECT mode
 
-## 💡 Tips
+## Tips
 
 - Use **ARCHITECT mode** when you want to review before executing
 - Use **EXECUTE mode** when you trust the AI and want speed
@@ -205,6 +205,6 @@ The implementation is successful if:
 
 ---
 
-## 🚀 Ready to Test!
+## Ready to Test!
 
 The TUI is currently running in your terminal. Follow the test scenarios above and observe the behavior. All the code is implemented and ready!

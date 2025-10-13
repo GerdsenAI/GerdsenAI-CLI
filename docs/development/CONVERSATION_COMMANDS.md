@@ -79,13 +79,13 @@ All conversation files are stored in your home directory:
 
 ```
 ~/.gerdsenai/
-├── conversations/     # JSON files (.json)
-│   ├── chat1.json
-│   ├── debug_session.json
-│   └── project_planning.json
-└── exports/          # Markdown files (.md)
-    ├── conversation_20251004_120000.md
-    └── important_discussion.md
+ conversations/     # JSON files (.json)
+    chat1.json
+    debug_session.json
+    project_planning.json
+ exports/          # Markdown files (.md)
+     conversation_20251004_120000.md
+     important_discussion.md
 ```
 
 ## Metadata

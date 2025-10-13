@@ -4,14 +4,14 @@ Thank you for your interest in contributing to GerdsenAI CLI! This guide will he
 
 ---
 
-> **🚨 MANDATORY: Virtual Environment Usage**
-> 
+> **MANDATORY: Virtual Environment Usage**
+>
 > **You MUST use the project's `.venv` virtual environment for ALL operations.**
-> 
+>
 > ```bash
 > # ALWAYS run this first
 > source .venv/bin/activate
-> 
+>
 > # Verify before proceeding
 > echo $VIRTUAL_ENV  # Must show project path
 > which python       # Must show .venv/bin/python
@@ -21,25 +21,25 @@ Thank you for your interest in contributing to GerdsenAI CLI! This guide will he
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Code of Conduct](#-code-of-conduct)
-- [Getting Started](#-getting-started)
-- [Development Environment](#-development-environment)
-- [Making Changes](#-making-changes)
-- [Testing](#-testing)
-- [Code Style](#-code-style)
-- [Submitting Changes](#-submitting-changes)
-- [Review Process](#-review-process)
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Environment](#development-environment)
+- [Making Changes](#making-changes)
+- [Testing](#testing)
+- [Code Style](#code-style)
+- [Submitting Changes](#submitting-changes)
+- [Review Process](#review-process)
 
-## 🤝 Code of Conduct
+## Code of Conduct
 
 - Be respectful and inclusive
 - Provide constructive feedback
 - Focus on code quality and maintainability
 - Help others learn and grow
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Fork and Clone
 
@@ -71,7 +71,7 @@ git checkout -b feature/your-feature-name
 git checkout -b fix/your-bug-fix
 ```
 
-## 🛠 Development Environment
+## Development Environment
 
 ### Required Tools
 
@@ -128,7 +128,7 @@ git commit -m "feat: your changes"
 git push origin your-branch
 ```
 
-## 🔧 Making Changes
+## Making Changes
 
 ### Before You Start
 
@@ -145,11 +145,11 @@ git push origin your-branch
 # Use type hints
 def process_data(input: str, count: int) -> list[str]:
     """Process input data.
-    
+
     Args:
         input: The input string to process
         count: Number of times to process
-        
+
     Returns:
         List of processed strings
     """
@@ -162,29 +162,29 @@ async def fetch_data() -> dict:
         return response.json()
 
 # No emojis in code output (project rule)
-console.print("[green]Success![/green]")  # ✅ Good
-console.print("✅ Success!")  # ❌ Bad (emoji in output)
+console.print("[green]Success![/green]")  # Good
+console.print("[COMPLETE] Success!")  # Bad (emoji in output)
 ```
 
 #### File Structure
 
 ```
 gerdsenai_cli/
-├── core/           # Core logic (agent, context, file operations)
-├── commands/       # Command implementations
-├── ui/             # User interface (TUI, animations)
-├── config/         # Configuration management
-└── utils/          # Utilities and helpers
+ core/           # Core logic (agent, context, file operations)
+ commands/       # Command implementations
+ ui/             # User interface (TUI, animations)
+ config/         # Configuration management
+ utils/          # Utilities and helpers
 
 tests/              # Mirror structure of main package
-├── test_core/
-├── test_commands/
-└── conftest.py     # Shared fixtures
+ test_core/
+ test_commands/
+ conftest.py     # Shared fixtures
 ```
 
 ### Testing Your Changes
 
-**⚠️ CRITICAL: Always activate venv before testing**
+**CRITICAL: Always activate venv before testing**
 
 ```bash
 # Verify venv first
@@ -219,13 +219,13 @@ from gerdsenai_cli.your_module import YourClass
 
 class TestYourFeature:
     """Test suite for your feature."""
-    
+
     def test_basic_functionality(self):
         """Test basic feature works."""
         instance = YourClass()
         result = instance.do_something()
         assert result == expected_value
-    
+
     @pytest.mark.asyncio
     async def test_async_functionality(self):
         """Test async feature works."""
@@ -234,7 +234,7 @@ class TestYourFeature:
         assert result.success
 ```
 
-## 🎨 Code Style
+## Code Style
 
 ### Linting and Formatting
 
@@ -266,7 +266,7 @@ pre-commit install
 # Now checks run automatically on git commit
 ```
 
-## 📤 Submitting Changes
+## Submitting Changes
 
 ### Commit Message Format
 
@@ -327,7 +327,7 @@ Before submitting a PR, ensure:
 
 4. **Link related issues**: Reference issue numbers (#123)
 
-## 🔍 Review Process
+## Review Process
 
 ### What Reviewers Look For
 
@@ -375,7 +375,7 @@ git push origin feature/your-feature-name
 # PR automatically updates
 ```
 
-## 🐛 Reporting Bugs
+## Reporting Bugs
 
 ### Before Reporting
 
@@ -405,7 +405,7 @@ What actually happens
 - OS: macOS 14.0
 - Python: 3.11.0 (from .venv)
 - GerdsenAI CLI: 0.1.0
-- Virtual env: ✅ Active
+- Virtual env: [ACTIVE]
 
 **Additional Context**
 - Error logs
@@ -413,7 +413,7 @@ What actually happens
 - Related issues
 ```
 
-## 💡 Feature Requests
+## Feature Requests
 
 ### Suggesting Features
 
@@ -431,7 +431,7 @@ What actually happens
 5. Code review
 6. Merge to main
 
-## 📚 Resources
+## Resources
 
 - [Python Type Hints](https://docs.python.org/3/library/typing.html)
 - [Asyncio Documentation](https://docs.python.org/3/library/asyncio.html)
@@ -439,16 +439,16 @@ What actually happens
 - [Ruff Documentation](https://docs.astral.sh/ruff/)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 
-## ❓ Questions?
+## Questions?
 
 - **General questions**: Open a [Discussion](https://github.com/GerdsenAI/GerdsenAI-CLI/discussions)
 - **Bug reports**: Open an [Issue](https://github.com/GerdsenAI/GerdsenAI-CLI/issues)
 - **Pull requests**: Tag @maintainers for review
 
-## 🙏 Thank You!
+## Thank You!
 
 Your contributions make this project better for everyone!
 
 ---
 
-**Remember: ALWAYS use `.venv` - `source .venv/bin/activate` 🐍**
+**Remember: ALWAYS use `.venv` - `source .venv/bin/activate`**
