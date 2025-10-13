@@ -3,18 +3,18 @@
 > **Last Updated:** October 2, 2025 (11:19 PM)
 > **Current Focus:** Phase 8c - Context Window Auto-Detection (Core Implementation Complete, Testing & UX Remaining)
 
-## 📊 Status Overview
+## Status Overview
 
-**✅ PHASES 1-7 COMPLETE** - Core application fully functional
-**✅ DE-CONTAINERIZATION COMPLETE** - Removed all Docker/DevContainer dependencies
-**✅ CODE QUALITY AUDIT COMPLETE** - Vulture analysis: 99% clean codebase
-**🚧 PHASE 8: CLAUDE/GEMINI CLI ALIGNMENT** - In Progress (85% feature parity achieved)
+**[COMPLETE] PHASES 1-7** - Core application fully functional
+**[COMPLETE] DE-CONTAINERIZATION** - Removed all Docker/DevContainer dependencies
+**[COMPLETE] CODE QUALITY AUDIT** - Vulture analysis: 99% clean codebase
+**[IN PROGRESS] PHASE 8: CLAUDE/GEMINI CLI ALIGNMENT** - In Progress (85% feature parity achieved)
 
 ---
 
-## 🎯 Current Sprint: Claude/Gemini CLI Alignment
+## Current Sprint: Claude/Gemini CLI Alignment
 
-### Phase 8a: De-containerization & Code Cleanup ✅ COMPLETE
+### Phase 8a: De-containerization & Code Cleanup [COMPLETE]
 
 - [x] Remove Docker/DevContainer references from .gitignore
 - [x] Install and run vulture for dead code detection
@@ -23,7 +23,7 @@
 - [x] Create implementation guide (QUICK_START_IMPLEMENTATION.md)
 - [x] Update Copilot instructions (.github/copilot-instructions.md)
 
-### Phase 8b: LLM-Based Intent Detection ✅ **COMPLETE**
+### Phase 8b: LLM-Based Intent Detection [COMPLETE]
 
 **Goal:** Natural language → Action inference using LLM (no slash commands required)
 
@@ -42,12 +42,12 @@
   - [x] Test edge cases (timeout handling with regex fallback)
 
 **Success Criteria - ACHIEVED:**
-- ✅ User types "explain agent.py" → LLM detects read_file intent (0.95 confidence)
-- ✅ User types "analyze this project" → LLM detects analyze_project intent (0.95 confidence)
-- ✅ User types "where is error handling" → LLM detects search_files intent (0.85 confidence)
-- ✅ 100% accuracy on test patterns (10/10 tests passed)
-- ✅ 2.08s average response time (local LLM, within acceptable range)
-- ✅ Slash commands still work for power users (backward compatible)
+- [COMPLETE] User types "explain agent.py" → LLM detects read_file intent (0.95 confidence)
+- [COMPLETE] User types "analyze this project" → LLM detects analyze_project intent (0.95 confidence)
+- [COMPLETE] User types "where is error handling" → LLM detects search_files intent (0.85 confidence)
+- [COMPLETE] 100% accuracy on test patterns (10/10 tests passed)
+- [COMPLETE] 2.08s average response time (local LLM, within acceptable range)
+- [COMPLETE] Slash commands still work for power users (backward compatible)
 
 **Critical Bugs Fixed:**
 1. Pydantic infinite validation loop (settings.py) - Fixed with `object.__setattr__()`
@@ -64,7 +64,7 @@
 4. `16c6726` - Test infrastructure and dependencies
 5. `2c28b5c` - Live integration tests
 
-### Phase 8c: Context Window Auto-Detection & Auto File Reading ✅ **CORE COMPLETE** 🚧 **TESTING/UX REMAINING**
+### Phase 8c: Context Window Auto-Detection & Auto File Reading [CORE COMPLETE] [TESTING/UX REMAINING]
 
 **Goal:** Dynamically manage context based on model capabilities (2K to 1M+ tokens)
 
@@ -121,13 +121,13 @@
 - "explain this project" works seamlessly regardless of model size
 
 **Test Results Summary:**
-- ✅ Context window detection: Correctly identifies 15+ model families
-- ✅ Dynamic settings: All Phase 8c configuration fields validated
-- ✅ Token estimation: Accurate ~4 chars per token calculation
-- ✅ Dynamic context building: Smart strategy correctly prioritizes files
-- ✅ File prioritization: 7-tier system working as expected
-- ✅ Summarization: Intelligent truncation (beginning + end) functional
-- ✅ All unit tests passing (6/6 tests in standalone script)
+- [COMPLETE] Context window detection: Correctly identifies 15+ model families
+- [COMPLETE] Dynamic settings: All Phase 8c configuration fields validated
+- [COMPLETE] Token estimation: Accurate ~4 chars per token calculation
+- [COMPLETE] Dynamic context building: Smart strategy correctly prioritizes files
+- [COMPLETE] File prioritization: 7-tier system working as expected
+- [COMPLETE] Summarization: Intelligent truncation (beginning + end) functional
+- [COMPLETE] All unit tests passing (6/6 tests in standalone script)
 
 **Critical Bugs Fixed (Post-Implementation):**
 1. Async context manager bug: LLMClient now properly managed with `async with` pattern
@@ -141,7 +141,7 @@
 
 **Ready for Testing:** CLI now initializes successfully and can connect to LM Studio (port 1234)
 
-### Phase 8c-II: Enhanced TUI & Streaming Responses ✅ **COMPLETE**
+### Phase 8c-II: Enhanced TUI & Streaming Responses [COMPLETE]
 
 **Goal:** Modern 3-panel TUI with real-time streaming and sophisticated status messaging
 
@@ -171,13 +171,13 @@
   - [x] Status callback system in agent for real-time updates
 
 **Success Criteria - ACHIEVED:**
-- ✅ Professional bordered interface matches Claude/Cursor aesthetics
-- ✅ Real-time streaming with proper chunking
-- ✅ Syntax highlighting for code blocks in responses
-- ✅ Status bar shows model, context files, tokens, current task
-- ✅ Sophisticated status messages during operations (11 types)
-- ✅ /tui command toggles between modes seamlessly
-- ✅ All 12/12 tests passing after implementation
+- [COMPLETE] Professional bordered interface matches Claude/Cursor aesthetics
+- [COMPLETE] Real-time streaming with proper chunking
+- [COMPLETE] Syntax highlighting for code blocks in responses
+- [COMPLETE] Status bar shows model, context files, tokens, current task
+- [COMPLETE] Sophisticated status messages during operations (11 types)
+- [COMPLETE] /tui command toggles between modes seamlessly
+- [COMPLETE] All 12/12 tests passing after implementation
 
 **Test Results:** See PHASE_8B_TEST_REPORT.md and test_status_demo.py
 
@@ -190,11 +190,11 @@
 
 **Actual Time:** 2 days (TUI + streaming) + 4 hours (status messages)
 
-### Phase 8d: Agent Intelligence Enhancement 🚧 **IN PROGRESS**
+### Phase 8d: Agent Intelligence Enhancement [IN PROGRESS]
 
 **Goal:** Multi-step planning, context memory, clarifying questions, complexity detection
 
-- [x] Sophisticated status bar messages ✅ **COMPLETE**
+- [x] Sophisticated status bar messages [COMPLETE]
   - [x] Create status_messages.py with theatrical vocabulary
   - [x] Wire into EnhancedConsole and GerdsenAILayout
   - [x] Add status callbacks in agent operations
@@ -313,9 +313,9 @@
 
 ---
 
-## 🚀 Enhancement Backlog (Future Phases)
+## Enhancement Backlog (Future Phases)
 
-## 🎯 Ready for Use
+## Ready for Use
 
 The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - Natural language interaction with local LLM models
@@ -340,9 +340,9 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - Automatic dependency management
 - Version control and updates via standard Python tools
 
-## Phase 1: Project Scaffolding & Core Setup ✅ COMPLETE
+## Phase 1: Project Scaffolding & Core Setup [COMPLETE]
 
-### Task 1: Initialize Python Project ✅ COMPLETE
+### Task 1: Initialize Python Project [COMPLETE]
 - [x] Create `pyproject.toml` with modern Python packaging
   - [x] Set minimum Python version to 3.11+
   - [x] Use `hatchling` build backend with `pyproject.toml` format
@@ -356,7 +356,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
   - [x] `pydantic>=2.5.0` - Data validation and settings management
   - [x] `colorama>=0.4.6` - Cross-platform colored terminal text
 
-### Task 2: Create Project Structure ✅ COMPLETE
+### Task 2: Create Project Structure [COMPLETE]
 - [x] Create main application directory: `gerdsenai_cli/`
 - [x] Create `gerdsenai_cli/__init__.py` with version info
 - [x] Create `gerdsenai_cli/main.py` as the CLI entry point
@@ -367,7 +367,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
   - [x] `gerdsenai_cli/utils/` - Utility functions
 - [x] Create entry point script: `gerdsenai_cli/cli.py`
 
-### Task 3: Implement Startup Screen ✅ COMPLETE
+### Task 3: Implement Startup Screen [COMPLETE]
 - [x] Create `gerdsenai_cli/utils/display.py`
 - [x] Implement function to read ASCII art from `gerdsenai-ascii-art.txt`
 - [x] Use `rich` to apply color scheme based on logo:
@@ -377,11 +377,11 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add welcome message and version info
 - [x] Display startup animation/transition effect
 
-**Commit Point 1: `feat: initial project structure and startup screen` ✅ COMPLETE**
+**Commit Point 1: `feat: initial project structure and startup screen` [COMPLETE]**
 
-## Phase 2: Configuration and LLM Client ✅ COMPLETE
+## Phase 2: Configuration and LLM Client [COMPLETE]
 
-### Task 4: Implement Configuration Management ✅ COMPLETE
+### Task 4: Implement Configuration Management [COMPLETE]
 - [x] Create `gerdsenai_cli/config/settings.py`
 - [x] Use `pydantic` for configuration validation
 - [x] Define configuration schema:
@@ -397,7 +397,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
   - [x] Create config directory if needed
 - [x] Add configuration update methods
 
-### Task 5: Develop LLM Client ✅ COMPLETE
+### Task 5: Develop LLM Client [COMPLETE]
 - [x] Create `gerdsenai_cli/core/llm_client.py`
 - [x] Implement `LLMClient` class with async methods:
   - [x] `async def connect()` - Test connection to LLM server
@@ -409,18 +409,18 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Implement connection pooling with `httpx`
 - [x] Add request/response logging for debugging
 
-**Commit Point 2: `feat: add configuration management and LLM client` ✅ COMPLETE**
+**Commit Point 2: `feat: add configuration management and LLM client` [COMPLETE]**
 
-## Phase 3: Interactive Loop and Basic Commands ✅ COMPLETE
+## Phase 3: Interactive Loop and Basic Commands [COMPLETE]
 
-### Task 6: Create Main Interactive Loop ✅ COMPLETE
+### Task 6: Create Main Interactive Loop [COMPLETE]
 - [x] Implement `gerdsenai_cli/main.py` main function
 - [x] Create interactive prompt loop using `rich.prompt`
 - [x] Add custom prompt styling with GerdsenAI branding
 - [x] Implement graceful shutdown (Ctrl+C handling)
 - [x] Add session management and basic command routing
 
-### Task 7: Basic Command Implementation ✅ COMPLETE
+### Task 7: Basic Command Implementation [COMPLETE]
 - [x] Implement basic command detection and routing in main.py
 - [x] Implement core commands:
   - [x] `/help` - Display available commands
@@ -430,11 +430,11 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
   - [x] `/model <name>` - Switch to specific model
   - [x] `/status` - Show system status
 
-**Commit Point 3: `feat: implement interactive loop and basic commands` ✅ COMPLETE**
+**Commit Point 3: `feat: implement interactive loop and basic commands` [COMPLETE]**
 
-## Phase 4: Core Agentic Features ✅ **COMPLETE**
+## Phase 4: Core Agentic Features [COMPLETE]
 
-### Task 8: Implement Project Context Awareness ✅ **COMPLETE**
+### Task 8: Implement Project Context Awareness [COMPLETE]
 - [x] Create `gerdsenai_cli/core/context_manager.py`
 - [x] Implement `ProjectContext` class:
   - [x] `scan_directory()` - Build file tree structure with async support
@@ -446,7 +446,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add gitignore support with `GitignoreParser` class
 - [x] Cache file contents for performance with detailed stats tracking
 
-### Task 9: Implement File Editing Capabilities ✅ **COMPLETE**
+### Task 9: Implement File Editing Capabilities [COMPLETE]
 - [x] Create `gerdsenai_cli/core/file_editor.py`
 - [x] Implement `FileEditor` class:
   - [x] `preview_changes()` - Show unified and side-by-side diffs
@@ -457,7 +457,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Implement user confirmation prompts with detailed previews
 - [x] Add comprehensive backup management system
 
-### Task 10: Integrate Agent Logic ✅ **COMPLETE**
+### Task 10: Integrate Agent Logic [COMPLETE]
 - [x] Create `gerdsenai_cli/core/agent.py`
 - [x] Implement `Agent` class:
   - [x] Process user prompts with full project context awareness
@@ -473,18 +473,18 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Implement advanced intent parsing and validation (600+ lines)
 - [x] Full integration with context manager and file editor
 
-### Task 11: Main Application Integration ✅ **COMPLETE**
+### Task 11: Main Application Integration [COMPLETE]
 - [x] Update `gerdsenai_cli/main.py` with Agent integration
 - [x] Replace simple chat with full agentic capabilities
 - [x] Add new agent commands: `/agent`, `/clear`, `/refresh`
 - [x] Enhanced help and status displays with agent statistics
 - [x] Performance tracking and conversation management
 
-**Commit Point 4: `feat: add core agentic features (context, editing, agent)` ✅ COMPLETE**
+**Commit Point 4: `feat: add core agentic features (context, editing, agent)` [COMPLETE]**
 
-## Phase 5: Enhanced Command System ✅ **COMPLETE**
+## Phase 5: Enhanced Command System [COMPLETE]
 
-### Task 12: Structured Command Parser System ✅ **COMPLETE**
+### Task 12: Structured Command Parser System [COMPLETE]
 - [x] Create `gerdsenai_cli/commands/parser.py`
 - [x] Implement command detection and routing system
 - [x] Create base command class in `gerdsenai_cli/commands/base.py`
@@ -492,7 +492,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add command validation and argument parsing
 - [x] Implement plugin-like architecture for extensible commands
 
-### Task 13: Enhanced Command Set ✅ **COMPLETE**
+### Task 13: Enhanced Command Set [COMPLETE]
 - [x] Add `/debug` - Toggle debug mode
 - [x] Add `/agent` - Show agent statistics (implemented)
 - [x] Add `/refresh` - Refresh project context (implemented)
@@ -502,11 +502,11 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add `/session` - Session management
 - [x] Add `/ls`, `/cat` - File operations
 
-**Commit Point 5: `feat: add enhanced command system` ✅ COMPLETE**
+**Commit Point 5: `feat: add enhanced command system` [COMPLETE]**
 
-## Phase 5.5: Critical User Value Commands ✅ **COMPLETE**
+## Phase 5.5: Critical User Value Commands [COMPLETE]
 
-### Task 14: Essential Commands Implementation ✅ **COMPLETE**
+### Task 14: Essential Commands Implementation [COMPLETE]
 - [x] Audit existing vs documented commands
 - [x] Create consolidated command structure
 - [x] Update SLASH_COMMANDS.MD with clean structure
@@ -514,11 +514,11 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add `/init` command - Initialize project with GerdsenAI.md guide
 - [x] Add `/copy` command - Copy last output to clipboard
 
-**Commit Point 5.5: `feat: add essential user commands` ✅ COMPLETE**
+**Commit Point 5.5: `feat: add essential user commands` [COMPLETE]**
 
-## Phase 6: Terminal Integration and Advanced Features ✅ **COMPLETE**
+## Phase 6: Terminal Integration and Advanced Features [COMPLETE]
 
-### Task 15: Terminal Integration ✅ **COMPLETE**
+### Task 15: Terminal Integration [COMPLETE]
 - [x] Create `gerdsenai_cli/core/terminal.py`
 - [x] Implement `TerminalExecutor` class with safety features
 - [x] Add command validation and user confirmation
@@ -533,11 +533,11 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [ ] Optimize file reading and context building
 - [ ] Add progress indicators for long operations
 
-**Commit Point 6: `feat: add terminal integration and advanced features` ✅ COMPLETE**
+**Commit Point 6: `feat: add terminal integration and advanced features` [COMPLETE]**
 
-## Phase 7: Command System Polish and Expansion ✅ **COMPLETE**
+## Phase 7: Command System Polish and Expansion [COMPLETE]
 
-### Task 17: Command System Consistency ✅ **COMPLETE**
+### Task 17: Command System Consistency [COMPLETE]
 - [x] Rename command classes for consistency:
   - [x] `ConversationCommand` → `ChatCommand` (agent.py)
   - [x] `ClearSessionCommand` → `ResetCommand` (agent.py)
@@ -548,16 +548,16 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add backward-compatible aliases for renamed commands
 - [x] Test command consolidation changes
 
-### Task 18: High-Value Commands ✅ **PARTIAL COMPLETE**
+### Task 18: High-Value Commands [PARTIAL COMPLETE]
 - [x] Add `/tools` - List available tools in CLI with filtering and detailed modes
 - [ ] Add `/settings` - Open settings editor (different from /config)
 - [ ] Add `/compress` - Replace current chat context with a summary
 
-**Commit Point 7: `feat: complete Phase 7 command system consistency and tools command` ✅ COMPLETE**
+**Commit Point 7: `feat: complete Phase 7 command system consistency and tools command` [COMPLETE]**
 
-## Phase 8: Container-First Development ✅ **COMPLETE**
+## Phase 8: Container-First Development [COMPLETE]
 
-### Task 19: DevContainer Infrastructure ✅ **COMPLETE**
+### Task 19: DevContainer Infrastructure [COMPLETE]
 - [x] Design container-first development environment
 - [x] Create comprehensive `.devcontainer/devcontainer.json` configuration:
   - [x] Python 3.11-slim base image with security focus
@@ -569,7 +569,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add development shortcuts and automation scripts
 - [x] Fix DevContainer extension validation errors
 
-### Task 20: Security-Focused Firewall System ✅ **COMPLETE**
+### Task 20: Security-Focused Firewall System [COMPLETE]
 - [x] Create `init-firewall.sh` with configurable security levels:
   - [x] **Strict Mode**: Whitelist only essential domains (localhost, package repos)
   - [x] **Development Mode**: Allow common development domains
@@ -579,7 +579,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Create domain validation and logging system
 - [x] Integrate firewall initialization into container startup
 
-### Task 21: Container-Aware CI/CD Pipeline ✅ **COMPLETE**
+### Task 21: Container-Aware CI/CD Pipeline [COMPLETE]
 - [x] Update `.github/workflows/ci.yml` for container-first approach:
   - [x] Use Python 3.11-slim container for consistency
   - [x] Add comprehensive testing pipeline (lint, format, type-check, tests)
@@ -590,7 +590,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Add parallel job execution for faster feedback
 - [x] Implement artifact uploading for security reports
 
-### Task 22: Development Experience Enhancement ✅ **COMPLETE**
+### Task 22: Development Experience Enhancement [COMPLETE]
 - [x] Create `post-create.sh` automation script:
   - [x] Automatic project installation in editable mode
   - [x] Development shortcuts creation (`gcli`, `gtest`, `glint`, `gformat`, `gbuild`, `gsec`)
@@ -600,7 +600,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Update `.gitignore` for container-first patterns
 - [x] Create comprehensive `SLASH_COMMAND.MD` documentation
 
-### Task 23: Testing and Validation ✅ **COMPLETE**
+### Task 23: Testing and Validation [COMPLETE]
 - [x] Comprehensive Phase 7 validation testing:
   - [x] All 47 tests pass in container environment
   - [x] CLI entry point validation (`GerdsenAI CLI v0.1.0`)
@@ -611,18 +611,18 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 - [x] Security features testing
 - [x] Development workflow verification
 
-### Task 24: Documentation and Integration ✅ **COMPLETE**
+### Task 24: Documentation and Integration [COMPLETE]
 - [x] Update `README.md` with container-first installation instructions
 - [x] Update `CLAUDE.md` with container development workflow
 - [x] Create comprehensive command reference documentation
 - [x] Clean up legacy virtual environment artifacts
 - [x] Verify ASCII art integration (already functional)
 
-**Commit Point 8a: `chore: de-containerize and align with Claude/Gemini CLI patterns` ✅ COMPLETE**
+**Commit Point 8a: `chore: de-containerize and align with Claude/Gemini CLI patterns` [COMPLETE]**
 
 ---
 
-## 🎨 UX Polish & Enhancement Ideas
+## UX Polish & Enhancement Ideas
 
 ### Inline Diff Display
 - [ ] Show diffs inline in conversation (not separate preview)
@@ -651,7 +651,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 🔧 Technical Debt & Maintenance
+## Technical Debt & Maintenance
 
 ### Pydantic v2 Migration (IN PROGRESS)
 - [ ] Migrate remaining @validator usage to @field_validator
@@ -678,7 +678,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 📚 Documentation Improvements
+## Documentation Improvements
 
 ### User Documentation
 - [ ] Create Getting Started tutorial with examples
@@ -700,7 +700,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 🚀 Future Features (Long-term Vision)
+## Future Features (Long-term Vision)
 
 ### Plugin System
 - [ ] Plugin API for custom commands
@@ -733,7 +733,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 📋 Release Checklist
+## Release Checklist
 
 ### Pre-Release (v0.2.0 - Claude/Gemini Alignment)
 - [ ] All Phase 8b-8e tasks complete
@@ -760,7 +760,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 🎯 Success Metrics
+## Success Metrics
 
 ### User Experience
 - **Target:** 90%+ of users don't need slash commands
@@ -784,7 +784,7 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ---
 
-## 📞 Support & Community
+## Support & Community
 
 ### Getting Help
 - GitHub Issues for bug reports
@@ -910,28 +910,28 @@ The GerdsenAI CLI is **production-ready** for core AI-assisted coding tasks:
 
 ```
 gerdsenai_cli/
-├── __init__.py
-├── cli.py                 # Entry point
-├── main.py               # Main application logic
-├── commands/             # Slash command implementations
-│   ├── __init__.py
-│   ├── base.py
-│   ├── config.py
-│   ├── help.py
-│   ├── model.py
-│   └── system.py
-├── config/               # Configuration management
-│   ├── __init__.py
-│   ├── manager.py
-│   └── settings.py
-├── core/                 # Core business logic
-│   ├── __init__.py
-│   ├── agent.py
-│   ├── context_manager.py
-│   ├── file_editor.py
-│   ├── llm_client.py
-│   └── terminal.py
-└── utils/                # Utility functions
-    ├── __init__.py
-    ├── display.py
-    └── helpers.py
+ __init__.py
+ cli.py                 # Entry point
+ main.py               # Main application logic
+ commands/             # Slash command implementations
+    __init__.py
+    base.py
+    config.py
+    help.py
+    model.py
+    system.py
+ config/               # Configuration management
+    __init__.py
+    manager.py
+    settings.py
+ core/                 # Core business logic
+    __init__.py
+    agent.py
+    context_manager.py
+    file_editor.py
+    llm_client.py
+    terminal.py
+ utils/                # Utility functions
+     __init__.py
+     display.py
+     helpers.py

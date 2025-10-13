@@ -9,17 +9,17 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 
 ---
 
-> **⚠️ IMPORTANT: Virtual Environment Required**
-> 
+> **IMPORTANT: Virtual Environment Required**
+>
 > **Always use the project virtual environment:** `.venv`
 > ```bash
 > source .venv/bin/activate  # Required before ANY command
 > ```
-> See [Virtual Environment Setup](#-virtual-environment-setup) for details.
+> See [Virtual Environment Setup](#virtual-environment-setup) for details.
 
 ---
 
-## 🚀 Features
+## Features
 
 ### Core Capabilities
 - **AI-Powered Code Assistant** - Natural language interaction with local LLM models
@@ -36,7 +36,7 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 - **Model Management** - Switch between LLM models and view model info
 - **Terminal Integration** - Safe command execution and history management
 
-## 📋 Requirements
+## Requirements
 
 - **Python 3.11+** (required, currently using 3.11.13)
   - Supported versions: 3.11, 3.12, 3.13
@@ -44,9 +44,9 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
 - **Virtual Environment** - `.venv` (mandatory for development)
 
-## 🛠 Installation
+## Installation
 
-### � From PyPI (Recommended)
+### From PyPI (Recommended)
 ```bash
 # Install with pipx (isolated, recommended)
 pipx install gerdsenai-cli
@@ -58,9 +58,9 @@ pip install gerdsenai-cli
 gerdsenai --version
 ```
 
-### 🔧 Development Installation
+### Development Installation
 
-**🚨 CRITICAL: You MUST use the project's `.venv` virtual environment**
+**CRITICAL: You MUST use the project's `.venv` virtual environment**
 
 ```bash
 # 1. Clone the repository
@@ -82,18 +82,18 @@ echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
 pip install -e ".[dev]"
 
 # 6. Verify installation
-python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('Import successful')"
 gerdsenai --version
 ```
 
-**⚠️ Common Mistakes to Avoid:**
-- ❌ Running `pip install` without activating venv
-- ❌ Using system Python at `/opt/homebrew/bin/python3`
-- ❌ Using `--break-system-packages` flag
-- ❌ Installing with homebrew's pip
-- ✅ **ALWAYS** `source .venv/bin/activate` first
+**Common Mistakes to Avoid:**
+- Running `pip install` without activating venv
+- Using system Python at `/opt/homebrew/bin/python3`
+- Using `--break-system-packages` flag
+- Installing with homebrew's pip
+- **ALWAYS** `source .venv/bin/activate` first
 
-### 🏗️ Alternative Installation Methods
+### Alternative Installation Methods
 ```bash
 # Install from source (latest)
 pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
@@ -102,7 +102,7 @@ pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
 pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 ```
 
-## � Virtual Environment Setup
+## Virtual Environment Setup
 
 ### Why Virtual Environment is Mandatory
 
@@ -164,11 +164,11 @@ python -c "import gerdsenai_cli; print('OK')"
 **Q: Commands fail with ImportError**
 ```bash
 # DON'T use system Python
-❌ /opt/homebrew/bin/python3 -m gerdsenai_cli
+/opt/homebrew/bin/python3 -m gerdsenai_cli
 
 # DO use venv Python
-✅ source .venv/bin/activate
-✅ python -m gerdsenai_cli
+source .venv/bin/activate
+python -m gerdsenai_cli
 ```
 
 ### Best Practices
@@ -186,7 +186,7 @@ The project is configured to use `.venv` automatically:
 - Tests run in venv automatically
 - Terminal activates venv on open
 
-## �🚀 Quick Start
+## Quick Start
 
 1. **Start the CLI**
    ```bash
@@ -223,7 +223,7 @@ The project is configured to use `.venv` automatically:
    - Disable streaming at runtime by toggling the preference in a future config command, or edit your settings file to set `"streaming": false` under `user_preferences`.
    - If streaming encounters an error, the CLI automatically falls back to standard full-response mode.
 
-## 📚 Key Commands
+## Key Commands
 
 ### Essential Commands
 - `/help` - Show all available commands
@@ -250,7 +250,7 @@ The project is configured to use `.venv` automatically:
 - `/config` - Show current configuration
 - `/setup` - Reconfigure LLM server connection
 
-## 🏗 Architecture
+## Architecture
 
 GerdsenAI CLI uses a modular, agent-based architecture:
 
@@ -274,7 +274,7 @@ gerdsenai_cli/
 └── utils/               # Utilities and display helpers
 ```
 
-## 🔧 Development
+## Development
 
 ### Setup Development Environment
 ```bash
@@ -286,7 +286,7 @@ source .venv/bin/activate
 pip install -e .
 
 # Verify installation
-python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('Import successful')"
 ```
 
 ### Code Quality Tools
@@ -303,12 +303,12 @@ pytest
 ```
 
 ### Project Status
-- **Phase 1-7**: ✅ **Complete** - Core functionality, commands, and agent features
-- **Phase 8+**: 🚧 **Planned** - Extended commands, integrations, and advanced features
+- **Phase 1-7**: **Complete** - Core functionality, commands, and agent features
+- **Phase 8+**: **Planned** - Extended commands, integrations, and advanced features
 
 See [docs/TODO.md](docs/TODO.md) for detailed development roadmap.
 
-## 📚 Documentation
+## Documentation
 
 Comprehensive documentation is available in the `docs/` directory:
 
@@ -332,7 +332,7 @@ python -m gerdsenai_cli --config examples/config/basic.json
 
 See [examples/README.md](examples/README.md) for more details on configuration options.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](docs/development/CONTRIBUTING.md) for detailed information.
 
@@ -349,11 +349,11 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/C
 
 **Important:** All development must be done in the project's virtual environment. See [.venv/README.md](.venv/README.md) for details.
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 - **Import Errors**: Ensure virtual environment is activated and `pip install -e .` was run
@@ -367,4 +367,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Happy coding with GerdsenAI! 🚀**
+**Happy coding with GerdsenAI!**
