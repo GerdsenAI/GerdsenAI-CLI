@@ -46,7 +46,15 @@ logs/
 .ipynb_checkpoints/
 
 # IDE / Editor
-.vscode/
+# Version control shared VS Code configuration for repeatable environments
+# But exclude personal workspace settings and cache
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+!.vscode/README.md
 .idea/
 *.swp
 *.swo
