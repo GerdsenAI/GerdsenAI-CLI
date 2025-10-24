@@ -1,0 +1,26 @@
+{
+    "recommendations": [
+        // Python Development
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        // Code Quality
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        // Testing
+        "littlefoxteam.vscode-python-test-adapter",
+        // Git & GitHub
+        "github.copilot",
+        "github.copilot-chat",
+        "github.vscode-pull-request-github",
+        "eamodio.gitlens",
+        // Markdown & Documentation
+        "yzhang.markdown-all-in-one",
+        // JSON & TOML
+        "tamasfe.even-better-toml",
+        // UI/UX
+        "pkief.material-icon-theme",
+        "github.github-vscode-theme"
+    ],
+    "unwantedRecommendations": []
+}
