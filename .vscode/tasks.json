@@ -1,0 +1,186 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🚀 Start App (TUI)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && python -m gerdsenai_cli",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "runOptions": {
+                "instanceLimit": 1
+            }
+        },
+        {
+            "label": "⚡ Start App (LLVL Mode)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && python -m gerdsenai_cli --mode llvl",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "🛑 Stop App",
+            "type": "shell",
+            "command": "pkill -f 'python -m gerdsenai_cli' || echo 'No GerdsenAI processes found'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "🛑 Stop All Python Processes",
+            "type": "shell",
+            "command": "pkill -9 python || echo 'No Python processes found'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": false
+            }
+        },
+        {
+            "label": "🧪 Run All Tests",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pytest -v",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🧪 Run Tests with Coverage",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pytest --cov=gerdsenai_cli --cov-report=html --cov-report=term",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "🧪 Run Single Test File",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pytest ${file} -v",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "✨ Format Code (Ruff)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && ruff format .",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "focus": false
+            }
+        },
+        {
+            "label": "🔍 Lint Code (Ruff)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && ruff check . --fix",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": false
+            }
+        },
+        {
+            "label": "🔍 Type Check (MyPy)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && mypy gerdsenai_cli",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": false
+            }
+        },
+        {
+            "label": "🧹 Clean Cache & Build Files",
+            "type": "shell",
+            "command": "find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null; find . -type f -name '*.pyc' -delete; rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage; echo '✅ Cleaned all cache and build files'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": false
+            }
+        },
+        {
+            "label": "📦 Install Dependencies",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pip install -e '.[dev]'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            }
+        },
+        {
+            "label": "🔄 Update Dependencies",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pip install --upgrade -e '.[dev]'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            }
+        },
+        {
+            "label": "✅ Check Venv",
+            "type": "shell",
+            "command": "source .venv/bin/activate && python scripts/check_venv.py",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true
+            }
+        },
+        {
+            "label": "📊 Show Coverage Report",
+            "type": "shell",
+            "command": "open htmlcov/index.html || echo '❌ Run coverage tests first'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "🔧 Full QA Suite",
+            "dependsOn": [
+                "✨ Format Code (Ruff)",
+                "🔍 Lint Code (Ruff)",
+                "🔍 Type Check (MyPy)",
+                "🧪 Run Tests with Coverage"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        }
+    ]
+}
