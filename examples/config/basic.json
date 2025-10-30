@@ -1,0 +1,33 @@
+{
+  "api": {
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
+    "model": "qwen2.5-coder:7b",
+    "timeout": 300
+  },
+  "conversation": {
+    "max_context_messages": 50,
+    "context_window": 32000,
+    "preserve_system_message": true
+  },
+  "file_operations": {
+    "auto_backup": true,
+    "backup_directory": ".backups",
+    "diff_preview": true
+  },
+  "terminal": {
+    "auto_confirm": false,
+    "command_timeout": 60
+  },
+  "ui": {
+    "theme": "default",
+    "show_timestamps": true,
+    "thinking_enabled": false,
+    "animation_enabled": true
+  },
+  "intelligence": {
+    "enabled": true,
+    "learning_rate": 0.1,
+    "track_patterns": true
+  }
+}

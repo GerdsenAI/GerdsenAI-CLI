@@ -46,7 +46,15 @@ logs/
 .ipynb_checkpoints/
 
 # IDE / Editor
-.vscode/
+# Version control shared VS Code configuration for repeatable environments
+# But exclude personal workspace settings and cache
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+!.vscode/README.md
 .idea/
 *.swp
 *.swo
@@ -70,6 +78,7 @@ Thumbs.db
 
 # Project specific
 .claude/
+.gerdsenai/
 
 # Config backups
 config_backup_*.json
@@ -82,5 +91,19 @@ profile_*.txt
 # Temporary files
 .temp/
 tmp/
-.clinerules/clinerules.md
-.github/copilot-instructions.md
+.clinerules/
+
+# File operation backups
+.backups/
+*.backup
+*~
+
+# Conversation history
+conversations/
+*.conversation.json
+
+# Test artifacts
+test_output/
+test_results/
+CLAUDE.md
+.qwen/agents/local-llm-agent-selector.md

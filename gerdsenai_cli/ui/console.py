@@ -11,8 +11,12 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
+from rich.live import Live
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
 
 from .layout import GerdsenAILayout
+from .status_display import IntelligenceActivity, StatusDisplayManager
 from ..utils.status_messages import OperationType, get_status_message
 
 
@@ -28,6 +32,10 @@ class EnhancedConsole:
         self.console = console or Console()
         self.layout = GerdsenAILayout(self.console)
         self.use_tui: bool = True
+        self.status_display = StatusDisplayManager(self.console)
+        self._live: Optional[Live] = None  # Track active Live display
+        self._persistent_live: Optional[Live] = None  # Persistent Live for full session
+        self._prompt_session: Optional[PromptSession] = None  # For input in TUI mode
 
     def set_tui_mode(self, enabled: bool) -> None:
         """Enable or disable TUI mode.
@@ -36,6 +44,79 @@ class EnhancedConsole:
             enabled: Whether to use TUI layout
         """
         self.use_tui = enabled
+    
+    def start_persistent_tui(self) -> None:
+        """Start persistent Live TUI that stays on screen for the entire session."""
+        if self.use_tui and not self._persistent_live:
+            # Initialize layout with empty state
+            self.layout.update_input("")
+            self.layout.update_response("", is_code=False)
+            
+            # Start persistent Live display
+            self._persistent_live = Live(
+                self.layout.layout,
+                console=self.console,
+                refresh_per_second=10,
+                transient=False,
+            )
+            self._persistent_live.start()
+            
+            # Create prompt session for input
+            self._prompt_session = PromptSession()
+    
+    def stop_persistent_tui(self) -> None:
+        """Stop persistent Live TUI."""
+        if self._persistent_live:
+            self._persistent_live.stop()
+            self._persistent_live = None
+    
+    async def get_input_in_tui(self) -> str:
+        """Get user input while maintaining the TUI display.
+        
+        Returns:
+            User input string
+        """
+        if not self._prompt_session:
+            self._prompt_session = PromptSession()
+        
+        # Temporarily stop Live to allow input
+        if self._persistent_live:
+            self._persistent_live.stop()
+        
+        try:
+            # Get input with styled prompt
+            user_input = await self._prompt_session.prompt_async(
+                HTML('<style fg="#00FFFF" bold="true">GerdsenAI</style><prompt> > </prompt>'),
+                multiline=False,
+            )
+            
+            # Update layout with user input
+            self.layout.update_input(user_input)
+            self.layout.update_response("", is_code=False)
+            
+            # Restart Live display
+            if self.use_tui:
+                self._persistent_live = Live(
+                    self.layout.layout,
+                    console=self.console,
+                    refresh_per_second=10,
+                    transient=False,
+                )
+                self._persistent_live.start()
+            
+            return user_input.strip()
+        
+        except (KeyboardInterrupt, EOFError):
+            # Restart Live before raising
+            if self.use_tui and not self._persistent_live:
+                self._persistent_live = Live(
+                    self.layout.layout,
+                    console=self.console,
+                    refresh_per_second=10,
+                    transient=False,
+                )
+                self._persistent_live.start()
+            raise
 
     def _detect_code_blocks(self, text: str) -> list[dict]:
         """Detect code blocks in markdown-formatted text.
@@ -141,9 +222,25 @@ class EnhancedConsole:
             user_input: User's input to display
         """
         if self.use_tui:
-            self.layout.update_input(user_input)
-            self.layout.update_response("", is_code=False)
-            self.layout.render()
+            # If persistent Live is active, just update the layout
+            # Otherwise use temporary Live for streaming
+            if self._persistent_live:
+                self.layout.update_input(user_input)
+                self.layout.update_response("", is_code=False)
+                self._persistent_live.update(self.layout.layout)
+            else:
+                # Initialize layout for streaming
+                self.layout.update_input(user_input)
+                self.layout.update_response("", is_code=False)
+                
+                # Start Live display for in-place updates
+                self._live = Live(
+                    self.layout.layout,
+                    console=self.console,
+                    refresh_per_second=10,  # 10 updates per second for smooth streaming
+                    transient=False,  # Keep the final output visible
+                )
+                self._live.start()
         else:
             self.console.print(f"[bold green]You:[/bold green] {user_input}")
             self.console.print("[bold blue]GerdsenAI:[/bold blue]", end=" ")
@@ -158,14 +255,26 @@ class EnhancedConsole:
         if self.use_tui:
             # Update TUI with accumulated response
             self.layout.update_response(accumulated_response, is_code=False)
-            self.layout.render()
+            
+            # Update the active Live display (persistent or temporary)
+            if self._persistent_live:
+                self._persistent_live.update(self.layout.layout)
+            elif self._live:
+                self._live.update(self.layout.layout)
         else:
             # Print chunk without newline for streaming effect
             self.console.print(chunk, end="", style="white")
 
     def finish_streaming(self) -> None:
         """Finish streaming response display."""
-        if not self.use_tui:
+        if self.use_tui:
+            # If using persistent Live, keep it running
+            # Only stop temporary Live
+            if self._live and not self._persistent_live:
+                self._live.stop()
+                self._live = None
+                self.console.print()  # Add spacing after response
+        else:
             self.console.print()  # Final newline for non-TUI mode
 
     def update_status(
@@ -269,3 +378,64 @@ class EnhancedConsole:
             message: Warning message
         """
         self.console.print(f"[bold yellow]Warning:[/bold yellow] {message}")
+
+    def set_intelligence_activity(
+        self,
+        activity: IntelligenceActivity,
+        message: str,
+        progress: float | None = None,
+        details: dict | None = None,
+        step_info: str | None = None,
+    ) -> None:
+        """Set current intelligence activity for display.
+
+        Args:
+            activity: Type of intelligence activity
+            message: Display message
+            progress: Optional progress (0.0 to 1.0)
+            details: Optional activity details
+            step_info: Optional step information (e.g., "Step 2/5")
+        """
+        self.status_display.set_activity(activity, message, progress, details, step_info)
+
+        # Update layout with new status
+        if self.use_tui:
+            status_line = self.status_display.get_status_line()
+            self.layout.update_status(current_task=status_line)
+
+    def update_intelligence_progress(
+        self, progress: float, step_info: str | None = None
+    ) -> None:
+        """Update progress of current intelligence activity.
+
+        Args:
+            progress: New progress value (0.0 to 1.0)
+            step_info: Optional updated step information
+        """
+        self.status_display.update_progress(progress, step_info)
+
+        if self.use_tui:
+            status_line = self.status_display.get_status_line()
+            self.layout.update_status(current_task=status_line)
+
+    def clear_intelligence_activity(self) -> None:
+        """Clear current intelligence activity."""
+        self.status_display.clear_activity()
+
+        if self.use_tui:
+            self.layout.update_status(current_task="💤 Ready")
+
+    def show_intelligence_details(self) -> None:
+        """Show detailed intelligence activity history."""
+        table = self.status_display.get_detailed_status()
+        self.console.print("\n")
+        self.console.print(table)
+        self.console.print("\n")
+
+    def get_intelligence_summary(self) -> dict:
+        """Get summary of intelligence activity statistics.
+
+        Returns:
+            Dictionary with activity counts and timing info
+        """
+        return self.status_display.get_activity_summary()

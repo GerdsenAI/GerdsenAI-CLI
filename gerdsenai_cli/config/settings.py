@@ -81,6 +81,12 @@ class Settings(BaseModel):
         description="User preferences and UI settings",
     )
 
+    # MCP Server Configuration
+    mcp_servers: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="MCP (Model Context Protocol) server configurations",
+    )
+
     # Optional advanced settings
     max_retries: int = Field(default=3, ge=0, le=10)
     debug_mode: bool = Field(default=False)

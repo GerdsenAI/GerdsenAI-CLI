@@ -1,10 +1,10 @@
 # Phase 8d: Agent Intelligence Enhancement - Next Steps
 
-## ✅ Phase 8d-1: Sophisticated Status Messages - COMPLETE
+## [COMPLETE] Phase 8d-1: Sophisticated Status Messages - COMPLETE
 
 **Completed:** October 3, 2025  
 **Branch:** `feature/agent-intelligence-enhancement`  
-**Status:** Merged and tested ✓
+**Status:** Merged and tested 
 
 ### What Was Accomplished
 
@@ -18,13 +18,13 @@
    - Console: `set_operation()` method
    - Agent: `status_callback` parameter
    - Main loop: Callback wiring
-   - All 4 integration points verified ✓
+   - All 4 integration points verified 
 
 3. **Documentation & Tests**
    - STATUS_MESSAGE_INTEGRATION.md (architecture guide)
    - test_status_demo.py (55 example messages)
    - test_status_integration_live.py (verification suite)
-   - All tests passing ✓
+   - All tests passing 
 
 ### Example Output
 ```
@@ -35,7 +35,7 @@ Task: Channeling cognitive flow...
 
 ---
 
-## 🎯 Next Priority: Multi-Step Planning System
+## GOAL: Next Priority: Multi-Step Planning System
 
 **Estimated Time:** 2-3 days  
 **Complexity:** Medium-High  
@@ -309,7 +309,7 @@ class EnhancedConsole:
     def show_plan_progress(self, plan: TaskPlan) -> None:
         """Show progress through plan."""
         completed, total = plan.get_progress()
-        progress_bar = "█" * completed + "░" * (total - completed)
+        progress_bar = "" * completed + "" * (total - completed)
         
         self.console.print(
             f"Progress: [{completed}/{total}] {progress_bar}"
@@ -378,20 +378,20 @@ You: y
 
 GerdsenAI: Here's the plan:
 
-┌─ Plan: Refactor Commands for Dependency Injection ─────┐
-│ #  Step                              Tokens             │
-├───────────────────────────────────────────────────────────┤
-│ 1  Analyze current command structure    ~2000          │
-│ 2  Identify common dependencies         ~1500          │
-│ 3  Design injection pattern             ~3000          │
-│ 4  Update base.py with new pattern      ~4000          │
-│ 5  Refactor agent.py command            ~3500          │
-│ 6  Refactor files.py command            ~3500          │
-│ 7  Refactor model.py command            ~3500          │
-│ 8  Run test suite                        ~1000          │
-├───────────────────────────────────────────────────────────┤
-│ Total: 8 steps, ~22,000 tokens                         │
-└───────────────────────────────────────────────────────────┘
+ Plan: Refactor Commands for Dependency Injection 
+ #  Step                              Tokens             
+
+ 1  Analyze current command structure    ~2000          
+ 2  Identify common dependencies         ~1500          
+ 3  Design injection pattern             ~3000          
+ 4  Update base.py with new pattern      ~4000          
+ 5  Refactor agent.py command            ~3500          
+ 6  Refactor files.py command            ~3500          
+ 7  Refactor model.py command            ~3500          
+ 8  Run test suite                        ~1000          
+
+ Total: 8 steps, ~22,000 tokens                         
+
 
 Execute this plan? (y/n)
 
@@ -422,7 +422,7 @@ During plan execution, status messages will show:
 
 ---
 
-## 📋 Remaining Phases Overview
+## [PLANNED] Remaining Phases Overview
 
 ### Phase 8d-3: Context Memory (Week 2)
 - Track conversation history
@@ -456,7 +456,7 @@ During plan execution, status messages will show:
 
 ---
 
-## 🎯 Immediate Next Action
+## GOAL: Immediate Next Action
 
 **Task:** Implement Multi-Step Planning System  
 **Start:** Create `gerdsenai_cli/core/planner.py`  
@@ -475,11 +475,11 @@ touch gerdsenai_cli/core/planner.py
 
 ---
 
-## 📊 Overall Progress
+## STATUS: Overall Progress
 
 **Phase 8d: Agent Intelligence Enhancement**
-- ✅ Status Messages (Complete)
-- 🚧 Multi-Step Planning (Next - 2-3 days)
+- [COMPLETE] Status Messages (Complete)
+- [IN PROGRESS] Multi-Step Planning (Next - 2-3 days)
 - ⏳ Context Memory (Queued - 2 days)
 - ⏳ Clarifying Questions (Queued - 2 days)
 - ⏳ Complexity Detection (Queued - 1 day)

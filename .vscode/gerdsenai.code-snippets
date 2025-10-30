@@ -1,0 +1,82 @@
+{
+    "GerdsenAI Test Function": {
+        "scope": "python",
+        "prefix": "gatest",
+        "body": [
+            "@pytest.mark.asyncio",
+            "async def test_${1:function_name}():",
+            "    \"\"\"Test ${2:description}.\"\"\"",
+            "    # Arrange",
+            "    ${3:# Setup test data}",
+            "    ",
+            "    # Act",
+            "    ${4:# Execute test}",
+            "    ",
+            "    # Assert",
+            "    ${5:# Verify results}",
+            "    $0"
+        ],
+        "description": "Create a GerdsenAI async test function"
+    },
+    "GerdsenAI Command Class": {
+        "scope": "python",
+        "prefix": "gacmd",
+        "body": [
+            "from typing import Any",
+            "",
+            "from ..commands.base import BaseCommand, CommandResult",
+            "",
+            "",
+            "class ${1:CommandName}Command(BaseCommand):",
+            "    \"\"\"${2:Command description}.\"\"\"",
+            "    ",
+            "    name = \"${3:command-name}\"",
+            "    description = \"${2:Command description}\"",
+            "",
+            "    async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:",
+            "        \"\"\"Execute the ${1:CommandName} command.\"\"\"",
+            "        ${4:# Implementation}",
+            "        ",
+            "        return CommandResult(",
+            "            success=True,",
+            "            message=\"${5:Command executed successfully}\"",
+            "        )",
+            "        $0"
+        ],
+        "description": "Create a GerdsenAI command class"
+    },
+    "GerdsenAI Logger": {
+        "scope": "python",
+        "prefix": "galog",
+        "body": [
+            "import logging",
+            "",
+            "logger = logging.getLogger(__name__)"
+        ],
+        "description": "Add logger to GerdsenAI module"
+    },
+    "GerdsenAI Async Function": {
+        "scope": "python",
+        "prefix": "gaasync",
+        "body": [
+            "async def ${1:function_name}(${2:params}) -> ${3:ReturnType}:",
+            "    \"\"\"${4:Function description}.\"\"\"",
+            "    ${5:# Implementation}",
+            "    $0"
+        ],
+        "description": "Create an async function"
+    },
+    "GerdsenAI Try-Except Block": {
+        "scope": "python",
+        "prefix": "gatry",
+        "body": [
+            "try:",
+            "    ${1:# Code that might raise exception}",
+            "except ${2:Exception} as e:",
+            "    logger.error(f\"${3:Error message}: {e}\")",
+            "    ${4:# Error handling}",
+            "    $0"
+        ],
+        "description": "Try-except block with logging"
+    }
+}

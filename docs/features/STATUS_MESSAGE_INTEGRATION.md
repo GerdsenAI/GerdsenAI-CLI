@@ -58,49 +58,49 @@ STREAMING:
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ Main Loop (main.py)                                      │
-│  • Starts streaming                                      │
-│  • Creates status callback                               │
-│  • Passes to agent                                       │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────────────────┐
-│ Agent (agent.py)                                         │
-│  • Receives status callback                              │
-│  • Calls during key operations:                          │
-│    - analyzing (intent detection)                        │
-│    - contextualizing (building context)                  │
-│    - thinking (before LLM)                               │
-│    - reading/searching/processing (file ops)             │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────────────────┐
-│ EnhancedConsole (console.py)                             │
-│  • set_operation(operation)                              │
-│  • Converts operation → OperationType                    │
-│  • Calls get_status_message()                            │
-│  • Updates layout                                        │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────────────────┐
-│ Status Messages (status_messages.py)                     │
-│  • get_status_message(OperationType)                     │
-│  • Random selection from 10+ messages per type           │
-│  • 30% chance for context suffix                         │
-│  • Returns: "Cogitating possibilities via..."            │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────────────────┐
-│ Layout (layout.py)                                       │
-│  • update_status(current_task=message)                   │
-│  • Displays in footer:                                   │
-│    "Task: Deconstructing semantic topology..."           │
-└──────────────────────────────────────────────────────────┘
+
+ Main Loop (main.py)                                      
+  • Starts streaming                                      
+  • Creates status callback                               
+  • Passes to agent                                       
+
+                     
+                     
+
+ Agent (agent.py)                                         
+  • Receives status callback                              
+  • Calls during key operations:                          
+    - analyzing (intent detection)                        
+    - contextualizing (building context)                  
+    - thinking (before LLM)                               
+    - reading/searching/processing (file ops)             
+
+                     
+                     
+
+ EnhancedConsole (console.py)                             
+  • set_operation(operation)                              
+  • Converts operation → OperationType                    
+  • Calls get_status_message()                            
+  • Updates layout                                        
+
+                     
+                     
+
+ Status Messages (status_messages.py)                     
+  • get_status_message(OperationType)                     
+  • Random selection from 10+ messages per type           
+  • 30% chance for context suffix                         
+  • Returns: "Cogitating possibilities via..."            
+
+                     
+                     
+
+ Layout (layout.py)                                       
+  • update_status(current_task=message)                   
+  • Displays in footer:                                   
+    "Task: Deconstructing semantic topology..."           
+
 ```
 
 ## Files Modified
@@ -157,15 +157,15 @@ From TODO list:
 The status messages are automatically displayed in the footer during operations:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ GerdsenAI Response                                      │
-│ ...                                                     │
-├─────────────────────────────────────────────────────────┤
-│ Task: Cogitating possibilities... · ↓ 9.6k tokens ·    │
-│ Context: 12 files · Model: llama-3.1-8b                │
-├─────────────────────────────────────────────────────────┤
-│ You: What files are in this project?                   │
-└─────────────────────────────────────────────────────────┘
+
+ GerdsenAI Response                                      
+ ...                                                     
+
+ Task: Cogitating possibilities... · ↓ 9.6k tokens ·    
+ Context: 12 files · Model: llama-3.1-8b                
+
+ You: What files are in this project?                   
+
 ```
 
 ## Configuration

@@ -8,40 +8,40 @@ Based on analysis of the codebase and research into Claude CLI/Code and Gemini C
 
 ## Current State Assessment
 
-### ✅ **What We Have (Strengths)**
+### [COMPLETE] **What We Have (Strengths)**
 
-1. **Streaming Response System** ✓
+1. **Streaming Response System** 
    - Real-time token streaming implemented (`stream_chat()`)
    - Fallback to non-streaming on error
    - User preference toggleable (`streaming: true`)
    - Location: `core/llm_client.py` lines 537-610, `core/agent.py` lines 270-305
 
-2. **Agentic Architecture** ✓
+2. **Agentic Architecture** 
    - Intent parsing from LLM responses
    - Action orchestration (edit, read, create, search files)
    - Context-aware file operations
    - Location: `core/agent.py`
 
-3. **Safe File Operations** ✓
+3. **Safe File Operations** 
    - Diff previews (unified & side-by-side)
    - Automatic backups
    - User confirmation prompts
    - Rollback capabilities
    - Location: `core/file_editor.py`
 
-4. **Command System** ✓
+4. **Command System** 
    - 30+ slash commands across 5 categories
    - Autocomplete support (prompt_toolkit)
    - Command history
    - Location: `commands/*.py`
 
-5. **Project Context Awareness** ✓
+5. **Project Context Awareness** 
    - Gitignore-aware file scanning
    - MIME type detection
    - Relevant file filtering
    - Location: `core/context_manager.py`
 
-6. **Terminal Integration** ✓
+6. **Terminal Integration** 
    - Safe command execution
    - Security validation
    - Command history
@@ -96,7 +96,7 @@ Based on analysis of the codebase and research into Claude CLI/Code and Gemini C
 
 ## Gap Analysis: What We're Missing
 
-### 🟡 **Medium Priority Gaps**
+### [MEDIUM] **Medium Priority Gaps**
 
 1. **Command Visibility Issue**
    - **Current:** User must type `/edit`, `/read`, `/search` explicitly
@@ -128,7 +128,7 @@ Based on analysis of the codebase and research into Claude CLI/Code and Gemini C
    - **Target:** Persistent project memory
    - **Example:** "Remember this is a Python 3.11+ project with async patterns"
 
-### 🟢 **Low Priority Gaps (Nice-to-Have)**
+### [LOW] **Low Priority Gaps (Nice-to-Have)**
 
 6. **Inline Diff Display**
    - **Current:** Separate diff preview → confirm → apply
@@ -153,42 +153,42 @@ Based on analysis of the codebase and research into Claude CLI/Code and Gemini C
 
 ```
 GerdsenAI Architecture:
-┌─────────────────────────────────────────┐
-│  Input Handler (prompt_toolkit)        │ ← ✓ Good (autocomplete, history)
-├─────────────────────────────────────────┤
-│  Command Parser (slash commands)       │ ← ⚠️ Should be transparent
-├─────────────────────────────────────────┤
-│  Agent (intent parsing)                │ ← ✓ Solid foundation
-│   - IntentParser (regex patterns)      │ ← ⚠️ Needs enhancement
-│   - Action orchestration               │ ← ✓ Good structure
-├─────────────────────────────────────────┤
-│  Core Services:                         │
-│   - LLMClient (streaming)              │ ← ✓ Excellent
-│   - ContextManager (file analysis)    │ ← ✓ Very good
-│   - FileEditor (safe operations)      │ ← ✓ Best-in-class
-│   - Terminal (command execution)      │ ← ✓ Secure
-└─────────────────────────────────────────┘
+
+  Input Handler (prompt_toolkit)         ←  Good (autocomplete, history)
+
+  Command Parser (slash commands)        ← WARNING Should be transparent
+
+  Agent (intent parsing)                 ←  Solid foundation
+   - IntentParser (regex patterns)       ← WARNING Needs enhancement
+   - Action orchestration                ←  Good structure
+
+  Core Services:                         
+   - LLMClient (streaming)               ←  Excellent
+   - ContextManager (file analysis)     ←  Very good
+   - FileEditor (safe operations)       ←  Best-in-class
+   - Terminal (command execution)       ←  Secure
+
 ```
 
 ### Recommended Changes:
 
 ```
 Enhanced Flow:
-┌─────────────────────────────────────────┐
-│  Input Handler                          │
-├─────────────────────────────────────────┤
-│  Smart Router:                          │
-│   1. Detect slash command → Parser     │ ← Keep backward compat
-│   2. Natural language → Enhanced Agent │ ← NEW: Primary path
-├─────────────────────────────────────────┤
-│  Enhanced Agent:                        │
-│   - Better intent detection            │ ← Improve regex/LLM-based
-│   - Auto file reading                   │ ← NEW: Proactive context
-│   - Multi-file operations               │ ← NEW: Batch support
-│   - Conversation memory                 │ ← NEW: Persistent context
-├─────────────────────────────────────────┤
-│  Core Services (keep as-is)            │ ← Already excellent
-└─────────────────────────────────────────┘
+
+  Input Handler                          
+
+  Smart Router:                          
+   1. Detect slash command → Parser      ← Keep backward compat
+   2. Natural language → Enhanced Agent  ← NEW: Primary path
+
+  Enhanced Agent:                        
+   - Better intent detection             ← Improve regex/LLM-based
+   - Auto file reading                    ← NEW: Proactive context
+   - Multi-file operations                ← NEW: Batch support
+   - Conversation memory                  ← NEW: Persistent context
+
+  Core Services (keep as-is)             ← Already excellent
+
 ```
 
 ---
@@ -345,8 +345,8 @@ def get_completions(self, document, _complete_event):
 ## Action Plan Summary
 
 ### Immediate (Next Sprint):
-1. ✅ Remove container references from `.gitignore`
-2. ✅ Run vulture analysis
+1. [COMPLETE] Remove container references from `.gitignore`
+2. [COMPLETE] Run vulture analysis
 3. ⏳ Fix minor unused variable warning in `ui/input_handler.py`
 4. ⏳ Implement enhanced intent detection (Phase 1)
 5. ⏳ Add auto file reading (Phase 2)

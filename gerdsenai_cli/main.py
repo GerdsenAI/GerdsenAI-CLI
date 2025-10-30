@@ -5,9 +5,15 @@ This module contains the core application logic and interactive loop.
 """
 
 import asyncio
+import logging
+from datetime import datetime
 
 from rich.console import Console
 from rich.prompt import Prompt
+
+from .core.capabilities import CapabilityDetector, ModelCapabilities
+
+logger = logging.getLogger(__name__)
 
 from .commands.agent import (
     AgentConfigCommand,
@@ -24,6 +30,7 @@ from .commands.files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .commands.intelligence import IntelligenceCommand
 from .commands.model import (
     ListModelsCommand,
     ModelInfoCommand,
@@ -46,6 +53,8 @@ from .commands.system import (
     ToolsCommand,
     TuiCommand,
 )
+from .commands.mcp import MCPCommand
+from .utils.conversation_io import ConversationManager
 from .commands.terminal import (
     ClearHistoryCommand,
     HistoryCommand,
@@ -92,6 +101,7 @@ class GerdsenAICLI:
         self.command_parser: CommandParser | None = None
         self.input_handler: EnhancedInputHandler | None = None
         self.enhanced_console: EnhancedConsole | None = None
+        self.conversation_manager = ConversationManager()
 
     async def initialize(self) -> bool:
         """
@@ -140,14 +150,36 @@ class GerdsenAICLI:
                     await self.config_manager.save_settings(self.settings)
                     show_info(f"Set default model to: {models[0].id}")
 
-            # Initialize AI agent with agentic capabilities
-            self.agent = Agent(self.llm_client, self.settings)
+            # Initialize enhanced console with TUI first
+            self.enhanced_console = EnhancedConsole(console)
+            
+            # Initialize AI agent with agentic capabilities (pass console for intelligence display)
+            self.agent = Agent(
+                self.llm_client,
+                self.settings,
+                console=self.enhanced_console
+            )
             agent_ready = await self.agent.initialize()
 
             if not agent_ready:
                 show_warning(
                     "Agent initialization failed, some features may be limited"
                 )
+
+            # Auto-refresh workspace context (like Claude CLI or Gemini CLI)
+            # This ensures ARCHITECT mode can see repository files without manual commands
+            if agent_ready and self.agent.context_manager:
+                try:
+                    logger.debug("Auto-loading workspace context...")
+                    # Context is already loaded by agent.initialize() -> _analyze_project_structure()
+                    # Just show user feedback about files loaded
+                    context_files = len(self.agent.context_manager.files)
+                    if context_files > 0:
+                        show_info(f"📂 Loaded {context_files} files into context")
+                    else:
+                        logger.debug("No files loaded into context (empty workspace or scan failed)")
+                except Exception as e:
+                    logger.warning(f"Failed to report workspace context: {e}")
 
             # Initialize command system
             await self._initialize_commands()
@@ -156,9 +188,6 @@ class GerdsenAICLI:
             self.input_handler = EnhancedInputHandler(
                 command_parser=self.command_parser
             )
-
-            # Initialize enhanced console with TUI
-            self.enhanced_console = EnhancedConsole(console)
             
             # Update status bar with initial info
             context_files = len(self.agent.context_manager.files) if self.agent and hasattr(self.agent, 'context_manager') else 0
@@ -203,6 +232,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(InitCommand())
         self.command_parser.register_command(ToolsCommand())
         self.command_parser.register_command(TuiCommand())
+        self.command_parser.register_command(MCPCommand())
 
         # Register model commands
         self.command_parser.register_command(ListModelsCommand())
@@ -216,6 +246,15 @@ class GerdsenAICLI:
         self.command_parser.register_command(RefreshContextCommand())
         self.command_parser.register_command(ResetCommand())
         self.command_parser.register_command(AgentConfigCommand())
+        if self.agent:
+            self.command_parser.register_command(
+                IntelligenceCommand(self.agent, self.enhanced_console)
+            )
+            # Register Phase 8d intelligence features
+            from .commands.planning import PlanCommand
+            from .commands.memory import MemoryCommand
+            self.command_parser.register_command(PlanCommand(self.agent))
+            self.command_parser.register_command(MemoryCommand(self.agent))
 
         # Register file commands
         self.command_parser.register_command(FilesCommand())
@@ -268,13 +307,13 @@ class GerdsenAICLI:
                 # Use async context manager for proper client lifecycle
                 async with LLMClient(temp_settings) as temp_client:
                     # Wrap the entire connection test in a timeout to prevent hanging
-                    print(f"[DEBUG] Attempting connection to {protocol}://{host}:{port}")
+                    logger.debug(f"Attempting connection to {protocol}://{host}:{port}")
                     connected = await asyncio.wait_for(
                         temp_client.connect(),
                         timeout=15.0,  # 15 second total timeout for setup
                     )
-                    print(f"[DEBUG] Connection result: {connected}")
-
+                    logger.debug(f"Connection result: {connected}")
+                    
                     if not connected:
                         show_error(
                             "Could not connect to the LLM server. Please check the URL and try again."
@@ -284,13 +323,13 @@ class GerdsenAICLI:
                     # Get available models
                     models = await temp_client.list_models()
             except asyncio.TimeoutError:
-                print("[DEBUG] Connection test timed out after 15 seconds")
+                logger.debug("Connection test timed out after 15 seconds")
                 show_error(
                     "Connection test timed out. Please check if your LLM server is running and accessible."
                 )
                 return None
             except Exception as e:
-                print(f"[DEBUG] Connection test failed with exception: {e}")
+                logger.debug(f"Connection test failed with exception: {e}")
                 show_error(f"Connection test failed: {e}")
                 return None
 
@@ -496,29 +535,18 @@ class GerdsenAICLI:
             return
 
         self.running = True
+        
+        # Check if TUI mode is enabled
+        tui_mode = self.settings.user_preferences.get("tui_mode", True) if self.settings else True
+        persistent_mode = self.settings.user_preferences.get("persistent_tui", True) if self.settings else True
 
         try:
-            while self.running:
-                try:
-                    # Get user input using enhanced input handler
-                    if not self.input_handler:
-                        show_error("Input handler not initialized")
-                        break
-
-                    user_input = await self.input_handler.get_user_input()
-
-                    # Handle the input
-                    continue_running = await self._handle_user_input(user_input)
-                    if not continue_running:
-                        self.running = False
-
-                except KeyboardInterrupt:
-                    # User pressed Ctrl+C during input
-                    continue
-                except EOFError:
-                    # User pressed Ctrl+D (exit signal)
-                    console.print("\n[INFO] Goodbye!", style="bright_cyan")
-                    self.running = False
+            # Use persistent TUI mode if enabled
+            if tui_mode and persistent_mode and self.enhanced_console:
+                await self._run_persistent_tui_mode()
+            else:
+                # Fall back to original input handler mode
+                await self._run_standard_mode()
 
         except KeyboardInterrupt:
             console.print("\n[INFO] Goodbye!", style="bright_cyan")
@@ -533,7 +561,508 @@ class GerdsenAICLI:
             if self.input_handler:
                 await self.input_handler.cleanup()
             if self.llm_client:
-                await self.llm_client.close()
+                # Properly exit async context manager
+                await self.llm_client.__aexit__(None, None, None)
+    
+    async def _handle_tui_command(self, command: str, args: list[str], tui=None) -> str:
+        """Handle TUI commands like /model, /save, /load, /export.
+        
+        Args:
+            command: The command string (e.g., '/model')
+            args: List of command arguments
+            tui: Optional TUI instance for accessing conversation data
+            
+        Returns:
+            Response string to display to user
+        """
+        try:
+            if command == '/model':
+                if not args:
+                    # Show current model
+                    current = self.settings.current_model if self.settings and self.settings.current_model else "not set"
+                    return f"Current model: {current}\n\nUse '/model <name>' to switch models."
+                else:
+                    # Switch to new model
+                    new_model = args[0]
+                    if self.settings:
+                        self.settings.current_model = new_model
+                        if self.agent and hasattr(self.agent, 'settings'):
+                            self.agent.settings.current_model = new_model
+                        
+                        # Update TUI footer if TUI is available
+                        if tui:
+                            tui.set_system_footer(f"Model: {new_model}")
+                        
+                        return f"Switched to model: {new_model}"
+                    else:
+                        return "Error: Settings not initialized"
+            
+            elif command == '/save':
+                if not args:
+                    return "Usage: /save <filename>\n\nExample: /save my_conversation"
+                
+                if not tui:
+                    return "Error: TUI not available for save operation"
+                
+                filename = args[0]
+                
+                # Get conversation messages from TUI
+                messages = tui.conversation.messages
+                
+                if not messages:
+                    return "No messages to save. Start a conversation first."
+                
+                # Prepare metadata
+                metadata = {
+                    "model": self.settings.current_model if self.settings else "unknown",
+                    "message_count": len(messages),
+                }
+                
+                # Save conversation
+                try:
+                    filepath = self.conversation_manager.save_conversation(filename, messages, metadata)
+                    return f"Conversation saved successfully!\n\nFile: {filepath}\nMessages: {len(messages)}"
+                except Exception as e:
+                    logger.error(f"Error saving conversation: {e}", exc_info=True)
+                    return f"Error saving conversation: {str(e)}"
+            
+            elif command == '/load':
+                if not args:
+                    # List available conversations
+                    conversations = self.conversation_manager.list_conversations()
+                    if not conversations:
+                        return "No saved conversations found.\n\nUse '/save <filename>' to save a conversation."
+                    
+                    lines = ["Available conversations:", ""]
+                    for conv_file in conversations:
+                        lines.append(f"  - {conv_file.stem}")
+                    lines.append("")
+                    lines.append("Use '/load <filename>' to load a conversation.")
+                    return "\n".join(lines)
+                
+                if not tui:
+                    return "Error: TUI not available for load operation"
+                
+                filename = args[0]
+                
+                # Load conversation
+                try:
+                    messages, metadata = self.conversation_manager.load_conversation(filename)
+                    
+                    # Clear current conversation
+                    tui.conversation.clear_messages()
+                    
+                    # Load messages into TUI
+                    for role, content, _ in messages:
+                        tui.conversation.add_message(role, content)
+                    
+                    # Build response
+                    msg_count = len(messages)
+                    lines = [
+                        f"Conversation loaded successfully!",
+                        f"\nFile: {filename}",
+                        f"Messages: {msg_count}",
+                    ]
+                    
+                    if metadata:
+                        lines.append("\nMetadata:")
+                        for key, value in metadata.items():
+                            lines.append(f"  {key}: {value}")
+                    
+                    return "\n".join(lines)
+                    
+                except FileNotFoundError:
+                    return f"Conversation not found: {filename}\n\nUse '/load' without arguments to list available conversations."
+                except Exception as e:
+                    logger.error(f"Error loading conversation: {e}", exc_info=True)
+                    return f"Error loading conversation: {str(e)}"
+            
+            elif command == '/export':
+                if not tui:
+                    return "Error: TUI not available for export operation"
+                
+                # Get conversation messages from TUI
+                messages = tui.conversation.messages
+                
+                if not messages:
+                    return "No messages to export. Start a conversation first."
+                
+                filename = args[0] if args else None
+                
+                # Prepare metadata
+                metadata = {
+                    "model": self.settings.current_model if self.settings else "unknown",
+                    "message_count": len(messages),
+                    "exported_at": datetime.now().isoformat(),
+                }
+                
+                # Export conversation
+                try:
+                    filepath = self.conversation_manager.export_conversation(filename, messages, metadata)
+                    return f"Conversation exported successfully!\n\nFile: {filepath}\nFormat: Markdown\nMessages: {len(messages)}"
+                except Exception as e:
+                    logger.error(f"Error exporting conversation: {e}", exc_info=True)
+                    return f"Error exporting conversation: {str(e)}"
+            
+            return f"Unknown command: {command}"
+            
+        except Exception as e:
+            logger.error(f"Command handler error: {e}", exc_info=True)
+            return f"Command error: {str(e)}"
+
+    async def _run_persistent_tui_mode(self) -> None:
+        """Run in persistent TUI mode with embedded input using prompt_toolkit."""
+        import logging
+        from .ui.prompt_toolkit_tui import PromptToolkitTUI
+        
+        if not self.agent:
+            show_error("AI agent not initialized")
+            return
+        
+        # Create prompt_toolkit TUI with true embedded input
+        tui = PromptToolkitTUI()
+        
+        # Set up logging handler to capture warnings and route to system footer
+        class TUILogHandler(logging.Handler):
+            def emit(self, record):
+                try:
+                    msg = self.format(record)
+                    # Only show warnings and errors in footer
+                    if record.levelno >= logging.WARNING:
+                        tui.set_system_footer(msg)
+                except Exception:
+                    pass
+        
+        # Install logging handler for TUI mode and suppress console output
+        tui_handler = TUILogHandler()
+        tui_handler.setLevel(logging.WARNING)
+        root_logger = logging.getLogger()
+        
+        # Remove existing handlers that print to console (stderr/stdout)
+        original_handlers = root_logger.handlers[:]
+        for handler in original_handlers:
+            root_logger.removeHandler(handler)
+        
+        # Add our TUI handler
+        root_logger.addHandler(tui_handler)
+        root_logger.setLevel(logging.WARNING)
+        
+        # Set up system footer with model and context info
+        model_name = self.settings.current_model if self.settings and self.settings.current_model else "not set"
+        if not model_name or model_name == "not set":
+            tui.set_system_footer(f"Model: {model_name} (using 4K context default) | Use /model to select a model")
+        else:
+            tui.set_system_footer(f"Model: {model_name}")
+        
+        # Track model capabilities (detect once on first use)
+        capabilities: ModelCapabilities | None = None
+        
+        # Define message handler with robust error handling
+        async def handle_message(text: str) -> None:
+            """Handle user message submission with comprehensive error handling."""
+            nonlocal capabilities
+            
+            try:
+                # Check for exit commands
+                if text.lower() in ["/exit", "/quit"]:
+                    tui.exit()
+                    return
+                
+                # Handle slash commands
+                if text.startswith("/"):
+                    # Add system message showing command
+                    tui.conversation.add_message("system", f"Command: {text}")
+                    tui.app.invalidate()
+                    
+                    # TODO: Integrate command execution in Phase 2
+                    # For now, just acknowledge the command
+                    tui.conversation.add_message("system", "Command execution in TUI will be available in Phase 2")
+                    tui.app.invalidate()
+                    return
+                
+                # Ensure agent is initialized
+                if not self.agent:
+                    tui.conversation.add_message("system", "Error: Agent not initialized")
+                    tui.app.invalidate()
+                    return
+                
+                # Detect capabilities on first message if not already done
+                if capabilities is None:
+                    try:
+                        model_name = self.settings.current_model if self.settings else None
+                        if model_name:
+                            capabilities = CapabilityDetector.detect_from_model_name(model_name)
+                            
+                            # Show capability summary to user
+                            cap_msg = f"🔍 Model: {model_name}\n"
+                            cap_msg += f"  • Thinking: {'✅ Supported' if capabilities.supports_thinking else '❌ Not supported'}\n"
+                            cap_msg += f"  • Vision: {'✅ Supported' if capabilities.supports_vision else '❌ Not supported'}\n"
+                            cap_msg += f"  • Tools: {'✅ Supported' if capabilities.supports_tools else '❌ Not supported'}\n"
+                            cap_msg += f"  • Streaming: {'✅ Supported' if capabilities.supports_streaming else '❌ Not supported'}"
+                            
+                            tui.conversation.add_message("system", cap_msg)
+                            tui.app.invalidate()
+                            
+                            logger.info(f"Detected capabilities for {model_name}: thinking={capabilities.supports_thinking}, vision={capabilities.supports_vision}, tools={capabilities.supports_tools}, streaming={capabilities.supports_streaming}")
+                            
+                            # Warn if thinking is enabled but not supported
+                            if tui.thinking_enabled and not capabilities.supports_thinking:
+                                tui.conversation.add_message("system", "⚠️  Thinking mode is enabled but this model does not support structured thinking output")
+                                tui.app.invalidate()
+                    except Exception as e:
+                        logger.warning(f"Failed to detect capabilities: {e}")
+                        # Use defaults if detection fails
+                        capabilities = ModelCapabilities()
+                
+                # Import for plan capture
+                from .ui.animations import PlanCapture
+                
+                # Check if we're in approval mode
+                if tui.approval_mode and tui.pending_plan:
+                    # Handle approval response
+                    approved = await tui.handle_approval_response(text)
+                    
+                    if approved:
+                        # Switch to EXECUTE mode and execute the plan
+                        from .core.modes import ExecutionMode
+                        old_mode = tui.mode_manager.get_mode()
+                        tui.mode_manager.set_mode(ExecutionMode.EXECUTE)
+                        
+                        # Show executing animation
+                        tui.show_animation("Executing plan", "executing")
+                        
+                        try:
+                            # Get the original user request from pending_plan metadata
+                            # For now, use the full response as context
+                            original_request = tui.pending_plan.get('original_request', text)
+                            
+                            # Execute with streaming display
+                            await asyncio.sleep(0.5)  # Brief pause for UX
+                            tui.hide_animation()
+                            tui.start_streaming_response()
+                            
+                            chunk_count = 0
+                            async for chunk, _ in self.agent.process_user_input_stream(original_request):
+                                tui.append_streaming_chunk(chunk)
+                                chunk_count += 1
+                                
+                                if tui.streaming_chunk_delay > 0:
+                                    await asyncio.sleep(tui.streaming_chunk_delay)
+                                
+                                if chunk_count % tui.streaming_refresh_interval == 0:
+                                    tui.app.invalidate()
+                            
+                            tui.finish_streaming_response()
+                            tui.conversation.add_message("command", "✅ Execution complete!")
+                            
+                        except Exception as e:
+                            tui.hide_animation()
+                            tui.finish_streaming_response()
+                            tui.conversation.add_message("system", f"Execution error: {str(e)}")
+                            logger.error(f"Execution error: {e}", exc_info=True)
+                        
+                        finally:
+                            # Restore original mode
+                            tui.mode_manager.set_mode(old_mode)
+                            mode_name = old_mode.value.upper()
+                            tui.status_text = f"[{mode_name}] Ready. Type your message and press Enter."
+                            tui.pending_plan = None
+                    
+                    tui.app.invalidate()
+                    return
+                
+                # Get current mode
+                current_mode = tui.get_mode()
+                from .core.modes import ExecutionMode
+                
+                # In CHAT mode, check if user is requesting action
+                if current_mode == ExecutionMode.CHAT:
+                    action_keywords = ['create', 'delete', 'modify', 'update', 'change', 'fix', 'add', 'remove', 'refactor', 'write', 'edit', 'implement']
+                    if any(keyword in text.lower() for keyword in action_keywords):
+                        suggestion = (
+                            "💡 It looks like you're requesting an action. "
+                            "In CHAT mode, I can only provide information and guidance.\n\n"
+                            "To execute actions:\n"
+                            "  • Switch to ARCHITECT mode (/mode architect) to plan changes\n"
+                            "  • Switch to EXECUTE mode (/mode execute) to make changes directly\n"
+                            "  • Use Shift+Tab to cycle through modes"
+                        )
+                        tui.conversation.add_message("system", suggestion)
+                        tui.app.invalidate()
+                        return
+                    
+                    # Regular CHAT mode conversation - stream AI response
+                    tui.start_streaming_response()
+                    
+                    chunk_count = 0
+                    try:
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            tui.append_streaming_chunk(chunk)
+                            chunk_count += 1
+                            
+                            # Add configurable delay for smooth typewriter animation
+                            if tui.streaming_chunk_delay > 0:
+                                await asyncio.sleep(tui.streaming_chunk_delay)
+                            
+                            # Periodic refresh for smooth rendering
+                            if chunk_count % tui.streaming_refresh_interval == 0:
+                                tui.app.invalidate()
+                        
+                        # If no chunks received, show error
+                        if chunk_count == 0:
+                            tui.conversation.add_message("system", "Warning: No response received from AI")
+                            tui.app.invalidate()
+                    
+                    except asyncio.TimeoutError:
+                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        tui.app.invalidate()
+                    except Exception as stream_error:
+                        logger.error(f"Streaming error: {stream_error}", exc_info=True)
+                        tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
+                        tui.app.invalidate()
+                    
+                    # Always finish streaming to unlock the UI
+                    tui.finish_streaming_response()
+                    tui.app.invalidate()
+                    return
+                
+                # In ARCHITECT mode, show thinking animation and capture response for approval
+                if current_mode == ExecutionMode.ARCHITECT:
+                    # Show thinking animation
+                    tui.show_animation("Analyzing your request", "thinking")
+                    await asyncio.sleep(0.5)  # Brief pause for UX
+                    
+                    tui.show_animation("Creating execution plan", "planning")
+                    
+                    try:
+                        # Capture AI response silently (don't stream to screen)
+                        full_response = ""
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            full_response += chunk
+                            # Update animation message periodically
+                            if len(full_response) % 200 == 0 and tui.current_animation:
+                                tui.current_animation.update_message("Planning... (analyzing complexity)")
+                        
+                        # Stop animation
+                        tui.hide_animation()
+                        
+                        # Extract and show plan summary
+                        plan = PlanCapture.extract_summary(full_response)
+                        plan['original_request'] = text  # Store for later execution
+                        tui.show_plan_for_approval(plan)
+                        
+                    except Exception as e:
+                        tui.hide_animation()
+                        tui.conversation.add_message("system", f"Planning error: {str(e)}")
+                        logger.error(f"Planning error: {e}", exc_info=True)
+                    
+                    tui.app.invalidate()
+                    return
+                
+                # In EXECUTE or LLVL mode, execute immediately with brief animation
+                if current_mode in [ExecutionMode.EXECUTE, ExecutionMode.LLVL]:
+                    tui.show_animation("Executing", "executing")
+                    
+                    # Brief delay for UX
+                    await asyncio.sleep(0.3)
+                    
+                    # Execute with streaming
+                    tui.hide_animation()
+                    tui.start_streaming_response()
+                    
+                    chunk_count = 0
+                    try:
+                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                            tui.append_streaming_chunk(chunk)
+                            chunk_count += 1
+                            
+                            # Add configurable delay for smooth typewriter animation
+                            if tui.streaming_chunk_delay > 0:
+                                await asyncio.sleep(tui.streaming_chunk_delay)
+                            
+                            # Periodic refresh for smooth rendering
+                            if chunk_count % tui.streaming_refresh_interval == 0:
+                                tui.app.invalidate()
+                        
+                        # If no chunks received, show error
+                        if chunk_count == 0:
+                            tui.conversation.add_message("system", "Warning: No response received from AI")
+                            tui.app.invalidate()
+                    
+                    except asyncio.TimeoutError:
+                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        tui.app.invalidate()
+                    except Exception as stream_error:
+                        logger.error(f"Streaming error: {stream_error}", exc_info=True)
+                        tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
+                        tui.app.invalidate()
+                    
+                    # Always finish streaming to unlock the UI
+                    tui.finish_streaming_response()
+                    tui.app.invalidate()
+                    return
+                
+            except KeyboardInterrupt:
+                # User interrupted streaming
+                tui.conversation.add_message("system", "Response interrupted by user")
+                tui.finish_streaming_response()
+            except Exception as e:
+                # Handle any unexpected errors
+                logger.error(f"Error processing message: {e}", exc_info=True)
+                # Make sure we always finish streaming even on error
+                try:
+                    tui.finish_streaming_response()
+                except Exception:
+                    pass
+                tui.conversation.add_message("system", f"Unexpected error: {str(e)}")
+                tui.app.invalidate()
+        
+        # Set message callback
+        tui.set_message_callback(handle_message)
+        
+        # Set command callback with TUI reference
+        async def command_handler(command: str, args: list[str]) -> str:
+            """Wrapper to pass TUI instance to command handler."""
+            return await self._handle_tui_command(command, args, tui=tui)
+        
+        tui.set_command_callback(command_handler)
+        
+        try:
+            # Run the TUI (blocks until exit)
+            await tui.run()
+        except Exception as e:
+            show_error(f"TUI error: {e}")
+            if self.debug:
+                console.print_exception()
+        finally:
+            # Restore original logging configuration
+            root_logger.removeHandler(tui_handler)
+            for handler in original_handlers:
+                root_logger.addHandler(handler)
+    
+    async def _run_standard_mode(self) -> None:
+        """Run in standard mode with separate prompts."""
+        while self.running:
+            try:
+                # Get user input using enhanced input handler
+                if not self.input_handler:
+                    show_error("Input handler not initialized")
+                    break
+
+                user_input = await self.input_handler.get_user_input()
+
+                # Handle the input
+                continue_running = await self._handle_user_input(user_input)
+                if not continue_running:
+                    self.running = False
+
+            except KeyboardInterrupt:
+                # User pressed Ctrl+C during input
+                continue
+            except EOFError:
+                # User pressed Ctrl+D (exit signal)
+                console.print("\n[INFO] Goodbye!", style="bright_cyan")
+                self.running = False
 
     def run(self) -> None:
         """Run the main application loop."""

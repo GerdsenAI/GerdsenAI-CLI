@@ -1,15 +1,33 @@
 # GerdsenAI CLI
 
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Code Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](htmlcov/index.html)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](tests/)
+
 A terminal-based agentic coding tool that connects to local AI models for intelligent code assistance.
 
-## 🚀 Features
+---
+
+> **IMPORTANT: Virtual Environment Required**
+>
+> **Always use the project virtual environment:** `.venv`
+> ```bash
+> source .venv/bin/activate  # Required before ANY command
+> ```
+> See [Virtual Environment Setup](#virtual-environment-setup) for details.
+
+---
+
+## Features
 
 ### Core Capabilities
 - **AI-Powered Code Assistant** - Natural language interaction with local LLM models
 - **Project Context Awareness** - Intelligent file scanning and context building
 - **Safe File Operations** - AI-assisted editing with diff previews and automatic backups
 - **Terminal Integration** - Secure command execution with user confirmation
-- **Session Management** - Save and restore conversation sessions
+- **Conversation Management** - Save, load, and export conversations (`/save`, `/load`, `/export`)
+- **Interactive TUI Mode** - Enhanced terminal UI with real-time streaming and conversation history
 
 ### Command Categories
 - **System Tools** - Configuration, status, help, and debugging
@@ -18,15 +36,17 @@ A terminal-based agentic coding tool that connects to local AI models for intell
 - **Model Management** - Switch between LLM models and view model info
 - **Terminal Integration** - Safe command execution and history management
 
-## 📋 Requirements
+## Requirements
 
-- **Python 3.11+** (required)
+- **Python 3.11+** (required, currently using 3.11.13)
+  - Supported versions: 3.11, 3.12, 3.13
+  - Virtual environment uses Python 3.11.13
 - **Local LLM Server** - Ollama, LocalAI, or OpenAI-compatible API
-- **Virtual Environment** - Recommended for isolation
+- **Virtual Environment** - `.venv` (mandatory for development)
 
-## 🛠 Installation
+## Installation
 
-### � From PyPI (Recommended)
+### From PyPI (Recommended)
 ```bash
 # Install with pipx (isolated, recommended)
 pipx install gerdsenai-cli
@@ -38,29 +58,42 @@ pip install gerdsenai-cli
 gerdsenai --version
 ```
 
-### 🔧 Development Installation
+### Development Installation
+
+**CRITICAL: You MUST use the project's `.venv` virtual environment**
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/GerdsenAI/GerdsenAI-CLI.git
 cd GerdsenAI-CLI
 
-# Create virtual environment with Python 3.11+
-python3.11 -m venv .venv --prompt "gerdsenai-cli"
+# 2. Create virtual environment (if it doesn't exist)
+python3.11 -m venv .venv
+
+# 3. ACTIVATE the virtual environment (REQUIRED)
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
-# Install in development mode
+# 4. Verify you're in the venv
+which python  # Should show: <project-path>/.venv/bin/python
+echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
+
+# 5. Install in development mode
 pip install -e ".[dev]"
 
-# Install pre-commit hooks (optional)
-pre-commit install
-
-# Verify installation
-python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+# 6. Verify installation
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('Import successful')"
 gerdsenai --version
 ```
 
-### 🏗️ Alternative Installation Methods
+**Common Mistakes to Avoid:**
+- Running `pip install` without activating venv
+- Using system Python at `/opt/homebrew/bin/python3`
+- Using `--break-system-packages` flag
+- Installing with homebrew's pip
+- **ALWAYS** `source .venv/bin/activate` first
+
+### Alternative Installation Methods
 ```bash
 # Install from source (latest)
 pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
@@ -69,7 +102,91 @@ pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git
 pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 ```
 
-## 🚀 Quick Start
+## Virtual Environment Setup
+
+### Why Virtual Environment is Mandatory
+
+**Problem:** System Python installations cause dependency conflicts, version mismatches, and "module not found" errors.
+
+**Solution:** Use the project's dedicated `.venv` virtual environment.
+
+### Quick Setup
+
+```bash
+# Navigate to project
+cd GerdsenAI-CLI
+
+# Activate venv (do this EVERY time you work on the project)
+source .venv/bin/activate
+
+# Verify activation
+echo $VIRTUAL_ENV  # Should show: <project-path>/.venv
+which python       # Should show: <project-path>/.venv/bin/python
+```
+
+### Creating venv (First Time Only)
+
+```bash
+# If .venv doesn't exist
+python3.11 -m venv .venv
+
+# Activate it
+source .venv/bin/activate
+
+# Install dependencies
+pip install -e ".[dev]"
+```
+
+### Troubleshooting
+
+**Q: How do I know if venv is active?**
+```bash
+# Check these indicators:
+echo $VIRTUAL_ENV        # Shows path if active
+which python             # Should point to .venv/bin/python
+python --version         # Should match venv Python (3.11.x or 3.13.x)
+
+# Your prompt should also show: (.venv) in front
+```
+
+**Q: I see "module not found" errors**
+```bash
+# 1. Ensure venv is active
+source .venv/bin/activate
+
+# 2. Reinstall in editable mode
+pip install -e ".[dev]"
+
+# 3. Verify
+python -c "import gerdsenai_cli; print('OK')"
+```
+
+**Q: Commands fail with ImportError**
+```bash
+# DON'T use system Python
+/opt/homebrew/bin/python3 -m gerdsenai_cli
+
+# DO use venv Python
+source .venv/bin/activate
+python -m gerdsenai_cli
+```
+
+### Best Practices
+
+1. **Always activate venv first**: `source .venv/bin/activate`
+2. **One venv per project**: Don't mix projects
+3. **Keep it updated**: `pip install --upgrade pip`
+4. **Never commit .venv**: Already in `.gitignore`
+5. **Document venv location**: `.venv/README.md` has setup instructions
+
+### VS Code Integration
+
+The project is configured to use `.venv` automatically:
+- `.vscode/settings.json` points to `.venv/bin/python`
+- Tests run in venv automatically
+- Terminal activates venv on open
+
+## Quick Start
 
 1. **Start the CLI**
    ```bash
@@ -106,7 +223,7 @@ pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
    - Disable streaming at runtime by toggling the preference in a future config command, or edit your settings file to set `"streaming": false` under `user_preferences`.
    - If streaming encounters an error, the CLI automatically falls back to standard full-response mode.
 
-## 📚 Key Commands
+## Key Commands
 
 ### Essential Commands
 - `/help` - Show all available commands
@@ -133,7 +250,7 @@ pip install git+https://github.com/GerdsenAI/GerdsenAI-CLI.git@main
 - `/config` - Show current configuration
 - `/setup` - Reconfigure LLM server connection
 
-## 🏗 Architecture
+## Architecture
 
 GerdsenAI CLI uses a modular, agent-based architecture:
 
@@ -157,7 +274,7 @@ gerdsenai_cli/
 └── utils/               # Utilities and display helpers
 ```
 
-## 🔧 Development
+## Development
 
 ### Setup Development Environment
 ```bash
@@ -169,7 +286,7 @@ source .venv/bin/activate
 pip install -e .
 
 # Verify installation
-python -c "from gerdsenai_cli.commands.system import HelpCommand; print('✅ Import successful')"
+python -c "from gerdsenai_cli.commands.system import HelpCommand; print('Import successful')"
 ```
 
 ### Code Quality Tools
@@ -186,25 +303,57 @@ pytest
 ```
 
 ### Project Status
-- **Phase 1-7**: ✅ **Complete** - Core functionality, commands, and agent features
-- **Phase 8+**: 🚧 **Planned** - Extended commands, integrations, and advanced features
+- **Phase 1-7**: **Complete** - Core functionality, commands, and agent features
+- **Phase 8+**: **Planned** - Extended commands, integrations, and advanced features
 
-See [TODO.md](TODO.md) for detailed development roadmap.
+See [docs/TODO.md](docs/TODO.md) for detailed development roadmap.
 
-## 🤝 Contributing
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+### Quick Links
+- **[Documentation Hub](docs/README.md)** - Central documentation index
+- **[Contributing Guide](docs/development/CONTRIBUTING.md)** - How to contribute
+- **[Testing Guide](docs/development/TESTING_GUIDE.md)** - Running and writing tests
+- **[Feature Documentation](docs/features/)** - Detailed feature documentation
+- **[Example Configs](examples/)** - Sample configuration files
+
+### Configuration Examples
+Ready-to-use configuration examples in `examples/config/`:
+- **[basic.json](examples/config/basic.json)** - Minimal setup for getting started
+- **[power-user.json](examples/config/power-user.json)** - Advanced configuration
+- **[mcp-github.json](examples/config/mcp-github.json)** - GitHub MCP integration
+
+```bash
+# Use an example config
+python -m gerdsenai_cli --config examples/config/basic.json
+```
+
+See [examples/README.md](examples/README.md) for more details on configuration options.
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](docs/development/CONTRIBUTING.md) for detailed information.
+
+**Quick Start for Contributors:**
 
 1. Fork the repository
-2. Create a feature branch
-3. Follow the existing code style and patterns
-4. Add tests for new functionality
-5. Update documentation as needed
-6. Submit a pull request
+2. Create and activate virtual environment (`.venv`)
+3. Install development dependencies: `pip install -e ".[dev]"`
+4. Create a feature branch
+5. Make your changes and add tests
+6. Run tests: `pytest -v`
+7. Update documentation as needed
+8. Submit a pull request
 
-## 📄 License
+**Important:** All development must be done in the project's virtual environment. See [.venv/README.md](.venv/README.md) for details.
+
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 - **Import Errors**: Ensure virtual environment is activated and `pip install -e .` was run
@@ -218,4 +367,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Happy coding with GerdsenAI! 🚀**
+**Happy coding with GerdsenAI!**

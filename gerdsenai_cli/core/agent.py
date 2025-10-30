@@ -18,9 +18,15 @@ from typing import Any, AsyncGenerator
 from rich.console import Console
 
 from ..config.settings import Settings
+from ..ui.status_display import IntelligenceActivity
 from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
+from .input_validator import (
+    InputValidator,
+    create_defensive_system_prompt,
+    get_validator,
+)
 from .llm_client import ChatMessage, LLMClient
 from .memory import ProjectMemory
 from .planner import TaskPlanner
@@ -109,6 +115,10 @@ class IntentParser:
 
     def __init__(self):
         """Initialize intent parser with patterns and keywords."""
+        # Initialize input validator for security
+        from .input_validator import get_validator
+        self.input_validator = get_validator()
+
         # Patterns for detecting different intent types
         self.file_patterns = {
             "edit": [
@@ -269,10 +279,10 @@ class IntentParser:
     
     def _parse_intent_json(self, response: str) -> dict[str, Any] | None:
         """Parse JSON from LLM response.
-        
+
         Args:
             response: Raw LLM response text
-            
+
         Returns:
             Parsed JSON dict or None if parsing fails
         """
@@ -282,19 +292,39 @@ class IntentParser:
             r"```\s*\n?(.*?)\n?```",      # Generic code block
             r"(\{.*\})",                   # Raw JSON object
         ]
-        
+
         for pattern in json_patterns:
             match = re.search(pattern, response, re.DOTALL)
             if match:
                 json_str = match.group(1).strip()
                 try:
-                    return json.loads(json_str)
+                    parsed_json = json.loads(json_str)
+
+                    # Security: Validate the parsed response
+                    is_valid, error_msg = self.input_validator.validate_intent_response(
+                        parsed_json, required_fields=["action", "confidence"]
+                    )
+                    if not is_valid:
+                        logger.warning(f"Intent response validation failed: {error_msg}")
+                        continue
+
+                    return parsed_json
                 except json.JSONDecodeError:
                     continue
-        
+
         # Try parsing the entire response as JSON
         try:
-            return json.loads(response.strip())
+            parsed_json = json.loads(response.strip())
+
+            # Security: Validate the parsed response
+            is_valid, error_msg = self.input_validator.validate_intent_response(
+                parsed_json, required_fields=["action", "confidence"]
+            )
+            if not is_valid:
+                logger.warning(f"Intent response validation failed: {error_msg}")
+                return None
+
+            return parsed_json
         except json.JSONDecodeError:
             logger.warning(f"Failed to parse intent JSON from response: {response[:100]}")
             return None
@@ -508,10 +538,12 @@ class Agent:
         llm_client: LLMClient,
         settings: Settings,
         project_root: Path | None = None,
+        console: Any | None = None,
     ):
         """Initialize the agent with required components."""
         self.llm_client = llm_client
         self.settings = settings
+        self._console = console  # Enhanced console with status display
 
         # Initialize core components
         self.context_manager = ProjectContext(project_root)
@@ -520,6 +552,11 @@ class Agent:
         self.planner = TaskPlanner(llm_client, self)
         self.memory = ProjectMemory(project_root)
         self.suggestor = ProactiveSuggestor()
+
+        # Security: Input validation and sanitization
+        self.input_validator = get_validator(
+            strict_mode=settings.get_preference("strict_input_validation", True)
+        )
 
         # Conversation state
         self.conversation = ConversationContext()
@@ -580,6 +617,14 @@ class Agent:
         """
         if not suggestions:
             return ""
+        
+        # Show suggestion generation activity
+        if self._console and suggestions:
+            self._console.set_intelligence_activity(
+                IntelligenceActivity.GENERATING_SUGGESTIONS,
+                f"Generated {len(suggestions)} suggestions",
+                progress=0.9
+            )
         
         # Check if suggestions are enabled
         if not self.settings.get_preference("show_suggestions", True):
@@ -659,6 +704,14 @@ class Agent:
             use_planning = Confirm.ask("\n[bold]Use planning mode?[/bold]", default=True)
             
             if use_planning:
+                # Show planning activity
+                if self._console:
+                    self._console.set_intelligence_activity(
+                        IntelligenceActivity.PLANNING,
+                        "Creating multi-step plan",
+                        progress=0.2
+                    )
+                
                 # Create a plan using the planner
                 console.print("\n[cyan]Creating plan...[/cyan]")
                 
@@ -687,17 +740,45 @@ class Agent:
                         )
                         
                         if execute_now:
+                            # Show plan execution activity
+                            if self._console:
+                                self._console.set_intelligence_activity(
+                                    IntelligenceActivity.EXECUTING_PLAN,
+                                    f"Executing plan with {len(plan.steps)} steps",
+                                    progress=0.0
+                                )
+                            
                             # Execute the plan
                             self.planning_mode = True
+                            
+                            # Enhanced status callback with activity tracking
+                            def status_with_activity(status: str) -> None:
+                                console.print(f"[dim]{status}[/dim]")
+                                if self._console and "Step" in status:
+                                    # Extract step info if available
+                                    import re
+                                    match = re.search(r'Step (\d+)/(\d+)', status)
+                                    if match:
+                                        current, total = int(match.group(1)), int(match.group(2))
+                                        progress = current / total
+                                        self._console.update_intelligence_progress(
+                                            progress=progress,
+                                            step_info=f"Step {current}/{total}"
+                                        )
+                            
                             await self.planner.execute_plan(
                                 plan,
-                                status_callback=lambda status: console.print(f"[dim]{status}[/dim]"),
+                                status_callback=status_with_activity,
                                 confirm_callback=lambda step_desc: Confirm.ask(
                                     f"\n[bold]Execute step: {step_desc}?[/bold]",
                                     default=True
                                 )
                             )
                             self.planning_mode = False
+                            
+                            if self._console:
+                                self._console.clear_intelligence_activity()
+                            
                             return "✅ Plan completed!"
                         else:
                             return "Plan created. Use `/plan continue` to execute it later."
@@ -730,6 +811,14 @@ class Agent:
             Clarification message or None if user provides input
         """
         from rich.prompt import Prompt
+        
+        # Show clarification activity
+        if self._console:
+            self._console.set_intelligence_activity(
+                IntelligenceActivity.ASKING_CLARIFICATION,
+                "Requesting clarification",
+                progress=0.5
+            )
         
         # Build clarification message
         clarification_msg = (
@@ -858,6 +947,29 @@ class Agent:
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
         try:
+            # Security: Sanitize user input first
+            sanitized_input, warnings = self.input_validator.sanitize_user_input(user_input)
+
+            # Show warnings if any were detected
+            if warnings:
+                for warning in warnings:
+                    show_warning(warning)
+
+                # If input was blocked (empty after sanitization), return early
+                if not sanitized_input:
+                    return "Your input was blocked due to security concerns. Please rephrase your request."
+
+            # Use sanitized input for the rest of processing
+            user_input = sanitized_input
+
+            # Show intent detection activity
+            if self._console:
+                self._console.set_intelligence_activity(
+                    IntelligenceActivity.DETECTING_INTENT,
+                    "Analyzing your request",
+                    progress=0.1
+                )
+
             # Add user message to conversation
             user_message = ChatMessage(role="user", content=user_input)
             self.conversation.messages.append(user_message)
@@ -877,6 +989,14 @@ class Agent:
             
             if use_llm_intent:
                 try:
+                    # Show intelligence activity
+                    if self._console:
+                        self._console.set_intelligence_activity(
+                            IntelligenceActivity.DETECTING_INTENT,
+                            "Determining action type",
+                            progress=0.2
+                        )
+                    
                     # Get project file list for context
                     project_files = []
                     if self.context_manager.files:
@@ -1143,6 +1263,14 @@ class Agent:
     async def _build_project_context(self, user_query: str = "") -> str:
         """Build project context for LLM using Phase 8c dynamic context building."""
         try:
+            # Show context analysis activity
+            if self._console:
+                self._console.set_intelligence_activity(
+                    IntelligenceActivity.ANALYZING_CONTEXT,
+                    "Building project context",
+                    progress=0.3
+                )
+            
             if not self.context_manager.files:
                 await self._analyze_project_structure()
 
@@ -1204,19 +1332,35 @@ class Agent:
         # Add system message with context
         system_content = self._build_system_prompt()
         if context_prompt:
-            system_content += f"\n\n# Current Project Context\n{context_prompt}"
+            # Security: Wrap context in tags to prevent injection
+            escaped_context = self.input_validator.escape_for_context(
+                context_prompt, "project_context"
+            )
+            system_content += f"\n\n# Current Project Context\n{escaped_context}"
 
         messages.append(ChatMessage(role="system", content=system_content))
 
         # Add conversation history (limit to recent messages to stay within context)
-        recent_messages = self.conversation.messages[-10:]  # Last 10 messages
+        # Security: Escape historical user messages
+        recent_messages = []
+        for msg in self.conversation.messages[-10:]:  # Last 10 messages
+            if msg.role == "user":
+                # Wrap user messages in security tags
+                escaped_msg = ChatMessage(
+                    role="user",
+                    content=self.input_validator.escape_for_context(msg.content, "user_input")
+                )
+                recent_messages.append(escaped_msg)
+            else:
+                recent_messages.append(msg)
+
         messages.extend(recent_messages)
 
         return messages
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt for the LLM."""
-        return """You are GerdsenAI, an intelligent coding assistant with the ability to understand and modify codebases. You can:
+        """Build system prompt for the LLM with security defenses."""
+        base_prompt = """You are GerdsenAI, an intelligent coding assistant with the ability to understand and modify codebases. You can:
 
 1. **Analyze Projects**: Understand code structure, architecture, and file relationships
 2. **Edit Files**: Make precise changes to existing files with proper diff previews
@@ -1245,6 +1389,9 @@ When working with files, I will:
 4. Provide rollback options if needed
 
 How can I help you with your code today?"""
+
+        # Add defensive security instructions
+        return create_defensive_system_prompt(base_prompt)
 
     async def _execute_action(
         self, intent: ActionIntent, user_input: str, llm_response: str
@@ -1419,7 +1566,20 @@ How can I help you with your code today?"""
         if content is None:
             return f"Could not read file: {file_path}"
 
-        return f"\n## File Contents: {file_path}\n\n```\n{content}\n```"
+        # Security: Scan file content for injection patterns
+        is_safe, warnings = self.input_validator.scan_file_content(
+            content, str(file_path)
+        )
+        if warnings:
+            for warning in warnings:
+                show_warning(warning)
+
+        # Wrap file content in security tags
+        escaped_content = self.input_validator.escape_for_context(
+            content, "file_content"
+        )
+
+        return f"\n## File Contents: {file_path}\n\n```\n{escaped_content}\n```"
 
     async def _handle_file_search(self, intent: ActionIntent) -> str:
         """Handle file search request."""

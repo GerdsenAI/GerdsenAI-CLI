@@ -3,7 +3,7 @@
 ## TL;DR
 Your CLI is 80% there. Main gap: **too much friction**. Users shouldn't need slash commands.
 
-## 🎯 Goal
+## GOAL: Goal
 **Make this work:**
 ```
 User: "explain the agent.py file"
@@ -19,7 +19,7 @@ AI: "Here's what it does..."
 
 ---
 
-## 🚀 Quick Wins (Start Here)
+##  Quick Wins (Start Here)
 
 ### 1. Auto File Reading (Easiest Win)
 
@@ -33,7 +33,7 @@ async def process_user_input(self, user_input: str) -> str:
 
     if mentioned_files:
         # Show what we're doing
-        console.print(f"[dim]📖 Reading {', '.join(mentioned_files)}...[/dim]")
+        console.print(f"[dim] Reading {', '.join(mentioned_files)}...[/dim]")
 
         # Auto-read them
         for file_path in mentioned_files:
@@ -69,7 +69,7 @@ def _extract_file_paths(self, text: str) -> List[str]:
 ```bash
 $ gerdsenai
 > explain agent.py
-📖 Reading agent.py...
+ Reading agent.py...
 [AI explains the file automatically]
 ```
 
@@ -171,18 +171,18 @@ console.print()  # Final newline
 
 ---
 
-## 🎨 UX Improvements
+##  UX Improvements
 
 ### Show What You're Doing
 ```python
 # Before destructive operation
-console.print("[yellow]📝 Preparing to edit main.py...[/yellow]")
+console.print("[yellow] Preparing to edit main.py...[/yellow]")
 
 # During file read
-console.print("[dim]📖 Reading files: main.py, utils.py[/dim]")
+console.print("[dim] Reading files: main.py, utils.py[/dim]")
 
 # After success
-console.print("[green]✓[/green] Done!")
+console.print("[green][/green] Done!")
 ```
 
 ### Confirm Intelligently
@@ -206,7 +206,7 @@ def needs_confirmation(self, operation: ActionType) -> bool:
 
 ---
 
-## 📝 Testing Checklist
+##  Testing Checklist
 
 After implementing changes:
 
@@ -230,7 +230,7 @@ After implementing changes:
 
 ---
 
-## 🔧 Configuration Options
+##  Configuration Options
 
 Add to `config/settings.py`:
 
@@ -263,7 +263,7 @@ User can toggle:
 
 ---
 
-## ⚠️ Gotchas
+## WARNING Gotchas
 
 ### 1. Context Window Limits
 Auto-reading files can quickly fill the LLM context. Monitor token usage:
@@ -273,7 +273,7 @@ MAX_AUTO_READ_FILES = 5
 MAX_AUTO_READ_SIZE = 50_000  # characters
 
 if len(mentioned_files) > MAX_AUTO_READ_FILES:
-    console.print(f"[yellow]⚠️ Only reading first {MAX_AUTO_READ_FILES} files[/yellow]")
+    console.print(f"[yellow]WARNING Only reading first {MAX_AUTO_READ_FILES} files[/yellow]")
     mentioned_files = mentioned_files[:MAX_AUTO_READ_FILES]
 ```
 
@@ -300,12 +300,12 @@ try:
         timeout=2.0  # 2 second limit per file
     )
 except asyncio.TimeoutError:
-    console.print(f"[yellow]⚠️ {path} too large, skipping[/yellow]")
+    console.print(f"[yellow]WARNING {path} too large, skipping[/yellow]")
 ```
 
 ---
 
-## 🎓 Learning from Claude CLI
+##  Learning from Claude CLI
 
 **What Claude does right:**
 1. **Zero friction** - No commands to remember
@@ -323,7 +323,7 @@ except asyncio.TimeoutError:
 
 ---
 
-## 🚦 Start Here
+##  Start Here
 
 1. **Copy auto file reading snippet** into `agent.py`
 2. **Test with:** `explain agent.py`
@@ -335,7 +335,7 @@ except asyncio.TimeoutError:
 
 ---
 
-## 📚 Full Details
+##  Full Details
 
 See `ALIGNMENT_ANALYSIS.md` for:
 - Complete architectural analysis
