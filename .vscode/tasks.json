@@ -120,7 +120,7 @@
         {
             "label": "🧹 Clean Cache & Build Files",
             "type": "shell",
-            "command": "find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null; find . -type f -name '*.pyc' -delete; rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage; echo '✅ Cleaned all cache and build files'",
+            "command": "find . -type d -name '__pycache__' -not -path './.venv/*' -exec rm -rf {} + 2>/dev/null; find . -type f -name '*.pyc' -not -path './.venv/*' -delete 2>/dev/null; rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage 2>/dev/null; echo '✅ Cleaned cache files (preserved .egg-info and .venv)'",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
@@ -130,7 +130,7 @@
         {
             "label": "📦 Install Dependencies",
             "type": "shell",
-            "command": "source .venv/bin/activate && pip install -e '.[dev]'",
+            "command": "source .venv/bin/activate && pip install -e '.[dev]' && echo '✅ Dependencies installed successfully' || echo '❌ Failed to install dependencies - check output above'",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
@@ -140,7 +140,7 @@
         {
             "label": "🔄 Update Dependencies",
             "type": "shell",
-            "command": "source .venv/bin/activate && pip install --upgrade -e '.[dev]'",
+            "command": "source .venv/bin/activate && pip install --upgrade -e '.[dev]' && echo '✅ Dependencies updated successfully' || echo '❌ Failed to update dependencies - check output above'",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
@@ -158,7 +158,18 @@
             }
         },
         {
-            "label": "📊 Show Coverage Report",
+            "label": "� Fix Installation",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pip uninstall -y gerdsenai-cli 2>/dev/null; pip install -e '.[dev]' && python -c 'import gerdsenai_cli; print(\"✅ Installation verified - gerdsenai_cli module is importable\")' || echo '❌ Installation failed - see errors above'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "�📊 Show Coverage Report",
             "type": "shell",
             "command": "open htmlcov/index.html || echo '❌ Run coverage tests first'",
             "problemMatcher": [],
