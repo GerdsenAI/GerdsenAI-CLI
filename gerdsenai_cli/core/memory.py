@@ -83,9 +83,44 @@ class TopicReference:
 
 
 @dataclass
+class ConversationEntry:
+    """Entry in conversation history."""
+
+    timestamp: str  # ISO timestamp
+    role: str  # "user" or "assistant"
+    content: str
+    files_mentioned: list[str] = field(default_factory=list)
+    topics: list[str] = field(default_factory=list)
+    action_type: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "timestamp": self.timestamp,
+            "role": self.role,
+            "content": self.content[:500],  # Truncate long content
+            "files_mentioned": self.files_mentioned,
+            "topics": self.topics,
+            "action_type": self.action_type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ConversationEntry":
+        """Create from dictionary."""
+        return cls(
+            timestamp=data["timestamp"],
+            role=data["role"],
+            content=data["content"],
+            files_mentioned=data.get("files_mentioned", []),
+            topics=data.get("topics", []),
+            action_type=data.get("action_type"),
+        )
+
+
+@dataclass
 class UserPreference:
     """User preference or learned pattern."""
-    
+
     key: str
     value: Any
     learned_from: str  # How was this learned (e.g., "explicit", "inferred", "correction")
@@ -131,13 +166,15 @@ class ProjectMemory:
         self.files: dict[str, FileReference] = {}
         self.topics: dict[str, TopicReference] = {}
         self.preferences: dict[str, UserPreference] = {}
+        self.conversation_history: list[ConversationEntry] = []
         self.metadata: dict[str, Any] = {
             "project_type": None,
             "created_at": None,
             "last_updated": None,
             "session_count": 0,
+            "total_conversations": 0,
         }
-        
+
         # Load existing memory
         self.load()
     
@@ -172,11 +209,20 @@ class ProjectMemory:
                 key: UserPreference.from_dict(pref_data)
                 for key, pref_data in data.get("preferences", {}).items()
             }
-            
+
+            # Load conversation history
+            self.conversation_history = [
+                ConversationEntry.from_dict(entry_data)
+                for entry_data in data.get("conversation_history", [])
+            ]
+
             # Load metadata
             self.metadata = data.get("metadata", self.metadata)
-            
-            logger.info(f"Loaded memory: {len(self.files)} files, {len(self.topics)} topics")
+
+            logger.info(
+                f"Loaded memory: {len(self.files)} files, {len(self.topics)} topics, "
+                f"{len(self.conversation_history)} conversations"
+            )
             return True
             
         except Exception as e:
@@ -213,14 +259,21 @@ class ProjectMemory:
                     key: pref.to_dict()
                     for key, pref in self.preferences.items()
                 },
+                "conversation_history": [
+                    entry.to_dict()
+                    for entry in self.conversation_history[-100:]  # Keep last 100 entries
+                ],
                 "metadata": self.metadata,
             }
-            
+
             # Write to file
             with open(self.memory_file, "w") as f:
                 json.dump(data, f, indent=2)
-            
-            logger.info(f"Saved memory: {len(self.files)} files, {len(self.topics)} topics")
+
+            logger.info(
+                f"Saved memory: {len(self.files)} files, {len(self.topics)} topics, "
+                f"{len(self.conversation_history)} conversations"
+            )
             return True
             
         except Exception as e:
@@ -421,10 +474,10 @@ class ProjectMemory:
     
     def forget_topic(self, topic: str) -> bool:
         """Forget a topic from memory.
-        
+
         Args:
             topic: Topic name
-            
+
         Returns:
             True if topic was forgotten
         """
@@ -433,43 +486,149 @@ class ProjectMemory:
             logger.info(f"Forgot topic: {topic}")
             return True
         return False
-    
+
+    def remember_conversation(
+        self,
+        role: str,
+        content: str,
+        files_mentioned: list[str] | None = None,
+        topics: list[str] | None = None,
+        action_type: str | None = None
+    ) -> None:
+        """Remember a conversation entry.
+
+        Args:
+            role: "user" or "assistant"
+            content: Conversation content
+            files_mentioned: Files mentioned in conversation
+            topics: Topics discussed
+            action_type: Type of action if any
+        """
+        entry = ConversationEntry(
+            timestamp=datetime.now().isoformat(),
+            role=role,
+            content=content,
+            files_mentioned=files_mentioned or [],
+            topics=topics or [],
+            action_type=action_type,
+        )
+
+        self.conversation_history.append(entry)
+        self.metadata["total_conversations"] = self.metadata.get("total_conversations", 0) + 1
+
+        # Auto-track files and topics
+        for file_path in (files_mentioned or []):
+            self.remember_file(file_path, topics[0] if topics else None)
+
+        for topic in (topics or []):
+            self.remember_topic(topic)
+
+        logger.debug(f"Remembered {role} conversation with {len(files_mentioned or [])} files")
+
+    def get_recent_conversations(self, limit: int = 10) -> list[ConversationEntry]:
+        """Get recent conversation entries.
+
+        Args:
+            limit: Maximum number of entries to return
+
+        Returns:
+            List of ConversationEntry objects
+        """
+        return self.conversation_history[-limit:]
+
+    def extract_topics_from_text(self, text: str) -> list[str]:
+        """Extract potential topics from text using simple keyword extraction.
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            List of extracted topics
+        """
+        # Common technical topics and keywords
+        topic_keywords = [
+            "testing", "deployment", "security", "authentication", "authorization",
+            "api", "database", "frontend", "backend", "ui", "ux", "performance",
+            "optimization", "refactoring", "bug", "error", "configuration",
+            "documentation", "logging", "monitoring", "caching", "architecture",
+        ]
+
+        text_lower = text.lower()
+        found_topics = []
+
+        for keyword in topic_keywords:
+            if keyword in text_lower:
+                found_topics.append(keyword)
+
+        return found_topics[:5]  # Limit to 5 topics
+
+    def get_context_summary(self) -> str:
+        """Get a summary of relevant context for LLM.
+
+        Returns:
+            Formatted context summary
+        """
+        recent_files = self.get_recent_files(5)
+        frequent_files = self.get_frequent_files(5)
+
+        summary = ""
+
+        if recent_files:
+            summary += "Recently discussed files:\n"
+            for ref in recent_files:
+                summary += f"- {ref.path} ({ref.mention_count} times)\n"
+
+        if self.topics:
+            summary += "\nRecent topics:\n"
+            sorted_topics = sorted(
+                self.topics.values(),
+                key=lambda t: t.last_mentioned,
+                reverse=True
+            )[:5]
+            for topic in sorted_topics:
+                summary += f"- {topic.name}\n"
+
+        return summary
+
     def clear(self) -> None:
         """Clear all memory."""
         self.files.clear()
         self.topics.clear()
         self.preferences.clear()
+        self.conversation_history.clear()
         self.metadata = {
             "project_type": None,
             "created_at": None,
             "last_updated": None,
             "session_count": 0,
+            "total_conversations": 0,
         }
         logger.info("Cleared all memory")
     
     def get_summary(self) -> str:
         """Get a summary of stored memory.
-        
+
         Returns:
             Formatted summary string
         """
         recent_files = self.get_recent_files(5)
-        
+
         summary = "Project Memory Summary:\n\n"
         summary += f"Files tracked: {len(self.files)}\n"
         summary += f"Topics tracked: {len(self.topics)}\n"
         summary += f"Preferences: {len(self.preferences)}\n"
+        summary += f"Conversations: {len(self.conversation_history)}\n"
         summary += f"Sessions: {self.metadata.get('session_count', 0)}\n"
-        
+
         if recent_files:
             summary += "\nRecent files:\n"
             for ref in recent_files:
                 summary += f"  • {ref.path} ({ref.mention_count} mentions)\n"
-        
+
         if self.topics:
             summary += "\nTopics:\n"
             for topic_name in list(self.topics.keys())[:5]:
                 topic = self.topics[topic_name]
                 summary += f"  • {topic_name} ({topic.mention_count} mentions)\n"
-        
+
         return summary
