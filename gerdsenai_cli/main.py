@@ -7,6 +7,8 @@ This module contains the core application logic and interactive loop.
 import asyncio
 import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -103,6 +105,10 @@ class GerdsenAICLI:
         self.enhanced_console: EnhancedConsole | None = None
         self.conversation_manager = ConversationManager()
 
+        # Smart routing components (Phase 8d)
+        self.smart_router: Any | None = None  # SmartRouter instance
+        self.proactive_context: Any | None = None  # ProactiveContextBuilder instance
+
     async def initialize(self) -> bool:
         """
         Initialize the application components.
@@ -183,6 +189,31 @@ class GerdsenAICLI:
 
             # Initialize command system
             await self._initialize_commands()
+
+            # Initialize SmartRouter and ProactiveContextBuilder (Phase 8d)
+            if self.settings.enable_smart_routing:
+                from .core.smart_router import SmartRouter
+                from .core.proactive_context import ProactiveContextBuilder
+
+                self.smart_router = SmartRouter(
+                    llm_client=self.llm_client,
+                    settings=self.settings,
+                    command_parser=self.command_parser
+                )
+
+                # Get project root and context window for ProactiveContextBuilder
+                project_root = Path.cwd()
+                max_tokens = self.settings.model_context_window or 4096
+
+                self.proactive_context = ProactiveContextBuilder(
+                    project_root=project_root,
+                    max_context_tokens=max_tokens,
+                    context_usage_ratio=self.settings.context_window_usage
+                )
+
+                show_info("🧠 Smart routing enabled - natural language commands supported!")
+            else:
+                logger.info("SmartRouter disabled via configuration")
 
             # Initialize enhanced input handler
             self.input_handler = EnhancedInputHandler(
@@ -768,15 +799,62 @@ class GerdsenAICLI:
                     tui.exit()
                     return
                 
-                # Handle slash commands
-                if text.startswith("/"):
-                    # Add system message showing command
+                # Phase 8d: SmartRouter Integration
+                # Use SmartRouter for intelligent routing if enabled
+                if self.smart_router and self.settings.enable_smart_routing:
+                    from .core.smart_router import RouteType
+
+                    # Get project files for context
+                    project_files = []
+                    if self.agent and hasattr(self.agent, 'context_manager'):
+                        project_files = [
+                            str(f.relative_path)
+                            for f in self.agent.context_manager.files.values()
+                        ]
+
+                    # Route the input
+                    try:
+                        route_decision = await self.smart_router.route(text, project_files)
+
+                        # Handle slash command routing
+                        if route_decision.route_type == RouteType.SLASH_COMMAND:
+                            tui.conversation.add_message("system", f"Command: {text}")
+                            tui.app.invalidate()
+                            # For now, acknowledge - full command execution to be added
+                            tui.conversation.add_message("system", "Command execution in TUI will be enhanced in next phase")
+                            tui.app.invalidate()
+                            return
+
+                        # Handle clarification request
+                        elif route_decision.route_type == RouteType.CLARIFICATION:
+                            tui.conversation.add_message("system", route_decision.clarification_prompt)
+                            tui.app.invalidate()
+                            return
+
+                        # Handle natural language intent
+                        elif route_decision.route_type == RouteType.NATURAL_LANGUAGE:
+                            intent = route_decision.intent
+                            show_msg = f"💡 Detected intent: {intent.action_type.value}"
+                            if intent.parameters.get('files'):
+                                show_msg += f"\n📄 Files: {', '.join(intent.parameters['files'][:3])}"
+                            if intent.reasoning:
+                                show_msg += f"\n💭 {intent.reasoning}"
+                            tui.conversation.add_message("system", show_msg)
+                            tui.app.invalidate()
+                            # Continue to process as chat with enhanced context
+
+                        # For PASSTHROUGH_CHAT and NATURAL_LANGUAGE, continue to normal processing
+
+                    except Exception as e:
+                        logger.error(f"SmartRouter error: {e}", exc_info=True)
+                        tui.conversation.add_message("system", f"⚠️  Routing error, falling back to standard processing")
+                        tui.app.invalidate()
+
+                # Fallback: Handle slash commands directly if SmartRouter not enabled
+                elif text.startswith("/"):
                     tui.conversation.add_message("system", f"Command: {text}")
                     tui.app.invalidate()
-                    
-                    # TODO: Integrate command execution in Phase 2
-                    # For now, just acknowledge the command
-                    tui.conversation.add_message("system", "Command execution in TUI will be available in Phase 2")
+                    tui.conversation.add_message("system", "Command execution in TUI will be enhanced in next phase")
                     tui.app.invalidate()
                     return
                 
@@ -892,11 +970,46 @@ class GerdsenAICLI:
                         return
                     
                     # Regular CHAT mode conversation - stream AI response
+
+                    # Phase 8d: Proactive Context Building
+                    context_summary = ""
+                    if self.proactive_context and self.settings.enable_proactive_context:
+                        try:
+                            # Build smart context from mentioned files
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=[
+                                    msg.content
+                                    for msg in self.smart_router.conversation_history[-10:]
+                                ] if self.smart_router else []
+                            )
+
+                            if context_files:
+                                file_count = len(context_files)
+                                tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for context")
+                                tui.app.invalidate()
+
+                                # Build context summary for better responses
+                                context_summary = "\n\n# Context Files:\n"
+                                for file_path, result in context_files.items():
+                                    context_summary += f"\n## {file_path}\n"
+                                    context_summary += f"_({result.read_reason})_\n"
+                                    if result.truncated:
+                                        context_summary += "_Content truncated for context window_\n"
+                                    context_summary += f"\n```\n{result.content}\n```\n"
+
+                        except Exception as e:
+                            logger.warning(f"ProactiveContext error: {e}")
+                            # Continue without enhanced context
+
+                    # Enhance user input with context if available
+                    enhanced_text = text + context_summary if context_summary else text
+
                     tui.start_streaming_response()
-                    
+
                     chunk_count = 0
                     try:
-                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                        async for chunk, _ in self.agent.process_user_input_stream(enhanced_text):
                             tui.append_streaming_chunk(chunk)
                             chunk_count += 1
                             
@@ -928,16 +1041,48 @@ class GerdsenAICLI:
                 
                 # In ARCHITECT mode, show thinking animation and capture response for approval
                 if current_mode == ExecutionMode.ARCHITECT:
+                    # Phase 8d: Proactive Context Building
+                    context_summary = ""
+                    if self.proactive_context and self.settings.enable_proactive_context:
+                        try:
+                            tui.show_animation("Loading context", "reading")
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=[
+                                    msg.content
+                                    for msg in self.smart_router.conversation_history[-10:]
+                                ] if self.smart_router else []
+                            )
+
+                            if context_files:
+                                file_count = len(context_files)
+                                tui.hide_animation()
+                                tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for planning")
+                                tui.app.invalidate()
+
+                                context_summary = "\n\n# Context Files:\n"
+                                for file_path, result in context_files.items():
+                                    context_summary += f"\n## {file_path}\n"
+                                    context_summary += f"_({result.read_reason})_\n"
+                                    if result.truncated:
+                                        context_summary += "_Content truncated_\n"
+                                    context_summary += f"\n```\n{result.content}\n```\n"
+
+                        except Exception as e:
+                            logger.warning(f"ProactiveContext error: {e}")
+
+                    enhanced_text = text + context_summary if context_summary else text
+
                     # Show thinking animation
                     tui.show_animation("Analyzing your request", "thinking")
                     await asyncio.sleep(0.5)  # Brief pause for UX
-                    
+
                     tui.show_animation("Creating execution plan", "planning")
-                    
+
                     try:
                         # Capture AI response silently (don't stream to screen)
                         full_response = ""
-                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                        async for chunk, _ in self.agent.process_user_input_stream(enhanced_text):
                             full_response += chunk
                             # Update animation message periodically
                             if len(full_response) % 200 == 0 and tui.current_animation:
@@ -961,18 +1106,46 @@ class GerdsenAICLI:
                 
                 # In EXECUTE or LLVL mode, execute immediately with brief animation
                 if current_mode in [ExecutionMode.EXECUTE, ExecutionMode.LLVL]:
+                    # Phase 8d: Proactive Context Building
+                    context_summary = ""
+                    if self.proactive_context and self.settings.enable_proactive_context:
+                        try:
+                            tui.show_animation("Loading context", "reading")
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=[
+                                    msg.content
+                                    for msg in self.smart_router.conversation_history[-10:]
+                                ] if self.smart_router else []
+                            )
+
+                            if context_files:
+                                file_count = len(context_files)
+                                tui.hide_animation()
+                                tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s)")
+                                tui.app.invalidate()
+
+                                context_summary = "\n\n# Context Files:\n"
+                                for file_path, result in context_files.items():
+                                    context_summary += f"\n## {file_path}\n```\n{result.content}\n```\n"
+
+                        except Exception as e:
+                            logger.warning(f"ProactiveContext error: {e}")
+
+                    enhanced_text = text + context_summary if context_summary else text
+
                     tui.show_animation("Executing", "executing")
-                    
+
                     # Brief delay for UX
                     await asyncio.sleep(0.3)
-                    
+
                     # Execute with streaming
                     tui.hide_animation()
                     tui.start_streaming_response()
-                    
+
                     chunk_count = 0
                     try:
-                        async for chunk, _ in self.agent.process_user_input_stream(text):
+                        async for chunk, _ in self.agent.process_user_input_stream(enhanced_text):
                             tui.append_streaming_chunk(chunk)
                             chunk_count += 1
                             
