@@ -818,7 +818,7 @@ class GerdsenAICLI:
                 except GerdsenAIError as e:
                     # Input validation failed - show error and return
                     from .ui.error_display import ErrorDisplay
-                    error_msg = ErrorDisplay.format_error(e)
+                    error_msg = ErrorDisplay.display_error(e, show_details=False, tui_mode=False)
                     tui.conversation.add_message("system", error_msg)
                     tui.app.invalidate()
                     return

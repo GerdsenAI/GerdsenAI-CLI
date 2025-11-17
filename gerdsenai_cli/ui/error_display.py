@@ -124,14 +124,23 @@ class ErrorDisplay:
 
         message = "\n".join(parts)
 
-        # Wrap in panel for TUI mode
+        # Wrap in panel for TUI mode - but return as string
         if tui_mode:
-            return Panel(
+            from io import StringIO
+            from rich.console import Console as RichConsole
+
+            panel = Panel(
                 message,
                 title=f"[{color}]Error Details[/]",
                 border_style=color,
                 expand=False
             )
+
+            # Convert Panel to string representation
+            string_io = StringIO()
+            temp_console = RichConsole(file=string_io, force_terminal=True, width=70)
+            temp_console.print(panel)
+            return string_io.getvalue()
 
         return message
 

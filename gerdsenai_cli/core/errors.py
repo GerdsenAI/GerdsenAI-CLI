@@ -4,6 +4,8 @@ Comprehensive Error Handling System.
 Defines error types, classification, and recovery strategies.
 """
 
+import asyncio
+import json
 from enum import Enum
 from typing import Any, Optional
 
@@ -310,7 +312,3 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
 
     # Unknown
     return (ErrorCategory.UNKNOWN, "An unexpected error occurred")
-
-
-import json
-import asyncio

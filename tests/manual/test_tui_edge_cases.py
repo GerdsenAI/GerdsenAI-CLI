@@ -354,7 +354,10 @@ async def test_provider_failure_handler():
 
     # Test 5: Recovery message formatting
     from gerdsenai_cli.core.errors import NetworkError
-    error = NetworkError(message="Connection failed", host="localhost")
+    error = NetworkError(
+        message="Connection failed",
+        context={"host": "localhost"}
+    )
 
     handler.record_failure()
     handler.record_failure()

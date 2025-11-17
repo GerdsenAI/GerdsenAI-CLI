@@ -190,6 +190,6 @@ class Settings(BaseModel):
     # Pydantic v2 model configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        extra="forbid",
+        extra="allow",  # Allow extra fields for extensibility (plugins, future features)
         json_encoders={Path: str},
     )
