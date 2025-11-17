@@ -25,6 +25,7 @@ class CommandCategory(Enum):
     FILE = "file"
     CONTEXT = "context"
     SESSION = "session"
+    VISION = "vision"  # Image understanding and OCR
 
 
 @dataclass

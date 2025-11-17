@@ -62,10 +62,16 @@ from .commands.terminal import (
     TerminalStatusCommand,
     WorkingDirectoryCommand,
 )
+from .commands.vision_commands import (
+    ImageCommand,
+    OCRCommand,
+    VisionStatusCommand,
+)
 from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
 from .core.llm_client import LLMClient
+from .plugins.registry import plugin_registry
 from .ui.console import EnhancedConsole
 from .ui.input_handler import EnhancedInputHandler
 from .utils.display import (
@@ -184,6 +190,34 @@ class GerdsenAICLI:
             # Initialize command system
             await self._initialize_commands()
 
+            # Initialize plugin system (Frontier AI)
+            await self._initialize_plugins()
+
+            # Initialize SmartRouter and ProactiveContextBuilder (Phase 8d)
+            if self.settings.enable_smart_routing:
+                from .core.smart_router import SmartRouter
+                from .core.proactive_context import ProactiveContextBuilder
+
+                self.smart_router = SmartRouter(
+                    llm_client=self.llm_client,
+                    settings=self.settings,
+                    command_parser=self.command_parser
+                )
+
+                # Get project root and context window for ProactiveContextBuilder
+                project_root = Path.cwd()
+                max_tokens = self.settings.model_context_window or 4096
+
+                self.proactive_context = ProactiveContextBuilder(
+                    project_root=project_root,
+                    max_context_tokens=max_tokens,
+                    context_usage_ratio=self.settings.context_window_usage
+                )
+
+                show_info("🧠 Smart routing enabled - natural language commands supported!")
+            else:
+                logger.info("SmartRouter disabled via configuration")
+
             # Initialize enhanced input handler
             self.input_handler = EnhancedInputHandler(
                 command_parser=self.command_parser
@@ -270,6 +304,50 @@ class GerdsenAICLI:
         self.command_parser.register_command(ClearHistoryCommand())
         self.command_parser.register_command(WorkingDirectoryCommand())
         self.command_parser.register_command(TerminalStatusCommand())
+
+        # Register vision commands (Frontier AI)
+        self.command_parser.register_command(ImageCommand())
+        self.command_parser.register_command(OCRCommand())
+        self.command_parser.register_command(VisionStatusCommand())
+
+    async def _initialize_plugins(self) -> None:
+        """
+        Initialize the plugin system and discover plugins.
+
+        Automatically discovers and registers plugins from the plugins directory.
+        Vision plugins (LLaVA, Tesseract) are registered but not initialized
+        until first use (lazy loading for performance).
+        """
+        from pathlib import Path
+        from .plugins.vision.llava_plugin import LLaVAPlugin
+        from .plugins.vision.tesseract_ocr import TesseractOCRPlugin
+
+        try:
+            logger.info("Initializing plugin system...")
+
+            # Register vision plugins manually (for now)
+            # TODO: Implement full auto-discovery in future
+            try:
+                llava = LLaVAPlugin()
+                plugin_registry.register(llava)
+                logger.info("Registered LLaVA vision plugin")
+            except Exception as e:
+                logger.debug(f"Could not register LLaVA plugin: {e}")
+
+            try:
+                tesseract = TesseractOCRPlugin()
+                plugin_registry.register(tesseract)
+                logger.info("Registered Tesseract OCR plugin")
+            except Exception as e:
+                logger.debug(f"Could not register Tesseract plugin: {e}")
+
+            # Note: Plugins are NOT initialized here for performance
+            # They will be initialized on first use (lazy loading)
+            logger.info("Plugin system ready (plugins will initialize on first use)")
+
+        except Exception as e:
+            logger.warning(f"Plugin initialization error: {e}")
+            # Non-fatal - continue without plugins
 
     async def _first_time_setup(self) -> Settings | None:
         """

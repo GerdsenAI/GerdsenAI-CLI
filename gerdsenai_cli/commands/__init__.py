@@ -42,6 +42,11 @@ from .system import (
     StatusCommand,
     ToolsCommand,
 )
+from .vision_commands import (
+    ImageCommand,
+    OCRCommand,
+    VisionStatusCommand,
+)
 
 __all__ = [
     "BaseCommand",
@@ -78,4 +83,8 @@ __all__ = [
     "CreateFileCommand",
     "SearchFilesCommand",
     "SessionCommand",
+    # Vision commands
+    "ImageCommand",
+    "OCRCommand",
+    "VisionStatusCommand",
 ]
