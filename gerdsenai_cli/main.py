@@ -7,6 +7,8 @@ This module contains the core application logic and interactive loop.
 import asyncio
 import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -108,6 +110,10 @@ class GerdsenAICLI:
         self.input_handler: EnhancedInputHandler | None = None
         self.enhanced_console: EnhancedConsole | None = None
         self.conversation_manager = ConversationManager()
+
+        # Smart routing components (Phase 8d)
+        self.smart_router: Any | None = None  # SmartRouter instance
+        self.proactive_context: Any | None = None  # ProactiveContextBuilder instance
 
     async def initialize(self) -> bool:
         """
@@ -808,8 +814,10 @@ class GerdsenAICLI:
                     # Only show warnings and errors in footer
                     if record.levelno >= logging.WARNING:
                         tui.set_system_footer(msg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Log handler failure - use stderr as fallback to avoid infinite loop
+                    import sys
+                    print(f"TUI log handler failed: {e}", file=sys.stderr)
         
         # Install logging handler for TUI mode and suppress console output
         tui_handler = TUILogHandler()
@@ -831,10 +839,14 @@ class GerdsenAICLI:
             tui.set_system_footer(f"Model: {model_name} (using 4K context default) | Use /model to select a model")
         else:
             tui.set_system_footer(f"Model: {model_name}")
-        
+
         # Track model capabilities (detect once on first use)
         capabilities: ModelCapabilities | None = None
-        
+
+        # Initialize TUI edge case handler for robust error handling
+        from .ui.tui_edge_cases import TUIEdgeCaseHandler
+        tui_edge_handler = TUIEdgeCaseHandler()
+
         # Define message handler with robust error handling
         async def handle_message(text: str) -> None:
             """Handle user message submission with comprehensive error handling."""
@@ -845,16 +857,92 @@ class GerdsenAICLI:
                 if text.lower() in ["/exit", "/quit"]:
                     tui.exit()
                     return
-                
-                # Handle slash commands
-                if text.startswith("/"):
-                    # Add system message showing command
+
+                # Edge case handling: Validate and sanitize input
+                try:
+                    sanitized_text, warnings = await tui_edge_handler.validate_and_process_input(text)
+
+                    # Show any warnings to user
+                    for warning in warnings:
+                        tui.conversation.add_message("system", warning)
+                        tui.app.invalidate()
+
+                    # Use sanitized text for processing
+                    text = sanitized_text
+
+                except GerdsenAIError as e:
+                    # Input validation failed - show error and return
+                    from .ui.error_display import ErrorDisplay
+                    error_msg = ErrorDisplay.display_error(e, show_details=False, tui_mode=False)
+                    tui.conversation.add_message("system", error_msg)
+                    tui.app.invalidate()
+                    return
+
+                # Memory management: Archive old messages if needed
+                archive_notice = tui_edge_handler.manage_conversation_memory(
+                    tui.conversation.messages,
+                    tui.conversation
+                )
+                if archive_notice:
+                    tui.conversation.add_message("system", archive_notice)
+                    tui.app.invalidate()
+
+                # Phase 8d: SmartRouter Integration
+                # Use SmartRouter for intelligent routing if enabled
+                if self.smart_router and self.settings.enable_smart_routing:
+                    from .core.smart_router import RouteType
+
+                    # Get project files for context
+                    project_files = []
+                    if self.agent and hasattr(self.agent, 'context_manager'):
+                        project_files = [
+                            str(f.relative_path)
+                            for f in self.agent.context_manager.files.values()
+                        ]
+
+                    # Route the input
+                    try:
+                        route_decision = await self.smart_router.route(text, project_files)
+
+                        # Handle slash command routing
+                        if route_decision.route_type == RouteType.SLASH_COMMAND:
+                            tui.conversation.add_message("system", f"Command: {text}")
+                            tui.app.invalidate()
+                            # For now, acknowledge - full command execution to be added
+                            tui.conversation.add_message("system", "Command execution in TUI will be enhanced in next phase")
+                            tui.app.invalidate()
+                            return
+
+                        # Handle clarification request
+                        elif route_decision.route_type == RouteType.CLARIFICATION:
+                            tui.conversation.add_message("system", route_decision.clarification_prompt)
+                            tui.app.invalidate()
+                            return
+
+                        # Handle natural language intent
+                        elif route_decision.route_type == RouteType.NATURAL_LANGUAGE:
+                            intent = route_decision.intent
+                            show_msg = f"💡 Detected intent: {intent.action_type.value}"
+                            if intent.parameters.get('files'):
+                                show_msg += f"\n📄 Files: {', '.join(intent.parameters['files'][:3])}"
+                            if intent.reasoning:
+                                show_msg += f"\n💭 {intent.reasoning}"
+                            tui.conversation.add_message("system", show_msg)
+                            tui.app.invalidate()
+                            # Continue to process as chat with enhanced context
+
+                        # For PASSTHROUGH_CHAT and NATURAL_LANGUAGE, continue to normal processing
+
+                    except Exception as e:
+                        logger.error(f"SmartRouter error: {e}", exc_info=True)
+                        tui.conversation.add_message("system", f"⚠️  Routing error, falling back to standard processing")
+                        tui.app.invalidate()
+
+                # Fallback: Handle slash commands directly if SmartRouter not enabled
+                elif text.startswith("/"):
                     tui.conversation.add_message("system", f"Command: {text}")
                     tui.app.invalidate()
-                    
-                    # TODO: Integrate command execution in Phase 2
-                    # For now, just acknowledge the command
-                    tui.conversation.add_message("system", "Command execution in TUI will be available in Phase 2")
+                    tui.conversation.add_message("system", "Command execution in TUI will be enhanced in next phase")
                     tui.app.invalidate()
                     return
                 
