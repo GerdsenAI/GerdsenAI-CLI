@@ -312,8 +312,8 @@ class LLMClient:
                         if len(response.text) > 200:
                             content += "..."
                         logger.debug(f"Response content: {content}")
-                    except Exception:
-                        logger.debug("Response content: <unable to decode>")
+                    except Exception as e:
+                        logger.debug(f"Response content: <unable to decode - {e}>")
 
                     if response.status_code == 200:
                         logger.info(
@@ -405,11 +405,12 @@ class LLMClient:
                             data = response.json()
                             return self._parse_models_response(data)
 
-                        except Exception:
+                        except Exception as endpoint_error:
+                            logger.debug(f"Endpoint {endpoint} failed: {endpoint_error}")
                             continue
 
                     # If all endpoints fail, return empty list
-                    logger.warning("Could not retrieve model list from any endpoint")
+                    logger.warning(f"Could not retrieve model list from any endpoint (tried {len(alternative_endpoints)} alternatives)")
                     return []
                 else:
                     raise

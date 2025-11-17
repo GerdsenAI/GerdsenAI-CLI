@@ -66,6 +66,28 @@ class Settings(BaseModel):
         description="Maximum number of iterations for iterative reading strategy",
     )
 
+    # Phase 8d: Smart Routing and Natural Language Intents
+    enable_smart_routing: bool = Field(
+        default=True,
+        description="Enable SmartRouter for natural language command inference (eliminates need for slash commands)",
+    )
+    enable_proactive_context: bool = Field(
+        default=True,
+        description="Enable ProactiveContextBuilder to auto-read mentioned files and dependencies",
+    )
+    intent_confidence_threshold: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for auto-executing detected intents (high confidence)",
+    )
+    clarification_threshold: float = Field(
+        default=0.60,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for requesting clarification (medium confidence)",
+    )
+
     # User Preferences
     user_preferences: dict[str, Any] = Field(
         default_factory=lambda: {
@@ -168,6 +190,6 @@ class Settings(BaseModel):
     # Pydantic v2 model configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        extra="forbid",
+        extra="allow",  # Allow extra fields for extensibility (plugins, future features)
         json_encoders={Path: str},
     )
