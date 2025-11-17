@@ -20,14 +20,50 @@ class InputValidator:
     Handles edge cases, security validation, and user input normalization.
     """
 
-    # Dangerous patterns to block
+    # Dangerous patterns to block (SECURITY CRITICAL)
+    # Comprehensive list covering shell injection, command execution, and file system attacks
     DANGEROUS_PATTERNS = [
-        r";\s*rm\s+-rf",  # Shell injection
+        # Destructive commands
+        r";\s*rm\s+-rf",  # Shell injection with rm
         r"&&\s*rm\s+-rf",
-        r"\|\s*sh",
-        r">\s*/dev/",
-        r"`.*`",  # Command substitution
-        r"\$\(.*\)",
+        r"\|\s*rm\s+-rf",
+
+        # Command execution
+        r"\|\s*sh",  # Pipe to shell
+        r"\|\s*bash",
+        r"\|\s*zsh",
+        r";\s*sh\s",
+        r"exec\s*\(",  # Direct execution
+        r"eval\s*\(",  # Eval injection
+
+        # File redirection attacks
+        r">\s*/dev/",  # Writing to devices
+        r">\s*/etc/",  # Writing to system config
+        r"2>&1",  # stderr redirect (often in attacks)
+
+        # Command substitution
+        r"`[^`]+`",  # Backtick command substitution
+        r"\$\([^\)]+\)",  # Dollar-paren substitution
+        r"\$\{[^\}]+\}",  # Variable expansion
+
+        # Network attacks
+        r"\|\s*curl",  # Pipe to curl (data exfiltration)
+        r"\|\s*wget",
+        r"\|\s*nc\s",  # Netcat
+
+        # Process manipulation
+        r"kill\s+-9",  # Force kill processes
+        r"pkill",
+        r"killall",
+
+        # Privilege escalation
+        r"sudo\s+",  # Sudo usage
+        r"su\s+",  # Switch user
+
+        # File system traversal in commands
+        r"\.\./",  # Directory traversal
+        r"/etc/passwd",  # Common attack target
+        r"/etc/shadow",
     ]
 
     # Maximum lengths for safety
@@ -131,21 +167,36 @@ class InputValidator:
                 category=ErrorCategory.FILE_NOT_FOUND,
             )
 
-        # Check for path traversal
+        # Check for path traversal - SECURITY CRITICAL
         try:
             resolved = path.resolve()
-
-            # Ensure path doesn't escape project directory
             cwd = Path.cwd().resolve()
-            if not str(resolved).startswith(str(cwd)):
-                # Allow if it's an absolute path to a valid location
-                if not path.is_absolute() or not allow_absolute_only:
+
+            # Use relative_to() for robust path validation (prevents symlink attacks)
+            try:
+                resolved.relative_to(cwd)
+                # Path is safely within project directory
+            except ValueError:
+                # Path is outside project directory
+                if allow_absolute_only and path.is_absolute():
+                    # Explicitly allowed absolute paths (use with extreme caution)
+                    # This should only be used for specific trusted operations
+                    pass
+                else:
                     raise GerdsenAIError(
-                        message="Path traversal not allowed",
+                        message="Path outside project directory not allowed",
                         category=ErrorCategory.FILE_NOT_FOUND,
                         suggestion="Use paths relative to project directory",
+                        context={
+                            "attempted_path": str(resolved),
+                            "project_root": str(cwd),
+                            "allow_absolute": allow_absolute_only
+                        }
                     )
 
+        except GerdsenAIError:
+            # Re-raise our own errors
+            raise
         except Exception as e:
             raise GerdsenAIError(
                 message=f"Cannot resolve path: {file_path}",
@@ -342,7 +393,8 @@ class InputValidator:
         """
         Sanitize data for safe logging.
 
-        Removes sensitive information and truncates long strings.
+        Removes sensitive information including API keys, tokens, passwords,
+        database credentials, and private keys before logging.
 
         Args:
             data: Data to sanitize
@@ -354,12 +406,58 @@ class InputValidator:
         # Convert to string
         text = str(data)
 
-        # Remove potential API keys (pattern: alphanumeric 20+ chars)
-        text = re.sub(r'\b[A-Za-z0-9]{20,}\b', '[REDACTED]', text)
+        # Remove Bearer tokens (e.g., "Bearer sk-1234..." or "Bearer eyJ...")
+        text = re.sub(r'Bearer\s+[\w\-\.]+', 'Bearer [REDACTED]', text, flags=re.IGNORECASE)
 
-        # Remove potential tokens
-        text = re.sub(r'token["\']?\s*:\s*["\']?[\w-]+', 'token: [REDACTED]', text, flags=re.IGNORECASE)
-        text = re.sub(r'api[_-]?key["\']?\s*:\s*["\']?[\w-]+', 'api_key: [REDACTED]', text, flags=re.IGNORECASE)
+        # Remove Authorization headers
+        text = re.sub(r'Authorization:\s*[^\s,]+', 'Authorization: [REDACTED]', text, flags=re.IGNORECASE)
+
+        # Remove API keys, tokens, passwords, secrets (key-value patterns)
+        sensitive_keys = [
+            r'api[_-]?key',
+            r'token',
+            r'password',
+            r'passwd',
+            r'secret',
+            r'auth',
+            r'credential',
+        ]
+        for key_pattern in sensitive_keys:
+            # Matches: api_key: "value", apiKey="value", api-key=value, etc.
+            text = re.sub(
+                rf'{key_pattern}["\']?\s*[:=]\s*["\']?([\w\-\.]+)',
+                rf'{key_pattern}: [REDACTED]',
+                text,
+                flags=re.IGNORECASE
+            )
+
+        # Remove database connection strings
+        # postgres://user:password@host/db, mysql://user:password@host/db
+        text = re.sub(
+            r'(postgres|mysql|mongodb|redis)://[\w\-\.]+:[\w\-\.]+@',
+            r'\1://user:[REDACTED]@',
+            text,
+            flags=re.IGNORECASE
+        )
+
+        # Remove private keys (PEM format)
+        text = re.sub(
+            r'-----BEGIN\s+\w+\s+KEY-----[\s\S]+?-----END\s+\w+\s+KEY-----',
+            '[PRIVATE KEY REDACTED]',
+            text,
+            flags=re.IGNORECASE
+        )
+
+        # Remove JWT tokens (three base64 parts separated by dots)
+        text = re.sub(
+            r'\beyJ[\w\-]+\.[\w\-]+\.[\w\-]+',
+            '[JWT_TOKEN_REDACTED]',
+            text
+        )
+
+        # Remove potential API keys (long alphanumeric strings 20+ chars)
+        # But be less aggressive - only if it looks like a key pattern
+        text = re.sub(r'\b(sk|pk|key|token)[\-_][\w\-]{20,}\b', '[API_KEY_REDACTED]', text, flags=re.IGNORECASE)
 
         # Truncate if too long
         if len(text) > max_length:

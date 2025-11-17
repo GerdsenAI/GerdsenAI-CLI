@@ -761,8 +761,10 @@ class GerdsenAICLI:
                     # Only show warnings and errors in footer
                     if record.levelno >= logging.WARNING:
                         tui.set_system_footer(msg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Log handler failure - use stderr as fallback to avoid infinite loop
+                    import sys
+                    print(f"TUI log handler failed: {e}", file=sys.stderr)
         
         # Install logging handler for TUI mode and suppress console output
         tui_handler = TUILogHandler()
@@ -1022,14 +1024,15 @@ class GerdsenAICLI:
                                 tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for context")
                                 tui.app.invalidate()
 
-                                # Build context summary for better responses
-                                context_summary = "\n\n# Context Files:\n"
+                                # Build context summary for better responses (optimized string building)
+                                parts = ["\n\n# Context Files:\n"]
                                 for file_path, result in context_files.items():
-                                    context_summary += f"\n## {file_path}\n"
-                                    context_summary += f"_({result.read_reason})_\n"
+                                    parts.append(f"\n## {file_path}\n")
+                                    parts.append(f"_({result.read_reason})_\n")
                                     if result.truncated:
-                                        context_summary += "_Content truncated for context window_\n"
-                                    context_summary += f"\n```\n{result.content}\n```\n"
+                                        parts.append("_Content truncated for context window_\n")
+                                    parts.append(f"\n```\n{result.content}\n```\n")
+                                context_summary = "".join(parts)
 
                         except Exception as e:
                             logger.warning(f"ProactiveContext error: {e}")
@@ -1134,13 +1137,15 @@ class GerdsenAICLI:
                                 tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for planning")
                                 tui.app.invalidate()
 
-                                context_summary = "\n\n# Context Files:\n"
+                                # Optimized string building for better performance
+                                parts = ["\n\n# Context Files:\n"]
                                 for file_path, result in context_files.items():
-                                    context_summary += f"\n## {file_path}\n"
-                                    context_summary += f"_({result.read_reason})_\n"
+                                    parts.append(f"\n## {file_path}\n")
+                                    parts.append(f"_({result.read_reason})_\n")
                                     if result.truncated:
-                                        context_summary += "_Content truncated_\n"
-                                    context_summary += f"\n```\n{result.content}\n```\n"
+                                        parts.append("_Content truncated_\n")
+                                    parts.append(f"\n```\n{result.content}\n```\n")
+                                context_summary = "".join(parts)
 
                         except Exception as e:
                             logger.warning(f"ProactiveContext error: {e}")
@@ -1237,7 +1242,19 @@ class GerdsenAICLI:
                             tui.app.invalidate()
                     
                     except asyncio.TimeoutError:
-                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        timeout_value = self.settings.request_timeout if self.settings else 120
+                        timeout_msg = (
+                            f"⏱️  Response Timeout ({timeout_value}s exceeded)\n\n"
+                            "**What happened?**\n"
+                            "The AI didn't respond within the timeout limit.\n\n"
+                            "**How to fix:**\n"
+                            "• Try a shorter message or reduce context\n"
+                            "• Check if your LLM provider is overloaded\n"
+                            "• Increase timeout: `/config` → set request_timeout\n"
+                            "• Switch to faster model: `/model`\n"
+                            "• Reduce context window usage in settings"
+                        )
+                        tui.conversation.add_message("system", timeout_msg)
                         tui.app.invalidate()
                     except Exception as stream_error:
                         logger.error(f"Streaming error: {stream_error}", exc_info=True)
@@ -1259,8 +1276,9 @@ class GerdsenAICLI:
                 # Make sure we always finish streaming even on error
                 try:
                     tui.finish_streaming_response()
-                except Exception:
-                    pass
+                except Exception as finish_error:
+                    # Even finishing streaming failed - log but don't crash
+                    logger.error(f"Failed to finish streaming after error: {finish_error}")
                 tui.conversation.add_message("system", f"Unexpected error: {str(e)}")
                 tui.app.invalidate()
         
