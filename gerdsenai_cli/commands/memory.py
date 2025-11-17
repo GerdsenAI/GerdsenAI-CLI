@@ -39,15 +39,16 @@ class MemoryCommand(BaseCommand):
         return """Usage: /memory <subcommand> [args]
 
 Subcommands:
-  show [files|topics|preferences]  Show memory contents
+  show [files|topics|preferences|conversations|all]  Show memory contents
   stats                           Show memory statistics
   recall <file|topic> <name>      Recall information about a file or topic
   forget <file|topic> <name>      Forget a file or topic
   clear                           Clear all memory (requires confirmation)
   save                            Manually save memory to disk
-  
+
 Examples:
   /memory show files
+  /memory show conversations
   /memory stats
   /memory recall file src/main.py
   /memory forget topic testing
@@ -148,7 +149,7 @@ Examples:
         
         if show_type in ["preferences", "all"]:
             console.print("\n[bold cyan]⚙️  Learned Preferences[/bold cyan]")
-            
+
             if not memory.preferences:
                 console.print("  [dim]No preferences learned yet[/dim]")
             else:
@@ -157,7 +158,7 @@ Examples:
                 table.add_column("Value", style="yellow")
                 table.add_column("Confidence", justify="right", style="green")
                 table.add_column("Source", style="blue")
-                
+
                 for pref_key, pref in list(memory.preferences.items())[:20]:
                     table.add_row(
                         pref_key,
@@ -165,9 +166,38 @@ Examples:
                         f"{pref.confidence:.1%}",
                         pref.learned_from
                     )
-                
+
                 console.print(table)
-        
+
+        if show_type in ["conversations", "all"]:
+            console.print("\n[bold cyan]💬 Recent Conversations[/bold cyan]")
+
+            if not memory.conversation_history:
+                console.print("  [dim]No conversations in memory yet[/dim]")
+            else:
+                recent = memory.get_recent_conversations(10)
+
+                table = Table(show_header=True, header_style="bold magenta")
+                table.add_column("Role", style="cyan")
+                table.add_column("Content Preview", style="yellow")
+                table.add_column("Topics", style="blue")
+                table.add_column("Files", justify="right", style="green")
+
+                for entry in recent:
+                    content_preview = entry.content[:60] + "..." if len(entry.content) > 60 else entry.content
+                    topics_str = ", ".join(entry.topics[:2]) if entry.topics else "-"
+                    files_count = str(len(entry.files_mentioned)) if entry.files_mentioned else "0"
+
+                    table.add_row(
+                        entry.role,
+                        content_preview,
+                        topics_str,
+                        files_count
+                    )
+
+                console.print(table)
+                console.print(f"\n[dim]Showing last {len(recent)} of {len(memory.conversation_history)} total conversations[/dim]")
+
         return ""
     
     async def _show_stats(self) -> str:
