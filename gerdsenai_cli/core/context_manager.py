@@ -494,12 +494,16 @@ class ProjectContext:
             # Check if file is in our index
             if file_path not in self.files:
                 logger.warning(f"File not in index: {file_path}")
+                console.print(
+                    f"[yellow]Warning: File not in index: {file_path.name}[/yellow]"
+                )
                 return None
 
             file_info = self.files[file_path]
 
             # Skip binary files
             if file_info.is_binary:
+                logger.debug(f"Skipping binary file: {file_path}")
                 return None
 
             # Generate cache key
@@ -519,11 +523,31 @@ class ProjectContext:
                 self.content_cache[cache_key] = content
                 file_info.cached_content = content
                 file_info.content_hash = cache_key
+            else:
+                logger.warning(f"Could not read file content: {file_path}")
+                console.print(
+                    f"[yellow]Warning: Could not read file: {file_path.name}[/yellow]"
+                )
 
             return content
 
+        except PermissionError as e:
+            logger.error(f"Permission denied reading file {file_path}: {e}")
+            console.print(
+                f"[red]Error: Permission denied for file: {file_path.name}[/red]"
+            )
+            return None
+        except FileNotFoundError as e:
+            logger.error(f"File not found {file_path}: {e}")
+            console.print(
+                f"[red]Error: File not found: {file_path.name}[/red]"
+            )
+            return None
         except Exception as e:
             logger.error(f"Failed to read file {file_path}: {e}")
+            console.print(
+                f"[red]Error reading {file_path.name}: {str(e)[:50]}[/red]"
+            )
             return None
 
     async def _read_file_async(self, file_path: Path) -> str | None:
@@ -974,6 +998,8 @@ class ProjectContext:
         """
         context_parts = []
         current_tokens = 0
+        files_included = 0
+        files_summarized = 0
 
         # Add project overview (always include)
         overview = self._build_project_overview()
@@ -992,7 +1018,14 @@ class ProjectContext:
                     current_tokens += tree_tokens
 
         # Prioritize files
+        console.print("[dim]Prioritizing files for context...[/dim]")
         prioritized_files = self._prioritize_files(query, mentioned_files, recent_files)
+
+        # Show prioritization summary
+        if mentioned_files:
+            console.print(f"[dim]  Mentioned files: {len(mentioned_files)}[/dim]")
+        if recent_files:
+            console.print(f"[dim]  Recent files: {len(recent_files)}[/dim]")
 
         # Add files until token budget exhausted (reserve 5% for safety)
         token_limit = int(max_tokens * 0.95)
@@ -1016,6 +1049,7 @@ class ProjectContext:
                 file_section = f"{header}{content}{footer}"
                 context_parts.append(file_section)
                 current_tokens += total_tokens
+                files_included += 1
             else:
                 # Try to summarize/truncate
                 remaining_tokens = token_limit - current_tokens - self._estimate_tokens(
@@ -1026,11 +1060,18 @@ class ProjectContext:
                     file_section = f"{header}{summarized}{footer}"
                     context_parts.append(file_section)
                     current_tokens += self._estimate_tokens(file_section)
+                    files_summarized += 1
                 break
+
+        # Show completion details
+        if files_summarized > 0:
+            console.print(
+                f"[dim]  Summarized {files_summarized} large file(s) to fit context[/dim]"
+            )
 
         logger.info(
             f"Smart context built: {current_tokens}/{max_tokens} tokens "
-            f"({len(context_parts)} sections)"
+            f"({files_included} files, {files_summarized} summarized)"
         )
 
         return "\n\n".join(context_parts)
@@ -1052,6 +1093,8 @@ class ProjectContext:
         """
         context_parts = []
         current_tokens = 0
+        files_processed = 0
+        files_summarized = 0
 
         # Add overview
         overview = self._build_project_overview()
@@ -1060,6 +1103,10 @@ class ProjectContext:
 
         # Get all text files
         all_files = [f for f in self.files.values() if not f.is_binary]
+
+        console.print(
+            f"[dim]Reading whole repository ({len(all_files)} text files)...[/dim]"
+        )
 
         # Sort by priority if query provided, otherwise by path
         if query:
@@ -1090,15 +1137,23 @@ class ProjectContext:
                 # Summarize to fit budget
                 summarized = await self._summarize_file(content, tokens_per_file)
                 file_section = f"{header}{summarized}{footer}"
+                files_summarized += 1
 
             section_tokens = self._estimate_tokens(file_section)
             if current_tokens + section_tokens <= token_budget:
                 context_parts.append(file_section)
                 current_tokens += section_tokens
+                files_processed += 1
+
+        # Show summary
+        console.print(
+            f"[dim]  Included {files_processed}/{len(all_files)} files "
+            f"({files_summarized} summarized)[/dim]"
+        )
 
         logger.info(
             f"Whole repo context built: {current_tokens}/{max_tokens} tokens "
-            f"({len(all_files)} files)"
+            f"({files_processed}/{len(all_files)} files, {files_summarized} summarized)"
         )
 
         return "\n\n".join(context_parts)
@@ -1119,6 +1174,10 @@ class ProjectContext:
             Context string built iteratively
         """
         # For now, use smart context building as fallback
+        console.print(
+            f"[dim]Iterative reading (max {max_iterations} iterations) - "
+            "using smart strategy[/dim]"
+        )
         logger.info(
             f"Iterative reading (max {max_iterations} iterations) - "
             "using smart strategy as fallback"
@@ -1196,28 +1255,56 @@ class ProjectContext:
         if strategy == "off":
             return ""
 
+        # User-facing progress message
+        console.print(
+            f"[dim]Building project context (strategy: {strategy}, "
+            f"budget: {max_tokens:,} tokens)...[/dim]"
+        )
+
         logger.info(
             f"Building dynamic context: strategy={strategy}, max_tokens={max_tokens}"
         )
 
         try:
             if strategy == "smart":
-                return await self._smart_context_building(
+                context = await self._smart_context_building(
                     max_tokens, query, mentioned_files, recent_files
                 )
             elif strategy == "whole_repo":
-                return await self._read_whole_repo_chunked(max_tokens, query)
+                context = await self._read_whole_repo_chunked(max_tokens, query)
             elif strategy == "iterative":
-                return await self._iterative_reading(max_tokens)
+                context = await self._iterative_reading(max_tokens)
             else:
                 logger.warning(f"Unknown strategy '{strategy}', using 'smart'")
-                return await self._smart_context_building(
+                console.print(
+                    f"[yellow]Unknown strategy '{strategy}', using 'smart' as fallback[/yellow]"
+                )
+                context = await self._smart_context_building(
                     max_tokens, query, mentioned_files, recent_files
                 )
 
+            # Show completion summary
+            actual_tokens = self._estimate_tokens(context)
+            usage_pct = int((actual_tokens / max_tokens) * 100) if max_tokens > 0 else 0
+            console.print(
+                f"[dim]Context ready: {actual_tokens:,}/{max_tokens:,} tokens used ({usage_pct}%)[/dim]"
+            )
+
+            return context
+
         except Exception as e:
             logger.error(f"Failed to build dynamic context: {e}")
-            # Fallback to basic context
-            return await self.build_context_prompt(
-                query=query, max_context_length=max_tokens * 4
+            console.print(
+                f"[yellow]Context building failed: {str(e)[:100]}... Using fallback[/yellow]"
             )
+            # Fallback to basic context
+            try:
+                return await self.build_context_prompt(
+                    query=query, max_context_length=max_tokens * 4
+                )
+            except Exception as fallback_err:
+                logger.error(f"Fallback context building also failed: {fallback_err}")
+                console.print(
+                    "[red]Failed to build context. Proceeding without project context.[/red]"
+                )
+                return ""
