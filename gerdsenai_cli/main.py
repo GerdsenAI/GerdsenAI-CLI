@@ -67,6 +67,11 @@ from .commands.vision_commands import (
     OCRCommand,
     VisionStatusCommand,
 )
+from .commands.audio_commands import (
+    TranscribeCommand,
+    SpeakCommand,
+    AudioStatusCommand,
+)
 from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
@@ -305,28 +310,34 @@ class GerdsenAICLI:
         self.command_parser.register_command(WorkingDirectoryCommand())
         self.command_parser.register_command(TerminalStatusCommand())
 
-        # Register vision commands (Frontier AI)
+        # Register vision commands (Frontier AI Phase 2)
         self.command_parser.register_command(ImageCommand())
         self.command_parser.register_command(OCRCommand())
         self.command_parser.register_command(VisionStatusCommand())
+
+        # Register audio commands (Frontier AI Phase 3)
+        self.command_parser.register_command(TranscribeCommand())
+        self.command_parser.register_command(SpeakCommand())
+        self.command_parser.register_command(AudioStatusCommand())
 
     async def _initialize_plugins(self) -> None:
         """
         Initialize the plugin system and discover plugins.
 
         Automatically discovers and registers plugins from the plugins directory.
-        Vision plugins (LLaVA, Tesseract) are registered but not initialized
+        Plugins (Vision, Audio) are registered but not initialized
         until first use (lazy loading for performance).
         """
         from pathlib import Path
         from .plugins.vision.llava_plugin import LLaVAPlugin
         from .plugins.vision.tesseract_ocr import TesseractOCRPlugin
+        from .plugins.audio.whisper_plugin import WhisperPlugin
+        from .plugins.audio.bark_plugin import BarkPlugin
 
         try:
             logger.info("Initializing plugin system...")
 
-            # Register vision plugins manually (for now)
-            # TODO: Implement full auto-discovery in future
+            # Register vision plugins (Phase 2)
             try:
                 llava = LLaVAPlugin()
                 plugin_registry.register(llava)
@@ -340,6 +351,21 @@ class GerdsenAICLI:
                 logger.info("Registered Tesseract OCR plugin")
             except Exception as e:
                 logger.debug(f"Could not register Tesseract plugin: {e}")
+
+            # Register audio plugins (Phase 3)
+            try:
+                whisper = WhisperPlugin()
+                plugin_registry.register(whisper)
+                logger.info("Registered Whisper audio plugin")
+            except Exception as e:
+                logger.debug(f"Could not register Whisper plugin: {e}")
+
+            try:
+                bark = BarkPlugin()
+                plugin_registry.register(bark)
+                logger.info("Registered Bark TTS plugin")
+            except Exception as e:
+                logger.debug(f"Could not register Bark plugin: {e}")
 
             # Note: Plugins are NOT initialized here for performance
             # They will be initialized on first use (lazy loading)

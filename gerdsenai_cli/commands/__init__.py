@@ -47,6 +47,11 @@ from .vision_commands import (
     OCRCommand,
     VisionStatusCommand,
 )
+from .audio_commands import (
+    TranscribeCommand,
+    SpeakCommand,
+    AudioStatusCommand,
+)
 
 __all__ = [
     "BaseCommand",
@@ -87,4 +92,8 @@ __all__ = [
     "ImageCommand",
     "OCRCommand",
     "VisionStatusCommand",
+    # Audio commands
+    "TranscribeCommand",
+    "SpeakCommand",
+    "AudioStatusCommand",
 ]
