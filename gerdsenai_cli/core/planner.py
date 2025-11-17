@@ -162,15 +162,27 @@ class TaskPlan:
     
     def is_complete(self) -> bool:
         """Check if all steps are completed.
-        
+
         Returns:
             True if all steps completed
         """
         return all(step.status == StepStatus.COMPLETED for step in self.steps)
-    
+
+    def is_finished(self) -> bool:
+        """Check if plan execution is finished (all steps processed).
+
+        A plan is finished if all steps are in a terminal state:
+        COMPLETED, SKIPPED, or FAILED.
+
+        Returns:
+            True if all steps are in a terminal state
+        """
+        terminal_states = {StepStatus.COMPLETED, StepStatus.SKIPPED, StepStatus.FAILED}
+        return all(step.status in terminal_states for step in self.steps)
+
     def has_failed_steps(self) -> bool:
         """Check if any steps have failed.
-        
+
         Returns:
             True if any step has failed
         """
@@ -444,8 +456,9 @@ Guidelines:
             
             if next_step is None:
                 # No more steps available
-                if plan.is_complete():
-                    logger.info("Plan completed successfully")
+                if plan.is_finished():
+                    # All steps processed (completed, skipped, or failed)
+                    logger.info("Plan execution finished")
                     return True
                 else:
                     logger.warning("Plan blocked - no executable steps remaining")
