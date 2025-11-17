@@ -304,10 +304,14 @@ class InputSanitizer:
             # Re-raise validation errors
             raise
 
-        # Check for extremely long messages
-        if len(message) > 50000:  # 50KB
+        # Check for extremely long messages (warn at 80% of limit)
+        max_len = InputValidator.MAX_MESSAGE_LENGTH
+        warning_threshold = int(max_len * 0.8)  # 80KB for 100KB limit
+
+        if len(message) > warning_threshold:
             warnings.append(
-                "⚠️  Large message (>50KB). This may take longer to process."
+                f"⚠️  Large message ({len(message):,} chars, approaching {max_len:,} limit). "
+                f"Consider breaking into smaller messages."
             )
 
         # Check for repeated characters (possible paste error)
