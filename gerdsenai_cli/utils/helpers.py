@@ -161,17 +161,8 @@ def truncate_text(text: str, max_length: int = 50, suffix: str = "...") -> str:
     return text[: max_length - len(suffix)] + suffix
 
 
-def format_size(size_bytes: int) -> str:
-    """
-    Format size in bytes to human readable format.
-
-    Args:
-        size_bytes: Size in bytes
-
-    Returns:
-        Formatted size string
-    """
-    return format_file_size(size_bytes)
+# Alias for backward compatibility - both names refer to the same function
+format_size = format_file_size
 
 
 def format_duration(seconds: float) -> str:

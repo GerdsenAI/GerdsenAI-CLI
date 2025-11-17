@@ -761,8 +761,10 @@ class GerdsenAICLI:
                     # Only show warnings and errors in footer
                     if record.levelno >= logging.WARNING:
                         tui.set_system_footer(msg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Log handler failure - use stderr as fallback to avoid infinite loop
+                    import sys
+                    print(f"TUI log handler failed: {e}", file=sys.stderr)
         
         # Install logging handler for TUI mode and suppress console output
         tui_handler = TUILogHandler()
@@ -784,21 +786,54 @@ class GerdsenAICLI:
             tui.set_system_footer(f"Model: {model_name} (using 4K context default) | Use /model to select a model")
         else:
             tui.set_system_footer(f"Model: {model_name}")
-        
+
         # Track model capabilities (detect once on first use)
         capabilities: ModelCapabilities | None = None
-        
+
+        # Initialize TUI edge case handler for robust error handling
+        from .ui.tui_edge_cases import TUIEdgeCaseHandler
+        tui_edge_handler = TUIEdgeCaseHandler()
+
         # Define message handler with robust error handling
         async def handle_message(text: str) -> None:
             """Handle user message submission with comprehensive error handling."""
             nonlocal capabilities
-            
+
             try:
                 # Check for exit commands
                 if text.lower() in ["/exit", "/quit"]:
                     tui.exit()
                     return
-                
+
+                # Edge case handling: Validate and sanitize input
+                try:
+                    sanitized_text, warnings = await tui_edge_handler.validate_and_process_input(text)
+
+                    # Show any warnings to user
+                    for warning in warnings:
+                        tui.conversation.add_message("system", warning)
+                        tui.app.invalidate()
+
+                    # Use sanitized text for processing
+                    text = sanitized_text
+
+                except GerdsenAIError as e:
+                    # Input validation failed - show error and return
+                    from .ui.error_display import ErrorDisplay
+                    error_msg = ErrorDisplay.display_error(e, show_details=False, tui_mode=False)
+                    tui.conversation.add_message("system", error_msg)
+                    tui.app.invalidate()
+                    return
+
+                # Memory management: Archive old messages if needed
+                archive_notice = tui_edge_handler.manage_conversation_memory(
+                    tui.conversation.messages,
+                    tui.conversation
+                )
+                if archive_notice:
+                    tui.conversation.add_message("system", archive_notice)
+                    tui.app.invalidate()
+
                 # Phase 8d: SmartRouter Integration
                 # Use SmartRouter for intelligent routing if enabled
                 if self.smart_router and self.settings.enable_smart_routing:
@@ -989,14 +1024,15 @@ class GerdsenAICLI:
                                 tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for context")
                                 tui.app.invalidate()
 
-                                # Build context summary for better responses
-                                context_summary = "\n\n# Context Files:\n"
+                                # Build context summary for better responses (optimized string building)
+                                parts = ["\n\n# Context Files:\n"]
                                 for file_path, result in context_files.items():
-                                    context_summary += f"\n## {file_path}\n"
-                                    context_summary += f"_({result.read_reason})_\n"
+                                    parts.append(f"\n## {file_path}\n")
+                                    parts.append(f"_({result.read_reason})_\n")
                                     if result.truncated:
-                                        context_summary += "_Content truncated for context window_\n"
-                                    context_summary += f"\n```\n{result.content}\n```\n"
+                                        parts.append("_Content truncated for context window_\n")
+                                    parts.append(f"\n```\n{result.content}\n```\n")
+                                context_summary = "".join(parts)
 
                         except Exception as e:
                             logger.warning(f"ProactiveContext error: {e}")
@@ -1005,14 +1041,30 @@ class GerdsenAICLI:
                     # Enhance user input with context if available
                     enhanced_text = text + context_summary if context_summary else text
 
+                    # Mark streaming start for state guard
+                    tui_edge_handler.state_guard.mark_streaming_start()
+                    tui_edge_handler.stream_recovery.start_stream()
                     tui.start_streaming_response()
 
                     chunk_count = 0
                     try:
                         async for chunk, _ in self.agent.process_user_input_stream(enhanced_text):
+                            # Record chunk for health monitoring
+                            tui_edge_handler.stream_recovery.record_chunk()
+
+                            # Check stream health
+                            is_healthy, error = tui_edge_handler.stream_recovery.check_health()
+                            if not is_healthy:
+                                logger.error(f"Stream health check failed: {error}")
+                                from .core.errors import TimeoutError as GerdsenAITimeoutError
+                                raise GerdsenAITimeoutError(
+                                    message=f"Stream failed: {error}",
+                                    timeout_seconds=tui_edge_handler.stream_recovery.timeout_seconds
+                                )
+
                             tui.append_streaming_chunk(chunk)
                             chunk_count += 1
-                            
+
                             # Add configurable delay for smooth typewriter animation
                             if tui.streaming_chunk_delay > 0:
                                 await asyncio.sleep(tui.streaming_chunk_delay)
@@ -1020,25 +1072,50 @@ class GerdsenAICLI:
                             # Periodic refresh for smooth rendering
                             if chunk_count % tui.streaming_refresh_interval == 0:
                                 tui.app.invalidate()
-                        
+
                         # If no chunks received, show error
                         if chunk_count == 0:
                             tui.conversation.add_message("system", "Warning: No response received from AI")
                             tui.app.invalidate()
-                    
-                    except asyncio.TimeoutError:
-                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+
+                        # Record success for provider health tracking
+                        tui_edge_handler.provider_handler.record_success()
+
+                    except asyncio.TimeoutError as timeout_err:
+                        # Record provider failure
+                        tui_edge_handler.provider_handler.record_failure()
+
+                        # Get recovery message
+                        recovery_msg = tui_edge_handler.stream_recovery.get_recovery_message("Response timeout")
+                        tui.conversation.add_message("system", recovery_msg)
                         tui.app.invalidate()
+
                     except Exception as stream_error:
                         logger.error(f"Streaming error: {stream_error}", exc_info=True)
-                        tui.conversation.add_message("system", f"Streaming error: {str(stream_error)}")
+
+                        # Record provider failure
+                        tui_edge_handler.provider_handler.record_failure()
+
+                        # Get appropriate recovery message
+                        error_str = str(stream_error)
+                        recovery_msg = tui_edge_handler.stream_recovery.get_recovery_message(error_str)
+
+                        # Add provider-specific recovery if multiple failures
+                        if tui_edge_handler.provider_handler.should_show_recovery_help():
+                            provider_recovery = tui_edge_handler.provider_handler.get_recovery_message(stream_error)
+                            recovery_msg += "\n\n" + provider_recovery
+
+                        tui.conversation.add_message("system", recovery_msg)
                         tui.app.invalidate()
-                    
-                    # Always finish streaming to unlock the UI
-                    tui.finish_streaming_response()
-                    tui.app.invalidate()
+
+                    finally:
+                        # Always mark streaming end and finish streaming to unlock the UI
+                        tui_edge_handler.state_guard.mark_streaming_end()
+                        tui.finish_streaming_response()
+                        tui.app.invalidate()
+
                     return
-                
+
                 # In ARCHITECT mode, show thinking animation and capture response for approval
                 if current_mode == ExecutionMode.ARCHITECT:
                     # Phase 8d: Proactive Context Building
@@ -1060,13 +1137,15 @@ class GerdsenAICLI:
                                 tui.conversation.add_message("system", f"📖 Auto-loaded {file_count} file(s) for planning")
                                 tui.app.invalidate()
 
-                                context_summary = "\n\n# Context Files:\n"
+                                # Optimized string building for better performance
+                                parts = ["\n\n# Context Files:\n"]
                                 for file_path, result in context_files.items():
-                                    context_summary += f"\n## {file_path}\n"
-                                    context_summary += f"_({result.read_reason})_\n"
+                                    parts.append(f"\n## {file_path}\n")
+                                    parts.append(f"_({result.read_reason})_\n")
                                     if result.truncated:
-                                        context_summary += "_Content truncated_\n"
-                                    context_summary += f"\n```\n{result.content}\n```\n"
+                                        parts.append("_Content truncated_\n")
+                                    parts.append(f"\n```\n{result.content}\n```\n")
+                                context_summary = "".join(parts)
 
                         except Exception as e:
                             logger.warning(f"ProactiveContext error: {e}")
@@ -1163,7 +1242,19 @@ class GerdsenAICLI:
                             tui.app.invalidate()
                     
                     except asyncio.TimeoutError:
-                        tui.conversation.add_message("system", "Error: Response timeout - AI took too long to respond")
+                        timeout_value = self.settings.request_timeout if self.settings else 120
+                        timeout_msg = (
+                            f"⏱️  Response Timeout ({timeout_value}s exceeded)\n\n"
+                            "**What happened?**\n"
+                            "The AI didn't respond within the timeout limit.\n\n"
+                            "**How to fix:**\n"
+                            "• Try a shorter message or reduce context\n"
+                            "• Check if your LLM provider is overloaded\n"
+                            "• Increase timeout: `/config` → set request_timeout\n"
+                            "• Switch to faster model: `/model`\n"
+                            "• Reduce context window usage in settings"
+                        )
+                        tui.conversation.add_message("system", timeout_msg)
                         tui.app.invalidate()
                     except Exception as stream_error:
                         logger.error(f"Streaming error: {stream_error}", exc_info=True)
@@ -1185,8 +1276,9 @@ class GerdsenAICLI:
                 # Make sure we always finish streaming even on error
                 try:
                     tui.finish_streaming_response()
-                except Exception:
-                    pass
+                except Exception as finish_error:
+                    # Even finishing streaming failed - log but don't crash
+                    logger.error(f"Failed to finish streaming after error: {finish_error}")
                 tui.conversation.add_message("system", f"Unexpected error: {str(e)}")
                 tui.app.invalidate()
         

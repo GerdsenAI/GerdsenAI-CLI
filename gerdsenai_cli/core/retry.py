@@ -38,6 +38,7 @@ class RetryStrategy:
         ErrorCategory.AUTH: 0,  # Need user intervention
         ErrorCategory.FILE_NOT_FOUND: 0,  # Won't fix itself
         ErrorCategory.CONFIGURATION: 0,  # Need user fix
+        ErrorCategory.INVALID_REQUEST: 0,  # Don't retry invalid requests
         ErrorCategory.UNKNOWN: 1,  # Give it one more try
     }
 
