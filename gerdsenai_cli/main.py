@@ -787,13 +787,69 @@ class GerdsenAICLI:
                     logger.error(f"Error loading conversation: {e}", exc_info=True)
                     return f"Error loading conversation: {str(e)}"
             
+            elif command == '/resume':
+                if not tui:
+                    return "Error: TUI not available for resume operation"
+
+                filename = args[0] if args else None
+
+                # If no filename provided, resume most recent conversation
+                if not filename:
+                    conversations = self.conversation_manager.list_conversations()
+                    if not conversations:
+                        return "No saved conversations found.\n\nUse '/save <filename>' to save a conversation first."
+
+                    # Get most recent conversation (conversations are sorted by modification time)
+                    filename = conversations[0].stem
+                    logger.info(f"Resuming most recent conversation: {filename}")
+
+                # Load conversation
+                try:
+                    messages, metadata = self.conversation_manager.load_conversation(filename)
+
+                    # Clear current conversation
+                    tui.conversation.clear_messages()
+
+                    # Load messages into TUI
+                    for role, content, _ in messages:
+                        tui.conversation.add_message(role, content)
+
+                    # Get memory context if available
+                    memory_context = ""
+                    if self.agent and hasattr(self.agent, 'memory') and self.agent.memory:
+                        context_summary = self.agent.memory.get_context_summary()
+                        if context_summary.strip():
+                            memory_context = f"\n\nRelevant context from memory:\n{context_summary}"
+
+                    # Build response
+                    msg_count = len(messages)
+                    lines = [
+                        f"Resumed conversation: {filename}",
+                        f"Messages restored: {msg_count}",
+                    ]
+
+                    if metadata:
+                        if metadata.get("model"):
+                            lines.append(f"Model: {metadata['model']}")
+
+                    if memory_context:
+                        lines.append(memory_context)
+
+                    return "\n".join(lines)
+
+                except FileNotFoundError:
+                    return f"Conversation not found: {filename}\n\nUse '/load' to list available conversations."
+                except Exception as e:
+                    logger.error(f"Error resuming conversation: {e}", exc_info=True)
+                    return f"Error resuming conversation: {str(e)}"
+
             elif command == '/export':
                 if not tui:
                     return "Error: TUI not available for export operation"
-                
+
                 # Get conversation messages from TUI
                 messages = tui.conversation.messages
-                
+
                 if not messages:
                     return "No messages to export. Start a conversation first."
                 

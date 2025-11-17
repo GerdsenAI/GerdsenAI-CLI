@@ -598,7 +598,7 @@ class Agent:
     
     def _track_file_access(self, file_path: str | Path, topic: str | None = None) -> None:
         """Track file access in memory system.
-        
+
         Args:
             file_path: Path to the file being accessed
             topic: Optional topic associated with the access
@@ -609,6 +609,58 @@ class Agent:
             logger.debug(f"Tracked file access: {path_str}")
         except Exception as e:
             logger.warning(f"Failed to track file access: {e}")
+
+    def _track_conversation_in_memory(
+        self, user_input: str, assistant_response: str, intent: ActionIntent | None
+    ) -> None:
+        """Track conversation in memory system.
+
+        Args:
+            user_input: User's input message
+            assistant_response: Assistant's response
+            intent: Detected intent if any
+        """
+        try:
+            # Extract topics from both user input and response
+            user_topics = self.memory.extract_topics_from_text(user_input)
+            assistant_topics = self.memory.extract_topics_from_text(assistant_response)
+            all_topics = list(set(user_topics + assistant_topics))
+
+            # Extract file paths mentioned
+            import re
+            file_pattern = r'(?:^|\s)([a-zA-Z0-9_\-./]+\.[a-zA-Z]{2,5})(?:\s|$|,|:|;)'
+            user_files = re.findall(file_pattern, user_input)
+            assistant_files = re.findall(file_pattern, assistant_response)
+            all_files = list(set(user_files + assistant_files))
+
+            # Get action type if available
+            action_type = intent.action_type.value if intent else None
+
+            # Track user conversation
+            self.memory.remember_conversation(
+                role="user",
+                content=user_input,
+                files_mentioned=all_files,
+                topics=all_topics,
+                action_type=action_type,
+            )
+
+            # Track assistant conversation
+            self.memory.remember_conversation(
+                role="assistant",
+                content=assistant_response,
+                files_mentioned=all_files,
+                topics=all_topics,
+                action_type=action_type,
+            )
+
+            # Auto-save memory every 5 conversations
+            if self.memory.metadata.get("total_conversations", 0) % 5 == 0:
+                self.memory.save()
+                logger.debug("Auto-saved memory after conversation")
+
+        except Exception as e:
+            logger.warning(f"Failed to track conversation in memory: {e}")
     
     def _show_suggestions(self, suggestions: list, context: str = "") -> str:
         """Format and display proactive suggestions.
@@ -1105,10 +1157,13 @@ class Agent:
             assistant_message = ChatMessage(role="assistant", content=llm_response)
             self.conversation.messages.append(assistant_message)
 
+            # Track conversation in memory
+            self._track_conversation_in_memory(user_input, llm_response, intent)
+
             # Parse intent using regex if we don't have LLM intent
             if not intent or intent.action_type == ActionType.NONE:
                 intent = self.intent_parser.parse_intent(llm_response, user_input)
-            
+
             self.conversation.last_action = intent
 
             # Execute action if needed
@@ -1221,10 +1276,13 @@ class Agent:
             assistant_message = ChatMessage(role="assistant", content=llm_response)
             self.conversation.messages.append(assistant_message)
 
+            # Track conversation in memory
+            self._track_conversation_in_memory(user_input, llm_response, intent)
+
             # Parse intent using regex if we don't have LLM intent
             if not intent or intent.action_type == ActionType.NONE:
                 intent = self.intent_parser.parse_intent(llm_response, user_input)
-            
+
             self.conversation.last_action = intent
 
             # Execute action if needed
