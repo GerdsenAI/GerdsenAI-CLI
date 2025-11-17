@@ -25,6 +25,8 @@ class CommandCategory(Enum):
     FILE = "file"
     CONTEXT = "context"
     SESSION = "session"
+    VISION = "vision"  # Image understanding and OCR
+    AUDIO = "audio"  # Speech-to-text and text-to-speech
 
 
 @dataclass
