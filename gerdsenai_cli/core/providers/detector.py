@@ -6,8 +6,9 @@ Automatically detects which LLM provider is running at a given URL.
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Any, Optional
 
+from ...constants import ProviderDefaults
 from .base import LLMProvider, ProviderType
 from .huggingface import HuggingFaceProvider
 from .lm_studio import LMStudioProvider
@@ -32,13 +33,10 @@ class ProviderDetector:
         VLLMProvider,  # OpenAI-compatible, try last
     ]
 
-    # Common configurations to try
-    COMMON_CONFIGS = [
-        ("http://localhost:11434", "Ollama (default)"),
-        ("http://localhost:1234", "LM Studio (default)"),
+    # Common configurations to try (using centralized ProviderDefaults)
+    # Note: Extended with additional common ports beyond standard providers
+    COMMON_CONFIGS = ProviderDefaults.get_common_configs() + [
         ("http://127.0.0.1:1234", "LM Studio (loopback)"),
-        ("http://localhost:8080", "vLLM / HF TGI / LocalAI"),
-        ("http://localhost:8000", "vLLM (alt port)"),
         ("http://localhost:5000", "text-generation-webui"),
         ("http://localhost:5001", "KoboldAI"),
         ("http://localhost:8001", "Custom provider"),
@@ -248,7 +246,7 @@ class ProviderDetector:
     async def test_provider(
         self,
         provider: LLMProvider
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """
         Test a provider's functionality.
 
@@ -256,7 +254,7 @@ class ProviderDetector:
             provider: Provider to test
 
         Returns:
-            Test results dict
+            Test results dict with connection status, models, capabilities, and errors
         """
         results = {
             "connection": False,

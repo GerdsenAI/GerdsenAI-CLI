@@ -18,6 +18,7 @@ from typing import Any, AsyncGenerator
 from rich.console import Console
 
 from ..config.settings import Settings
+from ..constants import LLMDefaults
 from ..ui.status_display import IntelligenceActivity
 from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
@@ -181,35 +182,39 @@ class IntentParser:
             ActionIntent with detected action and parameters
         """
         try:
-            # Prepare file list (limit to first 100 for token efficiency)
-            file_list = "\n".join(project_files[:100])
-            if len(project_files) > 100:
-                file_list += f"\n... and {len(project_files) - 100} more files"
-            
+            # Prepare file list (limit to first N files for token efficiency)
+            max_files = LLMDefaults.INTENT_DETECTION_MAX_FILES
+            file_list = "\n".join(project_files[:max_files])
+            if len(project_files) > max_files:
+                file_list += f"\n... and {len(project_files) - max_files} more files"
+
             # Build intent detection prompt
             prompt = INTENT_DETECTION_PROMPT.format(
                 file_list=file_list,
                 user_query=user_query
             )
-            
+
             # Create messages for LLM
             messages = [
                 ChatMessage(role="system", content=prompt),
                 ChatMessage(role="user", content=user_query)
             ]
-            
-            # Call LLM with timeout (5 seconds max)
+
+            # Call LLM with timeout for intent detection
             try:
                 response = await asyncio.wait_for(
                     llm_client.chat(
                         messages=messages,
-                        temperature=0.3,  # Deterministic for intent detection
-                        max_tokens=300,   # Keep response short
+                        temperature=LLMDefaults.INTENT_DETECTION_TEMPERATURE,
+                        max_tokens=LLMDefaults.INTENT_DETECTION_MAX_TOKENS,
                     ),
-                    timeout=5.0
+                    timeout=LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS
                 )
             except asyncio.TimeoutError:
-                logger.warning("LLM intent detection timed out after 5 seconds")
+                logger.warning(
+                    f"LLM intent detection timed out after "
+                    f"{LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS}s"
+                )
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,

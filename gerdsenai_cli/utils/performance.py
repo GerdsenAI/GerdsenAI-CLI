@@ -19,6 +19,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from ..constants import PerformanceTargets
+
 console = Console()
 
 
@@ -52,15 +54,15 @@ class PerformanceTracker:
         self.startup_time: float | None = None
         self.max_metrics = 1000  # Limit stored metrics
 
-        # Performance targets from clinerules.md
+        # Performance targets (using centralized constants)
         self.targets = {
-            "startup_time": 2.0,  # < 2 seconds to interactive prompt
-            "response_time": 0.5,  # < 500ms for local operations
-            "memory_baseline": 100.0,  # < 100MB baseline memory footprint
-            "model_loading": 5.0,  # < 5 seconds to load model list
-            "file_scanning": 1.0,  # < 1 second for typical project directories
-            "context_building": 2.0,  # < 2 seconds for project analysis
-            "file_editing": 0.5,  # < 500ms for diff generation and validation
+            "startup_time": PerformanceTargets.STARTUP_TIME,
+            "response_time": PerformanceTargets.RESPONSE_TIME,
+            "memory_baseline": PerformanceTargets.MEMORY_BASELINE,
+            "model_loading": PerformanceTargets.MODEL_LOADING,
+            "file_scanning": PerformanceTargets.FILE_SCANNING,
+            "context_building": PerformanceTargets.CONTEXT_BUILDING,
+            "file_editing": PerformanceTargets.FILE_EDITING,
         }
 
     def get_memory_usage(self) -> float:
