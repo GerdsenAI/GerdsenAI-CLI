@@ -1,38 +1,119 @@
 """
-Proactive suggestion system for GerdsenAI CLI.
+Proactive Suggestions System for GerdsenAI CLI (Phase 8d-7).
 
-Analyzes code patterns and suggests improvements like tests,
-documentation, error handling, etc.
+This module implements intelligent, context-aware suggestions based on codebase
+patterns, best practices, and integration with complexity/clarification/confirmation systems.
+
+Provides frontier-level proactive assistance with non-intrusive, contextual recommendations.
 """
 
 import logging
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
+class SuggestionType(Enum):
+    """Types of proactive suggestions."""
+
+    # Code quality suggestions
+    REFACTORING = "refactoring"
+    TESTING = "testing"
+    DOCUMENTATION = "documentation"
+    BEST_PRACTICE = "best_practice"
+    PERFORMANCE = "performance"
+    SECURITY = "security"
+
+    # Workflow suggestions
+    PLANNING = "planning"
+    CLARIFICATION = "clarification"
+    CONFIRMATION = "confirmation"
+
+    # Improvement suggestions
+    CODE_SMELL = "code_smell"
+    DUPLICATE_CODE = "duplicate_code"
+    COMPLEXITY_REDUCTION = "complexity_reduction"
+    ERROR_HANDLING = "error_handling"
+    PROJECT_STRUCTURE = "project_structure"
+
+
+class SuggestionPriority(Enum):
+    """Priority levels for suggestions."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 @dataclass
 class Suggestion:
-    """A proactive suggestion for code improvement."""
-    
-    category: str  # "testing", "documentation", "error_handling", "performance", "security"
-    priority: str  # "high", "medium", "low"
+    """Individual suggestion with comprehensive context."""
+
+    suggestion_type: SuggestionType | str  # Allow both for backwards compatibility
+    priority: SuggestionPriority | str
     title: str
     description: str
-    file_path: str | None = None
-    code_context: str | None = None
-    
+    reasoning: str = ""
+    affected_files: list[str] = field(default_factory=list)
+    code_example: str | None = None
+    action_command: str | None = None
+    estimated_time: int = 5  # minutes
+    benefits: list[str] = field(default_factory=list)
+    file_path: str | None = None  # Backwards compatibility
+    code_context: str | None = None  # Backwards compatibility
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Normalize types for backwards compatibility."""
+        # Convert string types to enums
+        if isinstance(self.suggestion_type, str):
+            # Try to match to existing enum or use as-is
+            try:
+                self.suggestion_type = SuggestionType(self.suggestion_type)
+            except ValueError:
+                # Keep as string for backwards compatibility
+                pass
+
+        if isinstance(self.priority, str):
+            try:
+                self.priority = SuggestionPriority(self.priority)
+            except ValueError:
+                pass
+
+        # Backwards compatibility: populate affected_files from file_path
+        if self.file_path and not self.affected_files:
+            self.affected_files = [self.file_path]
+
+    @property
+    def category(self) -> str:
+        """Backwards compatibility property."""
+        if isinstance(self.suggestion_type, SuggestionType):
+            return self.suggestion_type.value
+        return str(self.suggestion_type)
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            "category": self.category,
-            "priority": self.priority,
+            "suggestion_type": self.category,
+            "category": self.category,  # Backwards compatibility
+            "priority": self.priority.value if isinstance(self.priority, SuggestionPriority) else self.priority,
             "title": self.title,
             "description": self.description,
+            "reasoning": self.reasoning,
+            "affected_files": self.affected_files,
+            "code_example": self.code_example,
+            "action_command": self.action_command,
+            "estimated_time": self.estimated_time,
+            "benefits": self.benefits,
             "file_path": self.file_path,
             "code_context": self.code_context,
+            "metadata": self.metadata,
         }
 
 
