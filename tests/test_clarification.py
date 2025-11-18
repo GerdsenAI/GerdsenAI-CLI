@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from gerdsenai_cli.config.settings import Settings
 from gerdsenai_cli.core.clarification import (
     ClarificationEngine,
-    Clarifying Question,
+    ClarifyingQuestion,
     Interpretation,
     UncertaintyType,
 )

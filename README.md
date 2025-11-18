@@ -250,6 +250,45 @@ The project is configured to use `.venv` automatically:
 - `/config` - Show current configuration
 - `/setup` - Reconfigure LLM server connection
 
+## Advanced Intelligence Systems
+
+GerdsenAI CLI includes Phase 8d Advanced Intelligence Systems - a suite of integrated components that enhance the AI agent's capabilities through intelligent task analysis, proactive guidance, and safe operation management.
+
+### Intelligence Subsystems
+
+**1. Clarifying Questions Engine**
+- Automatically identifies ambiguous or incomplete task specifications
+- Generates contextual questions to gather necessary information
+- Improves task understanding and reduces errors from unclear requirements
+- Tracks clarification statistics and patterns
+
+**2. Complexity Detection System**
+- Analyzes tasks to identify complexity indicators (file count, risk level, scope)
+- Provides complexity scores and risk assessments before execution
+- Suggests task decomposition strategies for complex operations
+- Helps users understand the scope and impact of their requests
+
+**3. Confirmation Dialogs & Undo System**
+- Requires explicit confirmation for high-risk operations
+- Maintains operation history with intelligent undo capabilities
+- Supports multi-level undo for safe error recovery
+- Provides detailed operation summaries before execution
+
+**4. Proactive Suggestions System**
+- Analyzes project state to identify optimization opportunities
+- Suggests best practices and code quality improvements
+- Recommends relevant tools and workflows based on context
+- Learns from project patterns to provide targeted guidance
+
+### Intelligence Commands
+
+- `/clarify` - View clarification statistics and recent questions
+- `/complexity <task>` - Analyze task complexity before execution
+- `/undo [count]` - Undo recent operations (default: last operation)
+- `/suggest [category]` - Get proactive improvement suggestions
+
+These systems work together seamlessly to provide a safer, more intelligent, and more productive development experience.
+
 ## Architecture
 
 GerdsenAI CLI uses a modular, agent-based architecture:
