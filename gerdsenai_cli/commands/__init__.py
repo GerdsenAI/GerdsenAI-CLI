@@ -52,6 +52,7 @@ from .audio_commands import (
     SpeakCommand,
     AudioStatusCommand,
 )
+from .clarify_commands import ClarifyCommand
 
 __all__ = [
     "BaseCommand",
@@ -81,6 +82,7 @@ __all__ = [
     "PlanCommand",
     "MemoryCommand",
     "IntelligenceCommand",
+    "ClarifyCommand",
     # File commands
     "FilesCommand",
     "ReadCommand",

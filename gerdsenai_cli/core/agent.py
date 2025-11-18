@@ -558,6 +558,10 @@ class Agent:
         self.memory = ProjectMemory(project_root)
         self.suggestor = ProactiveSuggestor()
 
+        # Initialize clarification system
+        from .clarification import ClarificationEngine
+        self.clarification = ClarificationEngine(settings, llm_client)
+
         # Security: Input validation and sanitization
         self.input_validator = get_validator(
             strict_mode=settings.get_preference("strict_input_validation", True)
@@ -859,71 +863,125 @@ class Agent:
         self, intent: ActionIntent, user_input: str
     ) -> str | None:
         """Ask user for clarification when intent confidence is medium.
-        
+
+        Uses the advanced clarification engine to generate interpretations
+        and learn from user choices.
+
         Args:
             intent: The detected intent with medium confidence
             user_input: Original user input
-            
+
         Returns:
             Clarification message or None if user provides input
         """
-        from rich.prompt import Prompt
-        
         # Show clarification activity
         if self._console:
             self._console.set_intelligence_activity(
                 IntelligenceActivity.ASKING_CLARIFICATION,
-                "Requesting clarification",
-                progress=0.5
+                "Generating clarification options",
+                progress=0.3
             )
-        
-        # Build clarification message
-        clarification_msg = (
-            f"\n[yellow]I'm not quite sure what you want to do "
-            f"(confidence: {intent.confidence:.0%}).[/yellow]\n\n"
-        )
-        
-        # Suggest what we think the user wants
-        clarification_msg += f"My best guess: [cyan]{self._describe_intent(intent)}[/cyan]\n\n"
-        
-        # Offer alternative interpretations
-        alternatives = self._generate_alternative_interpretations(intent, user_input)
-        if alternatives:
-            clarification_msg += "[bold]Other possibilities:[/bold]\n"
-            for i, alt in enumerate(alternatives, 1):
-                clarification_msg += f"  {i}. {alt}\n"
-            clarification_msg += "\n"
-        
-        # Ask for clarification
-        clarification_msg += "[bold]What would you like me to do?[/bold]\n"
-        clarification_msg += "  • Press Enter to proceed with my best guess\n"
-        clarification_msg += "  • Type a number to select an alternative\n"
-        clarification_msg += "  • Rephrase your request for better clarity\n"
-        
-        console.print(clarification_msg)
-        
+
         try:
-            response = Prompt.ask("[bold cyan]Your choice[/bold cyan]", default="")
-            
-            if not response:
-                # User wants to proceed with best guess
-                logger.info(f"User confirmed intent: {intent.action_type.value}")
-                return None  # Continue with current intent
-            
-            elif response.isdigit():
-                # User selected an alternative
-                alt_idx = int(response) - 1
-                if 0 <= alt_idx < len(alternatives):
-                    return f"Proceeding with alternative: {alternatives[alt_idx]}"
-                else:
-                    return "Invalid alternative selection. Please try again."
-            
+            # Check if we should clarify based on confidence and patterns
+            if not self.clarification.should_clarify(intent.confidence, user_input):
+                logger.info("Clarification not needed, proceeding with current intent")
+                return None
+
+            # Check if we've seen similar input before and can learn from history
+            past_interpretation = self.clarification.learn_from_history(user_input)
+            if past_interpretation:
+                logger.info(f"Found similar past clarification: {past_interpretation.title}")
+                # Use past interpretation as the highest confidence option
+                # but still show other options for confirmation
+
+            # Generate interpretations (LLM-powered or rule-based)
+            if self._console:
+                self._console.set_intelligence_activity(
+                    IntelligenceActivity.ASKING_CLARIFICATION,
+                    "Analyzing possible interpretations",
+                    progress=0.6
+                )
+
+            interpretations = await self.clarification.generate_interpretations(
+                user_input,
+                current_intent={
+                    "action": intent.action_type.value,
+                    "confidence": intent.confidence,
+                    "reasoning": intent.reasoning,
+                }
+            )
+
+            if not interpretations:
+                # Fallback to old simple clarification
+                logger.warning("No interpretations generated, using fallback")
+                return None
+
+            # Boost confidence of past interpretation if found
+            if past_interpretation:
+                for interp in interpretations:
+                    if interp.title == past_interpretation.title:
+                        interp.confidence = min(1.0, interp.confidence + 0.2)
+                        break
+
+            # Determine uncertainty type based on input patterns
+            from .clarification import UncertaintyType
+            uncertainty_type = UncertaintyType.MULTIPLE_INTERPRETATIONS
+
+            if any(word in user_input.lower() for word in ["all", "everything"]):
+                uncertainty_type = UncertaintyType.AMBIGUOUS_SCOPE
+            elif any(word in user_input.lower() for word in ["fix", "improve", "better"]):
+                uncertainty_type = UncertaintyType.UNCLEAR_ACTION
+
+            # Create clarifying question
+            question = self.clarification.create_question(
+                user_input, interpretations, uncertainty_type
+            )
+
+            # Display question and get user choice
+            if self._console:
+                self._console.clear_intelligence_activity()
+                choice_id = self._console.show_clarifying_question(question)
             else:
-                # User rephrased - return their new input
-                return await self.process_user_input(response)
-        
-        except (KeyboardInterrupt, EOFError):
-            return "Clarification cancelled."
+                # Fallback to simple text display
+                console.print(f"\n[yellow]{question.question}[/yellow]\n")
+                for interp in interpretations:
+                    console.print(f"{interp.id}. {interp.title} (confidence: {interp.confidence:.0%})")
+                    console.print(f"   {interp.description}\n")
+
+                from rich.prompt import Prompt
+                choice_str = Prompt.ask("Select interpretation", default="1")
+                choice_id = int(choice_str) if choice_str.isdigit() else None
+
+            if choice_id is None:
+                logger.info("User cancelled clarification")
+                return "Clarification cancelled. Please try rephrasing your request."
+
+            # Record the clarification for learning
+            self.clarification.record_clarification(
+                question, choice_id, user_input, was_helpful=True
+            )
+
+            # Find the chosen interpretation
+            chosen = next((i for i in interpretations if i.id == choice_id), None)
+            if chosen:
+                logger.info(f"User chose interpretation: {chosen.title}")
+
+                # Process based on chosen interpretation
+                # This could update the intent or trigger specific actions
+                response = f"Understood! Proceeding with: {chosen.title}\n\n{chosen.description}"
+
+                if chosen.example_action:
+                    response += f"\n\nI will: {chosen.example_action}"
+
+                return response
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error in clarification: {e}")
+            # Fallback to continuing with original intent
+            return None
     
     def _describe_intent(self, intent: ActionIntent) -> str:
         """Generate a human-readable description of the intent.

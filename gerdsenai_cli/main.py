@@ -843,6 +843,15 @@ class GerdsenAICLI:
                     logger.error(f"Error resuming conversation: {e}", exc_info=True)
                     return f"Error resuming conversation: {str(e)}"
 
+            elif command == '/clarify':
+                from .commands.clarify_commands import ClarifyCommand
+
+                clarify_cmd = ClarifyCommand()
+                clarify_cmd.agent = self.agent
+                clarify_cmd.console = console
+
+                return await clarify_cmd.execute(args)
+
             elif command == '/export':
                 if not tui:
                     return "Error: TUI not available for export operation"
