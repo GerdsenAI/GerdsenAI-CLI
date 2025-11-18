@@ -1057,7 +1057,7 @@ class EnhancedConsole:
             # Get priority value
             priority_value = (
                 suggestion.priority.value
-                if hasattr(suggestion, "value")
+                if hasattr(suggestion.priority, "value")
                 else suggestion.priority
             )
             priority_color = priority_colors.get(priority_value, "white")
@@ -1071,7 +1071,9 @@ class EnhancedConsole:
 
             # Build content
             content = f"[bold]Type:[/bold] {type_value}\n"
-            content += f"[bold]Priority:[/bold] [{priority_color}]{priority_value.upper()}[/{priority_color}]\n\n"
+            # Ensure priority_value is string for .upper()
+            priority_str = str(priority_value) if not isinstance(priority_value, str) else priority_value
+            content += f"[bold]Priority:[/bold] [{priority_color}]{priority_str.upper()}[/{priority_color}]\n\n"
             content += f"{suggestion.description}\n"
 
             if hasattr(suggestion, "reasoning") and suggestion.reasoning:

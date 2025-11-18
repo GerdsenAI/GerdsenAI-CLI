@@ -228,6 +228,13 @@ class ProactiveSuggestor:
                     "description": "Passwords or secrets should not be hardcoded in source files.",
                     "benefits": ["Enhanced security", "Easier credential rotation", "No secrets in VCS"],
                 },
+                {
+                    "trigger": lambda code: "shell=True" in code and "subprocess" in code,
+                    "priority": SuggestionPriority.CRITICAL,
+                    "title": "Avoid shell=True in subprocess",
+                    "description": "Using shell=True with subprocess is a security risk for command injection.",
+                    "benefits": ["Prevent command injection", "Improved security", "Safer subprocess execution"],
+                },
             ],
         }
     
