@@ -545,3 +545,143 @@ class EnhancedConsole:
         self.console.print()
         self.console.print(Panel(table, border_style="cyan"))
         self.console.print()
+
+    def show_complexity_analysis(self, analysis) -> None:
+        """
+        Display complexity analysis result.
+
+        Args:
+            analysis: ComplexityAnalysis object
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.text import Text
+
+        # Main analysis panel
+        complexity_color = {
+            "trivial": "green",
+            "simple": "green",
+            "moderate": "yellow",
+            "complex": "orange",
+            "very_complex": "red",
+        }.get(analysis.complexity_level.value, "white")
+
+        risk_color = {
+            "minimal": "green",
+            "low": "green",
+            "medium": "yellow",
+            "high": "red",
+            "critical": "bold red",
+        }.get(analysis.risk_level.value, "white")
+
+        # Header with complexity and risk
+        header = Text()
+        header.append("Complexity: ", style="bold")
+        header.append(
+            f"{analysis.complexity_level.value.upper().replace('_', ' ')}",
+            style=f"bold {complexity_color}"
+        )
+        header.append(" | Risk: ", style="bold")
+        header.append(
+            f"{analysis.risk_level.value.upper()}",
+            style=f"bold {risk_color}"
+        )
+
+        self.console.print()
+        self.console.print(Panel(header, title="Task Complexity Analysis", border_style="cyan"))
+
+        # Reasoning
+        self.console.print()
+        self.console.print("[bold]Analysis:[/bold]", analysis.reasoning)
+
+        # Resource Estimate
+        self.console.print()
+        est_table = Table(title="Resource Estimate", show_header=True, border_style="dim")
+        est_table.add_column("Resource", style="cyan")
+        est_table.add_column("Estimate", style="white")
+
+        est = analysis.resource_estimate
+        hours = est.estimated_time_minutes // 60
+        mins = est.estimated_time_minutes % 60
+        time_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+
+        est_table.add_row("Estimated Time", time_str)
+        est_table.add_row("Steps", str(est.estimated_steps))
+        est_table.add_row("Files Affected", str(est.file_count))
+        est_table.add_row("Lines of Code", f"~{est.lines_of_code}")
+        est_table.add_row(
+            "Tests Needed",
+            "✓ Yes" if est.test_coverage_needed else "- No"
+        )
+        est_table.add_row(
+            "Docs Needed",
+            "✓ Yes" if est.documentation_needed else "- No"
+        )
+
+        self.console.print(est_table)
+
+        # Impact Assessment
+        self.console.print()
+        impact_table = Table(title="Impact Assessment", show_header=True, border_style="dim")
+        impact_table.add_column("Aspect", style="cyan")
+        impact_table.add_column("Details", style="white")
+
+        impact = analysis.impact_assessment
+        impact_table.add_row(
+            "Scope",
+            impact.impact_scope.value.replace("_", " ").title()
+        )
+        impact_table.add_row(
+            "Components",
+            ", ".join(impact.affected_components)
+        )
+
+        if impact.potential_side_effects:
+            impact_table.add_row(
+                "Side Effects",
+                "\n".join(f"• {effect}" for effect in impact.potential_side_effects)
+            )
+
+        impact_table.add_row(
+            "Breaking Changes",
+            "[red]Likely[/red]" if impact.breaking_changes_likely else "[green]Unlikely[/green]"
+        )
+
+        impact_table.add_row(
+            "Migration Needed",
+            "[yellow]Yes[/yellow]" if impact.requires_migration else "[green]No[/green]"
+        )
+
+        self.console.print(impact_table)
+
+        # Warnings
+        if analysis.warnings:
+            self.console.print()
+            warning_panel = Panel(
+                "\n".join(analysis.warnings),
+                title="⚠️  Warnings",
+                border_style="yellow",
+                style="yellow"
+            )
+            self.console.print(warning_panel)
+
+        # Recommendations
+        if analysis.recommendations:
+            self.console.print()
+            self.console.print("[bold cyan]Recommendations:[/bold cyan]")
+            for i, rec in enumerate(analysis.recommendations, 1):
+                self.console.print(f"  {i}. {rec}")
+
+        # Planning/Confirmation suggestions
+        self.console.print()
+        if analysis.requires_planning:
+            self.console.print(
+                "[bold yellow]💡 Suggestion:[/bold yellow] Use multi-step planning for this task (/plan)"
+            )
+
+        if analysis.requires_confirmation:
+            self.console.print(
+                "[bold red]🔒 Required:[/bold red] User confirmation needed before execution"
+            )
+
+        self.console.print()
