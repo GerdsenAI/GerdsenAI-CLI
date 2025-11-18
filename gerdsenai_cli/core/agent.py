@@ -566,6 +566,10 @@ class Agent:
         from .complexity import ComplexityDetector
         self.complexity_detector = ComplexityDetector(llm_client)
 
+        # Initialize confirmation dialog system
+        from .confirmation import ConfirmationEngine
+        self.confirmation_engine = ConfirmationEngine(data_dir=Path.home() / ".gerdsenai")
+
         # Security: Input validation and sanitization
         self.input_validator = get_validator(
             strict_mode=settings.get_preference("strict_input_validation", True)

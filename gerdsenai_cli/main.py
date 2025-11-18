@@ -861,6 +861,15 @@ class GerdsenAICLI:
 
                 return await complexity_cmd.execute(args)
 
+            elif command == '/undo':
+                from .commands.undo_commands import UndoCommand
+
+                undo_cmd = UndoCommand()
+                undo_cmd.agent = self.agent
+                undo_cmd.console = console
+
+                return await undo_cmd.execute(args)
+
             elif command == '/export':
                 if not tui:
                     return "Error: TUI not available for export operation"

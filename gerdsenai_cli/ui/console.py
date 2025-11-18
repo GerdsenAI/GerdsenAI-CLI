@@ -685,3 +685,281 @@ class EnhancedConsole:
             )
 
         self.console.print()
+
+    def show_confirmation_dialog(self, preview) -> str | None:
+        """
+        Display confirmation dialog for high-risk operation.
+
+        Args:
+            preview: OperationPreview object
+
+        Returns:
+            User response: "yes", "no", "preview", or None if error
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        # Color code by risk level
+        risk_colors = {
+            "minimal": "green",
+            "low": "green",
+            "medium": "yellow",
+            "high": "red",
+            "critical": "bold red",
+        }
+
+        risk_color = risk_colors.get(preview.risk_level, "yellow")
+
+        # Header
+        self.console.print()
+        self.console.print(
+            Panel(
+                f"[bold {risk_color}]⚠ CONFIRMATION REQUIRED[/bold {risk_color}]\n\n"
+                f"Operation: {preview.description}\n"
+                f"Risk Level: [{risk_color}]{preview.risk_level.upper()}[/{risk_color}]\n"
+                f"Estimated Time: {preview.estimated_time} minutes\n"
+                f"Reversible: {'Yes' if preview.reversible else 'No'}",
+                title="Operation Preview",
+                border_style=risk_color,
+            )
+        )
+
+        # Affected files summary
+        if preview.affected_files:
+            files_table = Table(title="Affected Files", show_header=True)
+            files_table.add_column("File", style="cyan")
+            files_table.add_column("Operation", style="magenta")
+            files_table.add_column("Impact", justify="center")
+            files_table.add_column("Changes")
+
+            for file_change in preview.affected_files[:20]:  # Limit to 20 files
+                impact_color = {
+                    "low": "green",
+                    "medium": "yellow",
+                    "high": "red",
+                }.get(file_change.estimated_impact, "white")
+
+                changes = ""
+                if file_change.lines_added > 0:
+                    changes += f"+{file_change.lines_added} "
+                if file_change.lines_removed > 0:
+                    changes += f"-{file_change.lines_removed}"
+
+                files_table.add_row(
+                    file_change.path,
+                    file_change.operation,
+                    f"[{impact_color}]{file_change.estimated_impact}[/{impact_color}]",
+                    changes or "N/A",
+                )
+
+            if len(preview.affected_files) > 20:
+                files_table.add_row(
+                    f"... and {len(preview.affected_files) - 20} more",
+                    "",
+                    "",
+                    "",
+                )
+
+            self.console.print(files_table)
+
+        # Warnings
+        if preview.warnings:
+            self.console.print()
+            warning_panel = Panel(
+                "\n".join(f"⚠ {warning}" for warning in preview.warnings),
+                title="Warnings",
+                border_style="red",
+            )
+            self.console.print(warning_panel)
+
+        # Recommendations
+        if preview.recommendations:
+            self.console.print()
+            self.console.print("[bold]Recommendations:[/bold]")
+            for i, rec in enumerate(preview.recommendations[:5], 1):
+                self.console.print(f"  {i}. {rec}")
+
+        # Prompt for confirmation
+        self.console.print()
+        self.console.print(
+            "[bold]Do you want to proceed with this operation?[/bold]"
+        )
+        self.console.print(
+            "  [green]yes[/green] - Proceed with operation"
+        )
+        self.console.print(
+            "  [red]no[/red] - Cancel operation"
+        )
+        self.console.print(
+            "  [cyan]preview[/cyan] - Show detailed diff preview"
+        )
+
+        # Get user input
+        response = input("\nYour choice (yes/no/preview): ").strip().lower()
+
+        if response in ["y", "yes"]:
+            return "yes"
+        elif response in ["n", "no"]:
+            return "no"
+        elif response in ["p", "preview"]:
+            return "preview"
+        else:
+            self.console.print("[yellow]Invalid response. Operation cancelled.[/yellow]")
+            return "no"
+
+    def show_file_diff(self, file_change) -> None:
+        """
+        Display file diff in unified diff format.
+
+        Args:
+            file_change: FileChange object
+        """
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+
+        self.console.print()
+        self.console.print(
+            Panel(
+                f"[bold]File:[/bold] {file_change.path}\n"
+                f"[bold]Operation:[/bold] {file_change.operation}\n"
+                f"[bold]Impact:[/bold] {file_change.estimated_impact}\n"
+                f"[bold]Changes:[/bold] +{file_change.lines_added} -{file_change.lines_removed}",
+                title=f"Diff: {file_change.path}",
+                border_style="cyan",
+            )
+        )
+
+        if file_change.operation == "delete":
+            if file_change.old_content:
+                # Show content being deleted
+                syntax = Syntax(
+                    file_change.old_content[:1000],  # Limit to first 1000 chars
+                    "python",
+                    theme="monokai",
+                    line_numbers=True,
+                )
+                self.console.print("[red]Content to be deleted:[/red]")
+                self.console.print(syntax)
+
+        elif file_change.operation == "create":
+            if file_change.new_content:
+                # Show new content
+                syntax = Syntax(
+                    file_change.new_content[:1000],
+                    "python",
+                    theme="monokai",
+                    line_numbers=True,
+                )
+                self.console.print("[green]Content to be created:[/green]")
+                self.console.print(syntax)
+
+        elif file_change.operation == "modify":
+            if file_change.old_content and file_change.new_content:
+                # Generate simple diff
+                old_lines = file_change.old_content.splitlines()
+                new_lines = file_change.new_content.splitlines()
+
+                diff_lines = []
+                max_lines = max(len(old_lines), len(new_lines))
+
+                for i in range(min(max_lines, 50)):  # Limit to 50 lines
+                    old_line = old_lines[i] if i < len(old_lines) else ""
+                    new_line = new_lines[i] if i < len(new_lines) else ""
+
+                    if old_line != new_line:
+                        if old_line:
+                            diff_lines.append(f"- {old_line}")
+                        if new_line:
+                            diff_lines.append(f"+ {new_line}")
+
+                if diff_lines:
+                    syntax = Syntax(
+                        "\n".join(diff_lines),
+                        "diff",
+                        theme="monokai",
+                        line_numbers=False,
+                    )
+                    self.console.print(syntax)
+
+        self.console.print()
+
+    def show_undo_snapshots(self, snapshots: list) -> None:
+        """
+        Display list of available undo snapshots.
+
+        Args:
+            snapshots: List of UndoSnapshot objects
+        """
+        from rich.table import Table
+
+        if not snapshots:
+            self.console.print("[yellow]No undo snapshots available[/yellow]")
+            return
+
+        table = Table(title="Available Undo Snapshots", show_header=True)
+        table.add_column("#", style="cyan", width=3)
+        table.add_column("Snapshot ID", style="magenta")
+        table.add_column("Operation", style="white")
+        table.add_column("Description", style="white", width=40)
+        table.add_column("Files", justify="right")
+        table.add_column("Timestamp", style="dim")
+        table.add_column("Expires", style="yellow")
+
+        for i, snapshot in enumerate(snapshots, 1):
+            # Calculate time until expiration
+            from datetime import datetime
+
+            expires_at = datetime.fromisoformat(snapshot.expires_at)
+            now = datetime.now()
+            time_left = expires_at - now
+
+            hours_left = int(time_left.total_seconds() / 3600)
+            expires_str = f"{hours_left}h" if hours_left > 0 else "expired"
+
+            # Truncate description if too long
+            description = snapshot.description
+            if len(description) > 40:
+                description = description[:37] + "..."
+
+            table.add_row(
+                str(i),
+                snapshot.snapshot_id,
+                snapshot.operation_type.value,
+                description,
+                str(len(snapshot.affected_files)),
+                snapshot.timestamp.split("T")[0],  # Date only
+                expires_str,
+            )
+
+        self.console.print(table)
+        self.console.print(
+            f"\nTotal snapshots: {len(snapshots)} | Use /undo to restore the last operation"
+        )
+
+    def show_undo_result(self, success: bool, message: str, files_restored: int = 0) -> None:
+        """
+        Display result of undo operation.
+
+        Args:
+            success: Whether undo was successful
+            message: Result message
+            files_restored: Number of files restored
+        """
+        from rich.panel import Panel
+
+        if success:
+            panel = Panel(
+                f"[bold green]✓ Undo Successful[/bold green]\n\n"
+                f"{message}\n\n"
+                f"Files restored: {files_restored}",
+                border_style="green",
+            )
+        else:
+            panel = Panel(
+                f"[bold red]✗ Undo Failed[/bold red]\n\n{message}",
+                border_style="red",
+            )
+
+        self.console.print()
+        self.console.print(panel)
+        self.console.print()
