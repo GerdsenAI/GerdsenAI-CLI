@@ -201,8 +201,9 @@ class MCPCommand(BaseCommand):
                 message=f"MCP server '{name}' not found.\n\nUse '/mcp list' to see configured servers.",
             )
 
-        # TODO: Implement actual MCP connection logic
-        # For now, just update status
+        # MCP Protocol Integration: Planned for future release
+        # This feature allows connection to Model Context Protocol servers
+        # For now, servers are configured but connections are simulated
         settings.mcp_servers[name]["status"] = "Connected (simulated)"
 
         return CommandResult(

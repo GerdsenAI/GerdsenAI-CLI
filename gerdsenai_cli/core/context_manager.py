@@ -1164,7 +1164,8 @@ class ProjectContext:
         """
         Build context iteratively, expanding based on previous content.
 
-        This is a placeholder for future LLM-guided iterative reading.
+        Future enhancement: Will use LLM to guide context expansion based on
+        analysis of previous iterations. Currently uses smart strategy as fallback.
 
         Args:
             max_tokens: Maximum tokens for context
@@ -1173,7 +1174,7 @@ class ProjectContext:
         Returns:
             Context string built iteratively
         """
-        # For now, use smart context building as fallback
+        # Use smart context building (LLM-guided expansion planned for future release)
         console.print(
             f"[dim]Iterative reading (max {max_iterations} iterations) - "
             "using smart strategy[/dim]"
