@@ -439,3 +439,109 @@ class EnhancedConsole:
             Dictionary with activity counts and timing info
         """
         return self.status_display.get_activity_summary()
+
+    def show_clarifying_question(self, question) -> int | None:
+        """
+        Display a clarifying question with interpretations and get user choice.
+
+        Args:
+            question: ClarifyingQuestion object with interpretations
+
+        Returns:
+            Selected interpretation ID, or None if cancelled
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        # Show the question
+        self.console.print()
+        self.console.print(
+            Panel(
+                f"[yellow]{question.question}[/yellow]",
+                title="Clarification Needed",
+                border_style="yellow",
+            )
+        )
+
+        # Create table of interpretations
+        table = Table(
+            title="Possible Interpretations",
+            show_header=True,
+            header_style="bold cyan",
+            border_style="dim",
+        )
+
+        table.add_column("#", style="cyan", width=3)
+        table.add_column("Interpretation", style="white", ratio=3)
+        table.add_column("Confidence", style="dim", width=10)
+        table.add_column("Details", style="dim", ratio=2)
+
+        for interp in question.interpretations:
+            confidence_bar = "█" * int(interp.confidence * 10)
+            confidence_str = f"{confidence_bar} {interp.confidence:.0%}"
+
+            details = interp.reasoning
+            if interp.risks:
+                details += f"\n[red]Risks: {', '.join(interp.risks)}[/red]"
+
+            table.add_row(
+                str(interp.id),
+                f"[bold]{interp.title}[/bold]\n{interp.description}",
+                confidence_str,
+                details,
+            )
+
+        self.console.print(table)
+        self.console.print()
+
+        # Get user choice
+        while True:
+            choice_str = Prompt.ask(
+                "Select an interpretation",
+                choices=[str(i.id) for i in question.interpretations] + ["cancel"],
+                default="1",
+            )
+
+            if choice_str.lower() == "cancel":
+                return None
+
+            try:
+                choice_id = int(choice_str)
+                # Validate choice
+                if any(i.id == choice_id for i in question.interpretations):
+                    return choice_id
+            except ValueError:
+                pass
+
+            self.console.print("[red]Invalid choice. Please try again.[/red]")
+
+    def show_clarification_stats(self, stats: dict) -> None:
+        """
+        Display clarification statistics.
+
+        Args:
+            stats: Statistics dictionary from ClarificationEngine
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        table = Table(title="Clarification Statistics", show_header=True)
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="white")
+
+        table.add_row("Total Clarifications", str(stats.get("total_clarifications", 0)))
+        table.add_row(
+            "Helpful Rate", f"{stats.get('helpful_rate', 0.0) * 100:.1f}%"
+        )
+        table.add_row("Most Common Type", str(stats.get("most_common_type", "N/A")))
+
+        # Type breakdown
+        if "type_breakdown" in stats:
+            table.add_row("", "")  # Spacer
+            table.add_row("[bold]Type Breakdown[/bold]", "")
+            for type_name, count in stats["type_breakdown"].items():
+                table.add_row(f"  {type_name}", str(count))
+
+        self.console.print()
+        self.console.print(Panel(table, border_style="cyan"))
+        self.console.print()
