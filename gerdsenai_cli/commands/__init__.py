@@ -53,6 +53,8 @@ from .audio_commands import (
     AudioStatusCommand,
 )
 from .clarify_commands import ClarifyCommand
+from .complexity_commands import ComplexityCommand
+from .undo_commands import UndoCommand
 
 __all__ = [
     "BaseCommand",
@@ -83,6 +85,8 @@ __all__ = [
     "MemoryCommand",
     "IntelligenceCommand",
     "ClarifyCommand",
+    "ComplexityCommand",
+    "UndoCommand",
     # File commands
     "FilesCommand",
     "ReadCommand",

@@ -545,3 +545,567 @@ class EnhancedConsole:
         self.console.print()
         self.console.print(Panel(table, border_style="cyan"))
         self.console.print()
+
+    def show_complexity_analysis(self, analysis) -> None:
+        """
+        Display complexity analysis result.
+
+        Args:
+            analysis: ComplexityAnalysis object
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.text import Text
+
+        # Main analysis panel
+        complexity_color = {
+            "trivial": "green",
+            "simple": "green",
+            "moderate": "yellow",
+            "complex": "orange",
+            "very_complex": "red",
+        }.get(analysis.complexity_level.value, "white")
+
+        risk_color = {
+            "minimal": "green",
+            "low": "green",
+            "medium": "yellow",
+            "high": "red",
+            "critical": "bold red",
+        }.get(analysis.risk_level.value, "white")
+
+        # Header with complexity and risk
+        header = Text()
+        header.append("Complexity: ", style="bold")
+        header.append(
+            f"{analysis.complexity_level.value.upper().replace('_', ' ')}",
+            style=f"bold {complexity_color}"
+        )
+        header.append(" | Risk: ", style="bold")
+        header.append(
+            f"{analysis.risk_level.value.upper()}",
+            style=f"bold {risk_color}"
+        )
+
+        self.console.print()
+        self.console.print(Panel(header, title="Task Complexity Analysis", border_style="cyan"))
+
+        # Reasoning
+        self.console.print()
+        self.console.print("[bold]Analysis:[/bold]", analysis.reasoning)
+
+        # Resource Estimate
+        self.console.print()
+        est_table = Table(title="Resource Estimate", show_header=True, border_style="dim")
+        est_table.add_column("Resource", style="cyan")
+        est_table.add_column("Estimate", style="white")
+
+        est = analysis.resource_estimate
+        hours = est.estimated_time_minutes // 60
+        mins = est.estimated_time_minutes % 60
+        time_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+
+        est_table.add_row("Estimated Time", time_str)
+        est_table.add_row("Steps", str(est.estimated_steps))
+        est_table.add_row("Files Affected", str(est.file_count))
+        est_table.add_row("Lines of Code", f"~{est.lines_of_code}")
+        est_table.add_row(
+            "Tests Needed",
+            "✓ Yes" if est.test_coverage_needed else "- No"
+        )
+        est_table.add_row(
+            "Docs Needed",
+            "✓ Yes" if est.documentation_needed else "- No"
+        )
+
+        self.console.print(est_table)
+
+        # Impact Assessment
+        self.console.print()
+        impact_table = Table(title="Impact Assessment", show_header=True, border_style="dim")
+        impact_table.add_column("Aspect", style="cyan")
+        impact_table.add_column("Details", style="white")
+
+        impact = analysis.impact_assessment
+        impact_table.add_row(
+            "Scope",
+            impact.impact_scope.value.replace("_", " ").title()
+        )
+        impact_table.add_row(
+            "Components",
+            ", ".join(impact.affected_components)
+        )
+
+        if impact.potential_side_effects:
+            impact_table.add_row(
+                "Side Effects",
+                "\n".join(f"• {effect}" for effect in impact.potential_side_effects)
+            )
+
+        impact_table.add_row(
+            "Breaking Changes",
+            "[red]Likely[/red]" if impact.breaking_changes_likely else "[green]Unlikely[/green]"
+        )
+
+        impact_table.add_row(
+            "Migration Needed",
+            "[yellow]Yes[/yellow]" if impact.requires_migration else "[green]No[/green]"
+        )
+
+        self.console.print(impact_table)
+
+        # Warnings
+        if analysis.warnings:
+            self.console.print()
+            warning_panel = Panel(
+                "\n".join(analysis.warnings),
+                title="⚠️  Warnings",
+                border_style="yellow",
+                style="yellow"
+            )
+            self.console.print(warning_panel)
+
+        # Recommendations
+        if analysis.recommendations:
+            self.console.print()
+            self.console.print("[bold cyan]Recommendations:[/bold cyan]")
+            for i, rec in enumerate(analysis.recommendations, 1):
+                self.console.print(f"  {i}. {rec}")
+
+        # Planning/Confirmation suggestions
+        self.console.print()
+        if analysis.requires_planning:
+            self.console.print(
+                "[bold yellow]💡 Suggestion:[/bold yellow] Use multi-step planning for this task (/plan)"
+            )
+
+        if analysis.requires_confirmation:
+            self.console.print(
+                "[bold red]🔒 Required:[/bold red] User confirmation needed before execution"
+            )
+
+        self.console.print()
+
+    def show_confirmation_dialog(self, preview) -> str | None:
+        """
+        Display confirmation dialog for high-risk operation.
+
+        Args:
+            preview: OperationPreview object
+
+        Returns:
+            User response: "yes", "no", "preview", or None if error
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        # Color code by risk level
+        risk_colors = {
+            "minimal": "green",
+            "low": "green",
+            "medium": "yellow",
+            "high": "red",
+            "critical": "bold red",
+        }
+
+        risk_color = risk_colors.get(preview.risk_level, "yellow")
+
+        # Header
+        self.console.print()
+        self.console.print(
+            Panel(
+                f"[bold {risk_color}]⚠ CONFIRMATION REQUIRED[/bold {risk_color}]\n\n"
+                f"Operation: {preview.description}\n"
+                f"Risk Level: [{risk_color}]{preview.risk_level.upper()}[/{risk_color}]\n"
+                f"Estimated Time: {preview.estimated_time} minutes\n"
+                f"Reversible: {'Yes' if preview.reversible else 'No'}",
+                title="Operation Preview",
+                border_style=risk_color,
+            )
+        )
+
+        # Affected files summary
+        if preview.affected_files:
+            files_table = Table(title="Affected Files", show_header=True)
+            files_table.add_column("File", style="cyan")
+            files_table.add_column("Operation", style="magenta")
+            files_table.add_column("Impact", justify="center")
+            files_table.add_column("Changes")
+
+            for file_change in preview.affected_files[:20]:  # Limit to 20 files
+                impact_color = {
+                    "low": "green",
+                    "medium": "yellow",
+                    "high": "red",
+                }.get(file_change.estimated_impact, "white")
+
+                changes = ""
+                if file_change.lines_added > 0:
+                    changes += f"+{file_change.lines_added} "
+                if file_change.lines_removed > 0:
+                    changes += f"-{file_change.lines_removed}"
+
+                files_table.add_row(
+                    file_change.path,
+                    file_change.operation,
+                    f"[{impact_color}]{file_change.estimated_impact}[/{impact_color}]",
+                    changes or "N/A",
+                )
+
+            if len(preview.affected_files) > 20:
+                files_table.add_row(
+                    f"... and {len(preview.affected_files) - 20} more",
+                    "",
+                    "",
+                    "",
+                )
+
+            self.console.print(files_table)
+
+        # Warnings
+        if preview.warnings:
+            self.console.print()
+            warning_panel = Panel(
+                "\n".join(f"⚠ {warning}" for warning in preview.warnings),
+                title="Warnings",
+                border_style="red",
+            )
+            self.console.print(warning_panel)
+
+        # Recommendations
+        if preview.recommendations:
+            self.console.print()
+            self.console.print("[bold]Recommendations:[/bold]")
+            for i, rec in enumerate(preview.recommendations[:5], 1):
+                self.console.print(f"  {i}. {rec}")
+
+        # Prompt for confirmation
+        self.console.print()
+        self.console.print(
+            "[bold]Do you want to proceed with this operation?[/bold]"
+        )
+        self.console.print(
+            "  [green]yes[/green] - Proceed with operation"
+        )
+        self.console.print(
+            "  [red]no[/red] - Cancel operation"
+        )
+        self.console.print(
+            "  [cyan]preview[/cyan] - Show detailed diff preview"
+        )
+
+        # Get user input
+        response = input("\nYour choice (yes/no/preview): ").strip().lower()
+
+        if response in ["y", "yes"]:
+            return "yes"
+        elif response in ["n", "no"]:
+            return "no"
+        elif response in ["p", "preview"]:
+            return "preview"
+        else:
+            self.console.print("[yellow]Invalid response. Operation cancelled.[/yellow]")
+            return "no"
+
+    def show_file_diff(self, file_change) -> None:
+        """
+        Display file diff in unified diff format.
+
+        Args:
+            file_change: FileChange object
+        """
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+
+        self.console.print()
+        self.console.print(
+            Panel(
+                f"[bold]File:[/bold] {file_change.path}\n"
+                f"[bold]Operation:[/bold] {file_change.operation}\n"
+                f"[bold]Impact:[/bold] {file_change.estimated_impact}\n"
+                f"[bold]Changes:[/bold] +{file_change.lines_added} -{file_change.lines_removed}",
+                title=f"Diff: {file_change.path}",
+                border_style="cyan",
+            )
+        )
+
+        if file_change.operation == "delete":
+            if file_change.old_content:
+                # Show content being deleted
+                syntax = Syntax(
+                    file_change.old_content[:1000],  # Limit to first 1000 chars
+                    "python",
+                    theme="monokai",
+                    line_numbers=True,
+                )
+                self.console.print("[red]Content to be deleted:[/red]")
+                self.console.print(syntax)
+
+        elif file_change.operation == "create":
+            if file_change.new_content:
+                # Show new content
+                syntax = Syntax(
+                    file_change.new_content[:1000],
+                    "python",
+                    theme="monokai",
+                    line_numbers=True,
+                )
+                self.console.print("[green]Content to be created:[/green]")
+                self.console.print(syntax)
+
+        elif file_change.operation == "modify":
+            if file_change.old_content and file_change.new_content:
+                # Generate simple diff
+                old_lines = file_change.old_content.splitlines()
+                new_lines = file_change.new_content.splitlines()
+
+                diff_lines = []
+                max_lines = max(len(old_lines), len(new_lines))
+
+                for i in range(min(max_lines, 50)):  # Limit to 50 lines
+                    old_line = old_lines[i] if i < len(old_lines) else ""
+                    new_line = new_lines[i] if i < len(new_lines) else ""
+
+                    if old_line != new_line:
+                        if old_line:
+                            diff_lines.append(f"- {old_line}")
+                        if new_line:
+                            diff_lines.append(f"+ {new_line}")
+
+                if diff_lines:
+                    syntax = Syntax(
+                        "\n".join(diff_lines),
+                        "diff",
+                        theme="monokai",
+                        line_numbers=False,
+                    )
+                    self.console.print(syntax)
+
+        self.console.print()
+
+    def show_undo_snapshots(self, snapshots: list) -> None:
+        """
+        Display list of available undo snapshots.
+
+        Args:
+            snapshots: List of UndoSnapshot objects
+        """
+        from rich.table import Table
+
+        if not snapshots:
+            self.console.print("[yellow]No undo snapshots available[/yellow]")
+            return
+
+        table = Table(title="Available Undo Snapshots", show_header=True)
+        table.add_column("#", style="cyan", width=3)
+        table.add_column("Snapshot ID", style="magenta")
+        table.add_column("Operation", style="white")
+        table.add_column("Description", style="white", width=40)
+        table.add_column("Files", justify="right")
+        table.add_column("Timestamp", style="dim")
+        table.add_column("Expires", style="yellow")
+
+        for i, snapshot in enumerate(snapshots, 1):
+            # Calculate time until expiration
+            from datetime import datetime
+
+            expires_at = datetime.fromisoformat(snapshot.expires_at)
+            now = datetime.now()
+            time_left = expires_at - now
+
+            hours_left = int(time_left.total_seconds() / 3600)
+            expires_str = f"{hours_left}h" if hours_left > 0 else "expired"
+
+            # Truncate description if too long
+            description = snapshot.description
+            if len(description) > 40:
+                description = description[:37] + "..."
+
+            table.add_row(
+                str(i),
+                snapshot.snapshot_id,
+                snapshot.operation_type.value,
+                description,
+                str(len(snapshot.affected_files)),
+                snapshot.timestamp.split("T")[0],  # Date only
+                expires_str,
+            )
+
+        self.console.print(table)
+        self.console.print(
+            f"\nTotal snapshots: {len(snapshots)} | Use /undo to restore the last operation"
+        )
+
+    def show_undo_result(self, success: bool, message: str, files_restored: int = 0) -> None:
+        """
+        Display result of undo operation.
+
+        Args:
+            success: Whether undo was successful
+            message: Result message
+            files_restored: Number of files restored
+        """
+        from rich.panel import Panel
+
+        if success:
+            panel = Panel(
+                f"[bold green]✓ Undo Successful[/bold green]\n\n"
+                f"{message}\n\n"
+                f"Files restored: {files_restored}",
+                border_style="green",
+            )
+        else:
+            panel = Panel(
+                f"[bold red]✗ Undo Failed[/bold red]\n\n{message}",
+                border_style="red",
+            )
+
+        self.console.print()
+        self.console.print(panel)
+        self.console.print()
+
+    def show_suggestions(self, suggestions: list, max_display: int = 3) -> None:
+        """
+        Display proactive suggestions in a non-intrusive way.
+
+        Args:
+            suggestions: List of Suggestion objects
+            max_display: Maximum number of suggestions to display
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        if not suggestions:
+            return
+
+        # Limit display
+        display_suggestions = suggestions[:max_display]
+
+        # Priority colors
+        priority_colors = {
+            "critical": "bold red",
+            "high": "yellow",
+            "medium": "cyan",
+            "low": "dim",
+        }
+
+        # Build suggestions table
+        table = Table(title="💡 Proactive Suggestions", show_header=True, box=None)
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Priority", width=10)
+        table.add_column("Suggestion", style="bold")
+        table.add_column("Benefit")
+
+        for i, suggestion in enumerate(display_suggestions, 1):
+            # Get priority value (handle both enum and string)
+            priority_value = (
+                suggestion.priority.value
+                if hasattr(suggestion.priority, "value")
+                else suggestion.priority
+            )
+            priority_color = priority_colors.get(priority_value, "white")
+
+            # Get main benefit
+            benefits = suggestion.benefits if hasattr(suggestion, "benefits") else []
+            main_benefit = benefits[0] if benefits else "Improves code quality"
+
+            table.add_row(
+                str(i),
+                f"[{priority_color}]{priority_value.upper()}[/{priority_color}]",
+                suggestion.title,
+                main_benefit,
+            )
+
+        # Show with minimal visual impact
+        self.console.print()
+        self.console.print(table)
+
+        # Show additional info if user wants
+        if len(suggestions) > max_display:
+            self.console.print(
+                f"\n[dim]... and {len(suggestions) - max_display} more suggestion(s)[/dim]"
+            )
+
+        self.console.print(
+            "\n[dim]Use /suggest for detailed suggestions or dismiss to continue[/dim]"
+        )
+        self.console.print()
+
+    def show_suggestion_details(self, suggestions: list) -> None:
+        """
+        Display detailed information about suggestions.
+
+        Args:
+            suggestions: List of Suggestion objects
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        if not suggestions:
+            self.console.print("[yellow]No suggestions available[/yellow]")
+            return
+
+        # Priority colors
+        priority_colors = {
+            "critical": "bold red",
+            "high": "yellow",
+            "medium": "cyan",
+            "low": "white",
+        }
+
+        for i, suggestion in enumerate(suggestions, 1):
+            # Get priority value
+            priority_value = (
+                suggestion.priority.value
+                if hasattr(suggestion, "value")
+                else suggestion.priority
+            )
+            priority_color = priority_colors.get(priority_value, "white")
+
+            # Get type value
+            type_value = (
+                suggestion.suggestion_type.value
+                if hasattr(suggestion.suggestion_type, "value")
+                else suggestion.category
+            )
+
+            # Build content
+            content = f"[bold]Type:[/bold] {type_value}\n"
+            content += f"[bold]Priority:[/bold] [{priority_color}]{priority_value.upper()}[/{priority_color}]\n\n"
+            content += f"{suggestion.description}\n"
+
+            if hasattr(suggestion, "reasoning") and suggestion.reasoning:
+                content += f"\n[bold]Reasoning:[/bold] {suggestion.reasoning}"
+
+            if hasattr(suggestion, "affected_files") and suggestion.affected_files:
+                content += f"\n[bold]Affected Files:[/bold] {', '.join(suggestion.affected_files[:3])}"
+                if len(suggestion.affected_files) > 3:
+                    content += f" (+{len(suggestion.affected_files) - 3} more)"
+
+            if hasattr(suggestion, "code_example") and suggestion.code_example:
+                content += f"\n\n[bold]Example:[/bold]\n[dim]{suggestion.code_example}[/dim]"
+
+            if hasattr(suggestion, "action_command") and suggestion.action_command:
+                content += f"\n\n[bold green]Action:[/bold green] {suggestion.action_command}"
+
+            if hasattr(suggestion, "estimated_time"):
+                content += f"\n[bold]Estimated Time:[/bold] ~{suggestion.estimated_time} minutes"
+
+            if hasattr(suggestion, "benefits") and suggestion.benefits:
+                content += "\n\n[bold]Benefits:[/bold]"
+                for benefit in suggestion.benefits:
+                    content += f"\n  • {benefit}"
+
+            # Display in panel
+            panel = Panel(
+                content,
+                title=f"[{priority_color}]Suggestion {i}: {suggestion.title}[/{priority_color}]",
+                border_style=priority_color,
+            )
+
+            self.console.print()
+            self.console.print(panel)
+
+        self.console.print()
+        self.console.print(f"[dim]Total: {len(suggestions)} suggestion(s)[/dim]")
+        self.console.print()
