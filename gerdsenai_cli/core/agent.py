@@ -570,6 +570,13 @@ class Agent:
         from .confirmation import ConfirmationEngine
         self.confirmation_engine = ConfirmationEngine(data_dir=Path.home() / ".gerdsenai")
 
+        # Initialize proactive suggestion system
+        from .suggestions import ProactiveSuggestor
+        self.suggestor = ProactiveSuggestor(
+            complexity_detector=self.complexity_detector,
+            clarification_engine=self.clarification
+        )
+
         # Security: Input validation and sanitization
         self.input_validator = get_validator(
             strict_mode=settings.get_preference("strict_input_validation", True)

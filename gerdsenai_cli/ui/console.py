@@ -963,3 +963,149 @@ class EnhancedConsole:
         self.console.print()
         self.console.print(panel)
         self.console.print()
+
+    def show_suggestions(self, suggestions: list, max_display: int = 3) -> None:
+        """
+        Display proactive suggestions in a non-intrusive way.
+
+        Args:
+            suggestions: List of Suggestion objects
+            max_display: Maximum number of suggestions to display
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        if not suggestions:
+            return
+
+        # Limit display
+        display_suggestions = suggestions[:max_display]
+
+        # Priority colors
+        priority_colors = {
+            "critical": "bold red",
+            "high": "yellow",
+            "medium": "cyan",
+            "low": "dim",
+        }
+
+        # Build suggestions table
+        table = Table(title="💡 Proactive Suggestions", show_header=True, box=None)
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Priority", width=10)
+        table.add_column("Suggestion", style="bold")
+        table.add_column("Benefit")
+
+        for i, suggestion in enumerate(display_suggestions, 1):
+            # Get priority value (handle both enum and string)
+            priority_value = (
+                suggestion.priority.value
+                if hasattr(suggestion.priority, "value")
+                else suggestion.priority
+            )
+            priority_color = priority_colors.get(priority_value, "white")
+
+            # Get main benefit
+            benefits = suggestion.benefits if hasattr(suggestion, "benefits") else []
+            main_benefit = benefits[0] if benefits else "Improves code quality"
+
+            table.add_row(
+                str(i),
+                f"[{priority_color}]{priority_value.upper()}[/{priority_color}]",
+                suggestion.title,
+                main_benefit,
+            )
+
+        # Show with minimal visual impact
+        self.console.print()
+        self.console.print(table)
+
+        # Show additional info if user wants
+        if len(suggestions) > max_display:
+            self.console.print(
+                f"\n[dim]... and {len(suggestions) - max_display} more suggestion(s)[/dim]"
+            )
+
+        self.console.print(
+            "\n[dim]Use /suggest for detailed suggestions or dismiss to continue[/dim]"
+        )
+        self.console.print()
+
+    def show_suggestion_details(self, suggestions: list) -> None:
+        """
+        Display detailed information about suggestions.
+
+        Args:
+            suggestions: List of Suggestion objects
+        """
+        from rich.panel import Panel
+        from rich.table import Table
+
+        if not suggestions:
+            self.console.print("[yellow]No suggestions available[/yellow]")
+            return
+
+        # Priority colors
+        priority_colors = {
+            "critical": "bold red",
+            "high": "yellow",
+            "medium": "cyan",
+            "low": "white",
+        }
+
+        for i, suggestion in enumerate(suggestions, 1):
+            # Get priority value
+            priority_value = (
+                suggestion.priority.value
+                if hasattr(suggestion, "value")
+                else suggestion.priority
+            )
+            priority_color = priority_colors.get(priority_value, "white")
+
+            # Get type value
+            type_value = (
+                suggestion.suggestion_type.value
+                if hasattr(suggestion.suggestion_type, "value")
+                else suggestion.category
+            )
+
+            # Build content
+            content = f"[bold]Type:[/bold] {type_value}\n"
+            content += f"[bold]Priority:[/bold] [{priority_color}]{priority_value.upper()}[/{priority_color}]\n\n"
+            content += f"{suggestion.description}\n"
+
+            if hasattr(suggestion, "reasoning") and suggestion.reasoning:
+                content += f"\n[bold]Reasoning:[/bold] {suggestion.reasoning}"
+
+            if hasattr(suggestion, "affected_files") and suggestion.affected_files:
+                content += f"\n[bold]Affected Files:[/bold] {', '.join(suggestion.affected_files[:3])}"
+                if len(suggestion.affected_files) > 3:
+                    content += f" (+{len(suggestion.affected_files) - 3} more)"
+
+            if hasattr(suggestion, "code_example") and suggestion.code_example:
+                content += f"\n\n[bold]Example:[/bold]\n[dim]{suggestion.code_example}[/dim]"
+
+            if hasattr(suggestion, "action_command") and suggestion.action_command:
+                content += f"\n\n[bold green]Action:[/bold green] {suggestion.action_command}"
+
+            if hasattr(suggestion, "estimated_time"):
+                content += f"\n[bold]Estimated Time:[/bold] ~{suggestion.estimated_time} minutes"
+
+            if hasattr(suggestion, "benefits") and suggestion.benefits:
+                content += "\n\n[bold]Benefits:[/bold]"
+                for benefit in suggestion.benefits:
+                    content += f"\n  • {benefit}"
+
+            # Display in panel
+            panel = Panel(
+                content,
+                title=f"[{priority_color}]Suggestion {i}: {suggestion.title}[/{priority_color}]",
+                border_style=priority_color,
+            )
+
+            self.console.print()
+            self.console.print(panel)
+
+        self.console.print()
+        self.console.print(f"[dim]Total: {len(suggestions)} suggestion(s)[/dim]")
+        self.console.print()
