@@ -870,6 +870,15 @@ class GerdsenAICLI:
 
                 return await undo_cmd.execute(args)
 
+            elif command == '/suggest':
+                from .commands.suggest_commands import SuggestCommand
+
+                suggest_cmd = SuggestCommand()
+                suggest_cmd.agent = self.agent
+                suggest_cmd.console = console
+
+                return await suggest_cmd.execute(args)
+
             elif command == '/export':
                 if not tui:
                     return "Error: TUI not available for export operation"

@@ -6,7 +6,7 @@ Provides /undo command for reverting recent operations.
 
 import logging
 
-from .base import BaseCommand
+from .base import BaseCommand, CommandCategory
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,8 @@ class UndoCommand(BaseCommand):
     """Command for undoing recent operations."""
 
     name = "undo"
-    help_text = "Undo the last operation (restores from snapshot)"
+    description = "Undo the last operation (restores from snapshot)"
+    category = CommandCategory.AGENT
     usage = "/undo [list|clear|help]"
 
     async def execute(self, args: list[str]) -> str:
