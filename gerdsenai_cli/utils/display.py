@@ -202,7 +202,7 @@ def show_startup_sequence() -> None:
 
 
 def show_loading_spinner(message: str = "Loading...") -> None:
-    """Show a loading message (placeholder for rich.spinner if needed)."""
+    """Show a loading message. Simple text-based loading indicator."""
     console.print(f"[LOADING] {message}", style="yellow")
 
 

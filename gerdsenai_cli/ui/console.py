@@ -165,7 +165,7 @@ class EnhancedConsole:
         # For now, prioritize showing code blocks
         if self.use_tui and code_blocks:
             # Show the complete response as text (simpler for now)
-            # TODO: Enhance to show multiple code blocks in sequence
+            # Future enhancement: Implement pagination for multiple code blocks in TUI mode
             self.layout.update_response(response, is_code=False)
         else:
             # Non-TUI mode: Print each section separately
