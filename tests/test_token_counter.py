@@ -161,8 +161,9 @@ class TestMaxResponseTokens:
             context_window=4096,
             context_usage=0.8,
         )
-        # Should have plenty of space for response
-        assert max_tokens > 1000
+        # Should have space for response (20% of context with usage=0.8)
+        # With context_usage=0.8, response gets 20% of 4096 = ~819 tokens
+        assert max_tokens > 800
 
     def test_estimate_max_response_tokens_large_context(self):
         """Test with large context."""

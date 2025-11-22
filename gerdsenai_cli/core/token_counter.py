@@ -163,11 +163,16 @@ def estimate_max_response_tokens(
     """
     Estimate maximum response tokens available.
 
+    The context_usage parameter controls the input/response allocation:
+    - Higher values (e.g., 0.9) allocate more to input, less to response
+    - Lower values (e.g., 0.5) allocate more to response, less to input
+
     Args:
         messages: Chat messages
         model: Model name
         context_window: Model's context window size
-        context_usage: Fraction of context to use for input (default 0.8)
+        context_usage: Fraction of context to allocate to input (default 0.8)
+                      Response gets (1.0 - context_usage) of the context
 
     Returns:
         Maximum tokens available for response
@@ -175,17 +180,16 @@ def estimate_max_response_tokens(
     # Count tokens in messages
     input_tokens = count_messages_tokens(messages, model)
 
-    # Calculate max input budget
-    int(context_window * context_usage)
+    # Calculate response budget: higher context_usage means less for response
+    # context_usage=0.8 -> response gets 20% of window = 819 tokens
+    # context_usage=0.5 -> response gets 50% of window = 2048 tokens
+    response_budget = int(context_window * (1.0 - context_usage))
 
-    # Calculate remaining tokens for response
-    remaining_tokens = context_window - input_tokens
+    # Also calculate how much space is actually remaining
+    remaining_space = context_window - input_tokens
 
-    # Ensure we don't exceed the usage limit
-    max_response = int((context_window - input_tokens) * (1.0 - context_usage))
-
-    # Return the minimum of remaining and max_response, ensuring it's positive
-    return max(0, min(remaining_tokens, max_response))
+    # Return the smaller of: allocated budget or actual remaining space
+    return max(0, min(response_budget, remaining_space))
 
 
 def truncate_messages_to_fit(

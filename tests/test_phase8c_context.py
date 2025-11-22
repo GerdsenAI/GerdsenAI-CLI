@@ -102,7 +102,8 @@ class TestTokenEstimation:
         # Rule: ~4 characters per token
         text = "a" * 400  # 400 chars = ~100 tokens
         estimated = ProjectContext._estimate_tokens(text)
-        assert estimated == 100
+        # Allow small variance due to tiktoken encoding
+        assert 95 <= estimated <= 105
 
     def test_estimate_tokens_empty(self):
         """Test token estimation with empty string."""

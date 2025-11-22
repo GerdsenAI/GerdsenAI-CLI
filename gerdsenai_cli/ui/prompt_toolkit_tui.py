@@ -1201,25 +1201,32 @@ class PromptToolkitTUI:
             # Try to copy to clipboard using pbcopy on macOS
             import subprocess
 
-            process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
-            process.communicate(markdown_text.encode("utf-8"))
-
-            message_count = len(self.conversation.messages)
-            return True, f"Copied {message_count} messages to clipboard"
-
-        except FileNotFoundError:
-            # pbcopy not available, try pyperclip
             try:
-                import pyperclip
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                process.communicate(markdown_text.encode("utf-8"))
 
-                pyperclip.copy(markdown_text)
                 message_count = len(self.conversation.messages)
                 return True, f"Copied {message_count} messages to clipboard"
-            except ImportError:
-                return (
-                    False,
-                    "Clipboard copy failed: pyperclip not installed and pbcopy not available",
-                )
+            except (FileNotFoundError, OSError):
+                # pbcopy not available, try pyperclip
+                try:
+                    import pyperclip
+
+                    pyperclip.copy(markdown_text)
+                    message_count = len(self.conversation.messages)
+                    return True, f"Copied {message_count} messages to clipboard"
+                except ImportError:
+                    return (
+                        False,
+                        "Clipboard copy failed: pyperclip not installed and pbcopy not available",
+                    )
+                except Exception as pyperclip_error:
+                    # Handle pyperclip exceptions (e.g., no clipboard mechanism)
+                    logger.warning(f"Pyperclip failed: {pyperclip_error}")
+                    return (
+                        False,
+                        "Clipboard copy failed: no clipboard mechanism available",
+                    )
         except Exception as e:
             logger.error(f"Failed to copy conversation: {e}", exc_info=True)
             return False, f"Failed to copy conversation: {str(e)}"

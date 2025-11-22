@@ -220,7 +220,7 @@ class ConversationExporter:
 class ConversationManager:
     """High-level manager for conversation I/O operations."""
 
-    def __init__(self, base_dir: Path | None = None):
+    def __init__(self, base_dir: Path | str | None = None):
         """Initialize conversation manager.
 
         Args:
@@ -228,6 +228,8 @@ class ConversationManager:
         """
         if base_dir is None:
             base_dir = Path.home() / ".gerdsenai"
+        elif isinstance(base_dir, str):
+            base_dir = Path(base_dir)
 
         self.base_dir = base_dir
         self.conversations_dir = base_dir / "conversations"

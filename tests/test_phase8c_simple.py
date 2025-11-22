@@ -64,8 +64,9 @@ def test_token_estimation():
     text = "a" * 400  # 400 chars = ~100 tokens
     estimated = ProjectContext._estimate_tokens(text)
 
-    assert estimated == 100, f"Expected 100, got {estimated}"
-    print(f"  ✅ 400 chars → {estimated} tokens (expected 100)")
+    # Allow small variance due to tiktoken encoding
+    assert 95 <= estimated <= 105, f"Expected ~100, got {estimated}"
+    print(f"  ✅ 400 chars → {estimated} tokens (expected ~100)")
 
     empty = ProjectContext._estimate_tokens("")
     assert empty == 0

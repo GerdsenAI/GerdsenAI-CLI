@@ -124,7 +124,11 @@ class LLMClient:
         self._is_connected = False
         self._available_models: list[ModelInfo] = []
         # Effective retry configuration (instance-scoped)
-        self._max_retries = getattr(settings, "max_retries", MAX_RETRIES) or MAX_RETRIES
+        # Use explicit None check to allow max_retries=0
+        max_retries_from_settings = getattr(settings, "max_retries", None)
+        self._max_retries = (
+            MAX_RETRIES if max_retries_from_settings is None else max_retries_from_settings
+        )
 
         # Performance tracking
         self._request_count = 0

@@ -48,6 +48,9 @@ class RateLimiter:
         self._last_update = time.time()
         self._lock = asyncio.Lock()
 
+        # Per-operation token buckets (operation -> (tokens, last_update))
+        self._operation_buckets: dict[str, tuple[float, float]] = {}
+
         # Request tracking
         self._request_times: deque[float] = deque(maxlen=100)
         self._total_requests = 0
@@ -63,44 +66,100 @@ class RateLimiter:
             operation: Operation name (for per-operation limits)
             tokens: Number of tokens to acquire (default 1)
         """
-        # Get operation-specific rate limit if available
-        rate = self.per_operation_limits.get(operation, self.requests_per_second)
+        # Check if this operation has a specific rate limit
+        if operation in self.per_operation_limits:
+            # Use per-operation token bucket
+            await self._acquire_with_operation_limit(operation, tokens)
+        else:
+            # Use default token bucket
+            await self._acquire_default(tokens)
 
-        async with self._lock:
-            # Refill tokens based on time elapsed
-            now = time.time()
-            elapsed = now - self._last_update
-            self._tokens = min(self.burst_size, self._tokens + elapsed * rate)
-            self._last_update = now
-
-            # Wait if not enough tokens
-            wait_time = 0.0
-            while self._tokens < tokens:
-                # Calculate how long to wait
-                tokens_needed = tokens - self._tokens
-                wait_time = tokens_needed / rate
-                logger.debug(f"Rate limit: waiting {wait_time:.2f}s for {operation}")
-
-                # Release lock while waiting
-                self._lock.release()
-                await asyncio.sleep(wait_time)
-                async with self._lock:
-                    pass  # Re-acquire lock
-                self._lock = asyncio.Lock()  # Reset lock state
-
-                # Refill tokens
+    async def _acquire_default(self, tokens: int = 1) -> None:
+        """Acquire from the default token bucket."""
+        wait_time = 0.0
+        while True:
+            async with self._lock:
+                # Refill tokens based on time elapsed
                 now = time.time()
                 elapsed = now - self._last_update
-                self._tokens = min(self.burst_size, self._tokens + elapsed * rate)
+                self._tokens = min(
+                    self.burst_size, self._tokens + elapsed * self.requests_per_second
+                )
                 self._last_update = now
 
-            # Consume tokens
-            self._tokens -= tokens
+                # Check if we have enough tokens
+                if self._tokens >= tokens:
+                    # Consume tokens
+                    self._tokens -= tokens
 
-            # Track statistics
-            self._request_times.append(now)
-            self._total_requests += 1
-            self._total_wait_time += wait_time
+                    # Track statistics
+                    self._request_times.append(now)
+                    self._total_requests += 1
+                    self._total_wait_time += wait_time
+                    return
+
+                # Calculate how long to wait
+                tokens_needed = tokens - self._tokens
+                sleep_time = tokens_needed / self.requests_per_second
+
+            # Sleep outside the lock
+            logger.debug(f"Rate limit: waiting {sleep_time:.2f}s")
+            await asyncio.sleep(sleep_time)
+            wait_time += sleep_time
+
+    async def _acquire_with_operation_limit(
+        self, operation: str, tokens: int = 1
+    ) -> None:
+        """Acquire from an operation-specific token bucket."""
+        rate = self.per_operation_limits[operation]
+
+        # Calculate operation-specific burst size
+        # Use a smaller burst for per-operation limits to ensure rate limiting works
+        # Use rate * 1 second worth of tokens, minimum of 1
+        op_burst = max(1.0, min(rate, self.burst_size))
+
+        wait_time = 0.0
+
+        while True:
+            async with self._lock:
+                # Initialize operation bucket if needed
+                if operation not in self._operation_buckets:
+                    self._operation_buckets[operation] = (
+                        float(op_burst),
+                        time.time(),
+                    )
+
+                # Get operation bucket state
+                op_tokens, op_last_update = self._operation_buckets[operation]
+
+                # Refill tokens based on time elapsed
+                now = time.time()
+                elapsed = now - op_last_update
+                op_tokens = min(op_burst, op_tokens + elapsed * rate)
+
+                # Check if we have enough tokens
+                if op_tokens >= tokens:
+                    # Consume tokens
+                    op_tokens -= tokens
+                    self._operation_buckets[operation] = (op_tokens, now)
+
+                    # Track statistics
+                    self._request_times.append(now)
+                    self._total_requests += 1
+                    self._total_wait_time += wait_time
+                    return
+
+                # Update bucket state before sleeping
+                self._operation_buckets[operation] = (op_tokens, now)
+
+                # Calculate how long to wait
+                tokens_needed = tokens - op_tokens
+                sleep_time = tokens_needed / rate
+
+            # Sleep outside the lock
+            logger.debug(f"Rate limit: waiting {sleep_time:.2f}s for {operation}")
+            await asyncio.sleep(sleep_time)
+            wait_time += sleep_time
 
     async def try_acquire(self, operation: str = "default", tokens: int = 1) -> bool:
         """
@@ -113,23 +172,57 @@ class RateLimiter:
         Returns:
             True if acquired, False if would need to wait
         """
-        rate = self.per_operation_limits.get(operation, self.requests_per_second)
-
         async with self._lock:
-            # Refill tokens
             now = time.time()
-            elapsed = now - self._last_update
-            self._tokens = min(self.burst_size, self._tokens + elapsed * rate)
-            self._last_update = now
 
-            # Check if enough tokens
-            if self._tokens >= tokens:
-                self._tokens -= tokens
-                self._request_times.append(now)
-                self._total_requests += 1
-                return True
+            # Check if this operation has a specific rate limit
+            if operation in self.per_operation_limits:
+                rate = self.per_operation_limits[operation]
+
+                # Calculate operation-specific burst size
+                op_burst = max(1.0, min(rate, self.burst_size))
+
+                # Initialize operation bucket if needed
+                if operation not in self._operation_buckets:
+                    self._operation_buckets[operation] = (
+                        float(op_burst),
+                        time.time(),
+                    )
+
+                # Get operation bucket state
+                op_tokens, op_last_update = self._operation_buckets[operation]
+
+                # Refill tokens
+                elapsed = now - op_last_update
+                op_tokens = min(op_burst, op_tokens + elapsed * rate)
+
+                # Check if enough tokens
+                if op_tokens >= tokens:
+                    op_tokens -= tokens
+                    self._operation_buckets[operation] = (op_tokens, now)
+                    self._request_times.append(now)
+                    self._total_requests += 1
+                    return True
+                else:
+                    self._operation_buckets[operation] = (op_tokens, now)
+                    return False
             else:
-                return False
+                # Use default bucket
+                elapsed = now - self._last_update
+                self._tokens = min(
+                    self.burst_size,
+                    self._tokens + elapsed * self.requests_per_second,
+                )
+                self._last_update = now
+
+                # Check if enough tokens
+                if self._tokens >= tokens:
+                    self._tokens -= tokens
+                    self._request_times.append(now)
+                    self._total_requests += 1
+                    return True
+                else:
+                    return False
 
     def get_current_rate(self) -> float:
         """

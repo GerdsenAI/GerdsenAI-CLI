@@ -5,6 +5,7 @@ Run this to verify the new TUI components work correctly.
 """
 
 import asyncio
+from unittest.mock import Mock, patch
 
 from rich.console import Console
 
@@ -30,7 +31,7 @@ async def test_tui():
         ai_response="Of course! I'm here to help you with your coding tasks. What would you like to work on?"
     )
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(0.1)  # Shorter sleep for tests
 
     # Test message with code
     print("\n=== Test 2: Message with code ===")
@@ -54,12 +55,13 @@ This is a recursive implementation. For better performance with large numbers, c
         ai_response=code_response
     )
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(0.1)  # Shorter sleep for tests
 
-    # Test confirmation
+    # Test confirmation - mock the input to avoid stdin issues in pytest
     print("\n=== Test 3: Confirmation prompt ===")
-    result = enhanced.confirm("Would you like to apply these changes?", default=True)
-    print(f"User confirmed: {result}")
+    with patch('rich.prompt.Confirm.ask', return_value=True):
+        result = enhanced.confirm("Would you like to apply these changes?", default=True)
+        print(f"User confirmed: {result}")
 
     # Test various messages
     print("\n=== Test 4: Status messages ===")

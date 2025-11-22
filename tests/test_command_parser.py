@@ -92,7 +92,7 @@ class TestCommandParser:
         assert "Keyboard Shortcuts:" in shortcuts_text
         assert "Message Input:" in shortcuts_text
         assert "Navigation:" in shortcuts_text
-        assert "Text Selection:" in shortcuts_text
+        assert "Text Selection" in shortcuts_text  # May include "& Copy" in section header
         assert "General:" in shortcuts_text
 
     def test_get_shortcuts_text_has_shortcuts(self):

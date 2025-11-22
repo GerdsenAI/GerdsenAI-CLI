@@ -395,10 +395,10 @@ class TestCoreModuleExistence:
         from gerdsenai_cli.core import input_validator
         assert input_validator is not None
 
-    def test_intent_parser_module(self):
-        """Test intent parser module."""
-        from gerdsenai_cli.core import intent_parser
-        assert intent_parser is not None
+    def test_terminal_module(self):
+        """Test terminal module."""
+        from gerdsenai_cli.core import terminal
+        assert terminal is not None
 
     def test_llm_client_module(self):
         """Test LLM client module."""
