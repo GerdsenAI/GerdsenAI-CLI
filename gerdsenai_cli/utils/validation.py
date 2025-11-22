@@ -153,7 +153,7 @@ class InputValidator:
                 message=f"Invalid file path: {file_path}",
                 category=ErrorCategory.FILE_NOT_FOUND,
                 original_exception=e,
-            )
+            ) from e
 
         # Check length
         if len(str(path)) > cls.MAX_FILE_PATH_LENGTH:
@@ -187,7 +187,7 @@ class InputValidator:
                             "project_root": str(cwd),
                             "allow_absolute": allow_absolute_only,
                         },
-                    )
+                    ) from None
 
         except GerdsenAIError:
             # Re-raise our own errors
@@ -197,7 +197,7 @@ class InputValidator:
                 message=f"Cannot resolve path: {file_path}",
                 category=ErrorCategory.FILE_NOT_FOUND,
                 original_exception=e,
-            )
+            ) from e
 
         # Check existence
         if must_exist and not resolved.exists():
@@ -332,11 +332,11 @@ class InputValidator:
         """
         try:
             port_int = int(port)
-        except ValueError:
+        except ValueError as e:
             raise ConfigurationError(
                 message=f"Port must be a number: {port}",
                 config_key="llm_port",
-            )
+            ) from e
 
         if port_int < 1 or port_int > 65535:
             raise ConfigurationError(
@@ -368,11 +368,11 @@ class InputValidator:
         """
         try:
             temp = float(temperature)
-        except ValueError:
+        except ValueError as e:
             raise GerdsenAIError(
                 message=f"Temperature must be a number: {temperature}",
                 category=ErrorCategory.INVALID_REQUEST,
-            )
+            ) from e
 
         if temp < 0.0 or temp > 2.0:
             raise GerdsenAIError(

@@ -199,7 +199,7 @@ class RetryStrategy:
                         "primary_error": str(primary_error),
                         "fallback_error": str(fallback_error),
                     },
-                )
+                ) from fallback_error
 
     async def execute_with_timeout(
         self,
@@ -224,12 +224,12 @@ class RetryStrategy:
         try:
             return await asyncio.wait_for(operation(), timeout=timeout_seconds)
 
-        except TimeoutError:
+        except TimeoutError as timeout_err:
             from .errors import TimeoutError as GerdsenAITimeoutError
 
             raise GerdsenAITimeoutError(
                 message=f"{operation_name} timed out", timeout_seconds=timeout_seconds
-            )
+            ) from timeout_err
 
     def should_retry(self, exception: Exception, attempt: int) -> tuple[bool, float]:
         """

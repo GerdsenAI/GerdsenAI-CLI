@@ -267,14 +267,14 @@ class LLaVAPlugin:
                 logger.info("LLaVA analysis complete")
                 return content
 
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
             logger.error(f"LLaVA request timed out after {self.timeout}s")
             raise RuntimeError(
                 "LLaVA request timed out. Try:\n"
                 "- Using a smaller model (llava:7b)\n"
                 "- Increasing timeout\n"
                 "- Reducing image size"
-            )
+            ) from e
         except httpx.HTTPError as e:
             logger.error(f"LLaVA request failed: {e}")
             raise

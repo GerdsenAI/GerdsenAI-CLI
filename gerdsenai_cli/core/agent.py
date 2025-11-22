@@ -570,7 +570,6 @@ class Agent:
         self.intent_parser = IntentParser()
         self.planner = TaskPlanner(llm_client, self)
         self.memory = ProjectMemory(project_root)
-        self.suggestor = ProactiveSuggestor()
 
         # Initialize clarification system
         from .clarification import ClarificationEngine
@@ -590,7 +589,6 @@ class Agent:
         )
 
         # Initialize proactive suggestion system
-        from .suggestions import ProactiveSuggestor
 
         self.suggestor = ProactiveSuggestor(
             complexity_detector=self.complexity_detector,

@@ -269,7 +269,6 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
     """
     import httpx
 
-    type(exception).__name__
     error_message = str(exception).lower()
 
     # Network errors

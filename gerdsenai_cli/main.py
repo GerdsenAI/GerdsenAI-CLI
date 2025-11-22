@@ -76,6 +76,7 @@ from .commands.vision_commands import (
 from .config.manager import ConfigManager
 from .config.settings import Settings
 from .core.agent import Agent
+from .core.errors import GerdsenAIError
 from .core.llm_client import LLMClient
 from .plugins.registry import plugin_registry
 from .ui.console import EnhancedConsole
