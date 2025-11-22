@@ -103,7 +103,7 @@ class LLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate a chat completion (non-streaming).
@@ -129,7 +129,7 @@ class LLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a chat completion.

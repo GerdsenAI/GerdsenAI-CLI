@@ -163,7 +163,9 @@ class ProactiveContextBuilder:
 
         # Priority 2: Files mentioned in current query (HIGH)
         query_mentions = self.extract_file_mentions(user_query)
-        for file_str, confidence in sorted(query_mentions, key=lambda x: x[1], reverse=True):
+        for file_str, confidence in sorted(
+            query_mentions, key=lambda x: x[1], reverse=True
+        ):
             if current_tokens >= self.context_budget:
                 logger.info("Context budget exhausted, stopping file reads")
                 break
@@ -171,7 +173,9 @@ class ProactiveContextBuilder:
             file_path = self._resolve_file_path(file_str)
             if file_path and str(file_path) not in context_files:
                 result = await self._read_file_with_priority(
-                    file_path, ContextPriority.HIGH, f"Mentioned in query (confidence: {confidence})"
+                    file_path,
+                    ContextPriority.HIGH,
+                    f"Mentioned in query (confidence: {confidence})",
                 )
                 if result:
                     context_files[str(file_path)] = result
@@ -212,7 +216,9 @@ class ProactiveContextBuilder:
                 file_path = self._resolve_file_path(file_str)
                 if file_path and str(file_path) not in context_files:
                     result = await self._read_file_with_priority(
-                        file_path, ContextPriority.LOW, "Mentioned in recent conversation"
+                        file_path,
+                        ContextPriority.LOW,
+                        "Mentioned in recent conversation",
                     )
                     if result:
                         context_files[str(file_path)] = result
@@ -256,7 +262,9 @@ class ProactiveContextBuilder:
 
             # Check if we need to truncate
             truncated = False
-            if token_estimate > self.context_budget * 0.3:  # Single file shouldn't be >30%
+            if (
+                token_estimate > self.context_budget * 0.3
+            ):  # Single file shouldn't be >30%
                 # Truncate: Keep beginning and end
                 truncate_to = int(self.context_budget * 0.3 * 4)  # chars
                 half = truncate_to // 2
@@ -338,7 +346,9 @@ class ProactiveContextBuilder:
         }
         return ext_map.get(file_path.suffix.lower(), "unknown")
 
-    def _import_to_path(self, import_str: str, source_file: Path, lang: str) -> Optional[Path]:
+    def _import_to_path(
+        self, import_str: str, source_file: Path, lang: str
+    ) -> Optional[Path]:
         """Convert an import string to a file path."""
         if lang == "python":
             # Convert module path to file path (e.g., "foo.bar" -> "foo/bar.py")

@@ -203,7 +203,9 @@ class ConfirmationEngine:
                 risk_level = complexity_analysis.risk_level.value
 
             if hasattr(complexity_analysis, "resource_estimate"):
-                estimated_time = complexity_analysis.resource_estimate.estimated_time_minutes
+                estimated_time = (
+                    complexity_analysis.resource_estimate.estimated_time_minutes
+                )
 
             if hasattr(complexity_analysis, "factors"):
                 reversible = complexity_analysis.factors.reversibility > 0.7
@@ -400,7 +402,10 @@ class ConfirmationEngine:
         # Check if expired
         expires_at = datetime.fromisoformat(snapshot.expires_at)
         if datetime.now() > expires_at:
-            return False, f"Undo snapshot expired (retention: {self.undo_retention_hours}h)"
+            return (
+                False,
+                f"Undo snapshot expired (retention: {self.undo_retention_hours}h)",
+            )
 
         # Restore files from backup
         backup_path = Path(snapshot.backup_path)
@@ -459,9 +464,7 @@ class ConfirmationEngine:
             List of snapshots (most recent first)
         """
         self._cleanup_expired_snapshots()
-        return sorted(
-            self.snapshots, key=lambda s: s.timestamp, reverse=True
-        )
+        return sorted(self.snapshots, key=lambda s: s.timestamp, reverse=True)
 
     def clear_undo_history(self) -> tuple[int, int]:
         """

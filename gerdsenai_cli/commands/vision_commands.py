@@ -12,10 +12,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
-from ..plugins.registry import plugin_registry
 from ..plugins.base import PluginCategory
+from ..plugins.registry import plugin_registry
 from ..utils.display import show_error, show_info, show_success
+from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -92,14 +92,12 @@ class ImageCommand(BaseCommand):
             path = Path(image_path)
             if not path.exists():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Image file not found: {image_path}"
+                    success=False, message=f"❌ Image file not found: {image_path}"
                 )
 
             if not path.is_file():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Path is not a file: {image_path}"
+                    success=False, message=f"❌ Path is not a file: {image_path}"
                 )
 
             # Get LLaVA plugin
@@ -114,7 +112,7 @@ class ImageCommand(BaseCommand):
                         "1. Install Ollama: https://ollama.ai\n"
                         "2. Pull LLaVA model: `ollama pull llava`\n"
                         "3. Restart GerdsenAI CLI"
-                    )
+                    ),
                 )
 
             # Initialize plugin if needed
@@ -126,8 +124,7 @@ class ImageCommand(BaseCommand):
                 )
                 if not success:
                     return CommandResult(
-                        success=False,
-                        message="❌ Failed to initialize LLaVA plugin"
+                        success=False, message="❌ Failed to initialize LLaVA plugin"
                     )
 
             # Show processing message
@@ -146,23 +143,23 @@ class ImageCommand(BaseCommand):
             )
 
             # Display response in a panel
-            console.print(Panel(
-                Markdown(response),
-                title="🎨 LLaVA Analysis",
-                border_style="green",
-                padding=(1, 2),
-            ))
+            console.print(
+                Panel(
+                    Markdown(response),
+                    title="🎨 LLaVA Analysis",
+                    border_style="green",
+                    padding=(1, 2),
+                )
+            )
 
             return CommandResult(
-                success=True,
-                data={"response": response, "image_path": str(path)}
+                success=True, data={"response": response, "image_path": str(path)}
             )
 
         except Exception as e:
             logger.error(f"Image analysis failed: {e}", exc_info=True)
             return CommandResult(
-                success=False,
-                message=f"❌ Image analysis failed: {e}"
+                success=False, message=f"❌ Image analysis failed: {e}"
             )
 
 
@@ -243,14 +240,12 @@ class OCRCommand(BaseCommand):
             path = Path(image_path)
             if not path.exists():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Image file not found: {image_path}"
+                    success=False, message=f"❌ Image file not found: {image_path}"
                 )
 
             if not path.is_file():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Path is not a file: {image_path}"
+                    success=False, message=f"❌ Path is not a file: {image_path}"
                 )
 
             # Show processing message
@@ -286,7 +281,9 @@ class OCRCommand(BaseCommand):
                             if return_confidence:
                                 extracted_text = result["text"]
                                 confidence = result["confidence"]
-                                method_used = f"Tesseract (confidence: {confidence:.1f}%)"
+                                method_used = (
+                                    f"Tesseract (confidence: {confidence:.1f}%)"
+                                )
                             else:
                                 extracted_text = result
                                 method_used = "Tesseract"
@@ -309,8 +306,7 @@ class OCRCommand(BaseCommand):
                         )
                         if not success:
                             return CommandResult(
-                                success=False,
-                                message="❌ No OCR engine available"
+                                success=False, message="❌ No OCR engine available"
                             )
 
                     console.print("✅ Using LLaVA OCR\n")
@@ -334,17 +330,19 @@ class OCRCommand(BaseCommand):
                             "   - Install Ollama: https://ollama.ai\n"
                             "   - Pull model: `ollama pull llava`\n\n"
                             "Then restart GerdsenAI CLI"
-                        )
+                        ),
                     )
 
             # Display extracted text
             if extracted_text:
-                console.print(Panel(
-                    extracted_text,
-                    title=f"📝 Extracted Text ({method_used})",
-                    border_style="cyan",
-                    padding=(1, 2),
-                ))
+                console.print(
+                    Panel(
+                        extracted_text,
+                        title=f"📝 Extracted Text ({method_used})",
+                        border_style="cyan",
+                        padding=(1, 2),
+                    )
+                )
 
                 # Show stats
                 word_count = len(extracted_text.split())
@@ -360,20 +358,16 @@ class OCRCommand(BaseCommand):
                         "method": method_used,
                         "word_count": word_count,
                         "char_count": char_count,
-                    }
+                    },
                 )
             else:
                 return CommandResult(
-                    success=False,
-                    message="❌ No text extracted from image"
+                    success=False, message="❌ No text extracted from image"
                 )
 
         except Exception as e:
             logger.error(f"OCR failed: {e}", exc_info=True)
-            return CommandResult(
-                success=False,
-                message=f"❌ OCR failed: {e}"
-            )
+            return CommandResult(success=False, message=f"❌ OCR failed: {e}")
 
 
 class VisionStatusCommand(BaseCommand):
@@ -415,8 +409,7 @@ class VisionStatusCommand(BaseCommand):
 
             if not vision_plugins:
                 return CommandResult(
-                    success=False,
-                    message="❌ No vision plugins registered"
+                    success=False, message="❌ No vision plugins registered"
                 )
 
             # Create status table
@@ -466,41 +459,41 @@ class VisionStatusCommand(BaseCommand):
 
             # Show setup instructions if no plugins initialized
             initialized_count = sum(
-                1 for pm in vision_plugins
-                if f"{PluginCategory.VISION.value}.{pm.name}" in plugin_registry._initialized_plugins
+                1
+                for pm in vision_plugins
+                if f"{PluginCategory.VISION.value}.{pm.name}"
+                in plugin_registry._initialized_plugins
             )
 
             if initialized_count == 0:
-                console.print(Panel(
-                    "**Setup Vision Capabilities:**\n\n"
-                    "1. **LLaVA** (Image Understanding):\n"
-                    "   ```\n"
-                    "   ollama pull llava\n"
-                    "   ```\n\n"
-                    "2. **Tesseract** (OCR):\n"
-                    "   ```\n"
-                    "   # Ubuntu/Debian\n"
-                    "   sudo apt install tesseract-ocr\n"
-                    "   pip install pytesseract pillow\n\n"
-                    "   # macOS\n"
-                    "   brew install tesseract\n"
-                    "   pip install pytesseract pillow\n"
-                    "   ```",
-                    title="🔧 Setup Guide",
-                    border_style="yellow",
-                ))
+                console.print(
+                    Panel(
+                        "**Setup Vision Capabilities:**\n\n"
+                        "1. **LLaVA** (Image Understanding):\n"
+                        "   ```\n"
+                        "   ollama pull llava\n"
+                        "   ```\n\n"
+                        "2. **Tesseract** (OCR):\n"
+                        "   ```\n"
+                        "   # Ubuntu/Debian\n"
+                        "   sudo apt install tesseract-ocr\n"
+                        "   pip install pytesseract pillow\n\n"
+                        "   # macOS\n"
+                        "   brew install tesseract\n"
+                        "   pip install pytesseract pillow\n"
+                        "   ```",
+                        title="🔧 Setup Guide",
+                        border_style="yellow",
+                    )
+                )
 
             return CommandResult(
-                success=True,
-                data={"plugins": [pm.name for pm in vision_plugins]}
+                success=True, data={"plugins": [pm.name for pm in vision_plugins]}
             )
 
         except Exception as e:
             logger.error(f"Vision status check failed: {e}", exc_info=True)
-            return CommandResult(
-                success=False,
-                message=f"❌ Status check failed: {e}"
-            )
+            return CommandResult(success=False, message=f"❌ Status check failed: {e}")
 
 
 # Export commands

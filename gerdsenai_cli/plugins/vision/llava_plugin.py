@@ -43,7 +43,7 @@ class LLaVAPlugin:
         self,
         ollama_url: str = "http://localhost:11434",
         default_model: str = "llava:7b",
-        timeout: float = 60.0
+        timeout: float = 60.0,
     ):
         """
         Initialize LLaVA plugin.
@@ -82,7 +82,7 @@ class LLaVAPlugin:
                     "llava:34b",
                     "bakllava",
                 ],
-            }
+            },
         )
         self._initialized = False
         self._available_models: list[str] = []
@@ -109,7 +109,8 @@ class LLaVAPlugin:
                 self._available_models = [
                     model["name"]
                     for model in data.get("models", [])
-                    if "llava" in model["name"].lower() or "bakllava" in model["name"].lower()
+                    if "llava" in model["name"].lower()
+                    or "bakllava" in model["name"].lower()
                 ]
 
                 if not self._available_models:
@@ -163,7 +164,7 @@ class LLaVAPlugin:
             return {
                 "status": "unhealthy",
                 "message": "Plugin not initialized",
-                "details": {}
+                "details": {},
             }
 
         # Check if Ollama is still responding
@@ -180,7 +181,7 @@ class LLaVAPlugin:
                         "default_model": self.default_model,
                         "available_models": self._available_models,
                         "capabilities": self.metadata.capabilities,
-                    }
+                    },
                 }
 
         except Exception as e:
@@ -189,7 +190,7 @@ class LLaVAPlugin:
                 "message": f"Ollama connection failed: {e}",
                 "details": {
                     "ollama_url": self.ollama_url,
-                }
+                },
             }
 
     async def understand_image(
@@ -251,8 +252,8 @@ class LLaVAPlugin:
                         "stream": False,
                         "options": {
                             "temperature": temperature,
-                        }
-                    }
+                        },
+                    },
                 )
                 response.raise_for_status()
 
@@ -380,9 +381,7 @@ class LLaVAPlugin:
             async with httpx.AsyncClient(timeout=None) as client:
                 # Start pull request
                 async with client.stream(
-                    "POST",
-                    f"{self.ollama_url}/api/pull",
-                    json={"name": model_name}
+                    "POST", f"{self.ollama_url}/api/pull", json={"name": model_name}
                 ) as response:
                     response.raise_for_status()
 
@@ -391,6 +390,7 @@ class LLaVAPlugin:
                         if line:
                             try:
                                 import json
+
                                 data = json.loads(line)
                                 status = data.get("status", "")
                                 logger.info(f"Pull status: {status}")

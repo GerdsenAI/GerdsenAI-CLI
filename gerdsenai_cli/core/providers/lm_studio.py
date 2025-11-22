@@ -71,7 +71,7 @@ class LMStudioProvider(LLMProvider):
                             "owned_by": model_data.get("owned_by", "lm-studio"),
                             "created": model_data.get("created"),
                         },
-                        is_loaded=True
+                        is_loaded=True,
                     )
                     models.append(model_info)
 
@@ -88,7 +88,7 @@ class LMStudioProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate chat completion using LM Studio.
@@ -114,8 +114,7 @@ class LMStudioProvider(LLMProvider):
                     request_data.update(kwargs)
 
                 response = await client.post(
-                    f"{self.base_url}/v1/chat/completions",
-                    json=request_data
+                    f"{self.base_url}/v1/chat/completions", json=request_data
                 )
                 response.raise_for_status()
 
@@ -133,7 +132,7 @@ class LMStudioProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream chat completion from LM Studio.
@@ -159,9 +158,7 @@ class LMStudioProvider(LLMProvider):
                     request_data.update(kwargs)
 
                 async with client.stream(
-                    "POST",
-                    f"{self.base_url}/v1/chat/completions",
-                    json=request_data
+                    "POST", f"{self.base_url}/v1/chat/completions", json=request_data
                 ) as response:
                     response.raise_for_status()
 
@@ -173,6 +170,7 @@ class LMStudioProvider(LLMProvider):
 
                             try:
                                 import json
+
                                 data = json.loads(data_str)
                                 delta = data["choices"][0]["delta"]
                                 content = delta.get("content", "")
@@ -208,7 +206,7 @@ class LMStudioProvider(LLMProvider):
                 "gguf_quantization": True,
                 "gpu_layers": True,  # LM Studio supports partial GPU offloading
                 "rope_frequency_scaling": True,
-            }
+            },
         )
 
     def _extract_quantization(self, model_name: str) -> str | None:
@@ -222,10 +220,11 @@ class LMStudioProvider(LLMProvider):
             Quantization level or None
         """
         import re
+
         # Match GGUF quantization patterns
         patterns = [
-            r'Q(\d+)_([KMS]_?[MS]?)',  # Q4_K_M, Q5_K_S, etc.
-            r'q(\d+)_(\d+)',  # q4_0, q5_1
+            r"Q(\d+)_([KMS]_?[MS]?)",  # Q4_K_M, Q5_K_S, etc.
+            r"q(\d+)_(\d+)",  # q4_0, q5_1
         ]
 
         for pattern in patterns:

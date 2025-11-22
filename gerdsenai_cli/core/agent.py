@@ -118,6 +118,7 @@ class IntentParser:
         """Initialize intent parser with patterns and keywords."""
         # Initialize input validator for security
         from .input_validator import get_validator
+
         self.input_validator = get_validator()
 
         # Patterns for detecting different intent types
@@ -172,12 +173,12 @@ class IntentParser:
         project_files: list[str],
     ) -> ActionIntent:
         """Use LLM to detect user intent from natural language.
-        
+
         Args:
             llm_client: LLM client for making inference calls
             user_query: The user's natural language query
             project_files: List of project file paths for context
-            
+
         Returns:
             ActionIntent with detected action and parameters
         """
@@ -190,14 +191,13 @@ class IntentParser:
 
             # Build intent detection prompt
             prompt = INTENT_DETECTION_PROMPT.format(
-                file_list=file_list,
-                user_query=user_query
+                file_list=file_list, user_query=user_query
             )
 
             # Create messages for LLM
             messages = [
                 ChatMessage(role="system", content=prompt),
-                ChatMessage(role="user", content=user_query)
+                ChatMessage(role="user", content=user_query),
             ]
 
             # Call LLM with timeout for intent detection
@@ -208,7 +208,7 @@ class IntentParser:
                         temperature=LLMDefaults.INTENT_DETECTION_TEMPERATURE,
                         max_tokens=LLMDefaults.INTENT_DETECTION_MAX_TOKENS,
                     ),
-                    timeout=LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS
+                    timeout=LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
                 logger.warning(
@@ -218,25 +218,25 @@ class IntentParser:
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,
-                    reasoning="Intent detection timeout"
+                    reasoning="Intent detection timeout",
                 )
-            
+
             if not response:
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,
-                    reasoning="Empty LLM response"
+                    reasoning="Empty LLM response",
                 )
-            
+
             # Parse JSON response
             intent_data = self._parse_intent_json(response)
             if not intent_data:
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,
-                    reasoning="Failed to parse intent JSON"
+                    reasoning="Failed to parse intent JSON",
                 )
-            
+
             # Map LLM action to ActionType
             action_map = {
                 "read_and_explain": ActionType.READ_FILE,
@@ -246,19 +246,18 @@ class IntentParser:
                 "create_files": ActionType.CREATE_FILE,
                 "chat": ActionType.CHAT,
             }
-            
+
             action_type = action_map.get(
-                intent_data.get("action", "chat"),
-                ActionType.CHAT
+                intent_data.get("action", "chat"), ActionType.CHAT
             )
-            
+
             # Extract file paths from detected files
             detected_files = intent_data.get("files", [])
             validated_files = self.extract_file_paths(
                 " ".join(detected_files) if detected_files else user_query,
-                project_files
+                project_files,
             )
-            
+
             # Build parameters
             parameters = {}
             if validated_files:
@@ -266,22 +265,20 @@ class IntentParser:
                 parameters["files"] = validated_files
             if intent_data.get("scope"):
                 parameters["scope"] = intent_data["scope"]
-            
+
             return ActionIntent(
                 action_type=action_type,
                 confidence=float(intent_data.get("confidence", 0.7)),
                 parameters=parameters,
-                reasoning=intent_data.get("reasoning", "LLM-based intent detection")
+                reasoning=intent_data.get("reasoning", "LLM-based intent detection"),
             )
-            
+
         except Exception as e:
             logger.error(f"LLM intent detection failed: {e}")
             return ActionIntent(
-                action_type=ActionType.NONE,
-                confidence=0.0,
-                reasoning=f"Error: {e}"
+                action_type=ActionType.NONE, confidence=0.0, reasoning=f"Error: {e}"
             )
-    
+
     def _parse_intent_json(self, response: str) -> dict[str, Any] | None:
         """Parse JSON from LLM response.
 
@@ -294,8 +291,8 @@ class IntentParser:
         # Try to extract JSON from response (may have markdown code blocks)
         json_patterns = [
             r"```json\s*\n?(.*?)\n?```",  # JSON in code block
-            r"```\s*\n?(.*?)\n?```",      # Generic code block
-            r"(\{.*\})",                   # Raw JSON object
+            r"```\s*\n?(.*?)\n?```",  # Generic code block
+            r"(\{.*\})",  # Raw JSON object
         ]
 
         for pattern in json_patterns:
@@ -310,7 +307,9 @@ class IntentParser:
                         parsed_json, required_fields=["action", "confidence"]
                     )
                     if not is_valid:
-                        logger.warning(f"Intent response validation failed: {error_msg}")
+                        logger.warning(
+                            f"Intent response validation failed: {error_msg}"
+                        )
                         continue
 
                     return parsed_json
@@ -331,32 +330,30 @@ class IntentParser:
 
             return parsed_json
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse intent JSON from response: {response[:100]}")
+            logger.warning(
+                f"Failed to parse intent JSON from response: {response[:100]}"
+            )
             return None
-    
-    def extract_file_paths(
-        self,
-        text: str,
-        project_files: list[str]
-    ) -> list[str]:
+
+    def extract_file_paths(self, text: str, project_files: list[str]) -> list[str]:
         """Extract and validate file paths from user input.
-        
+
         Args:
             text: Text containing potential file paths
             project_files: List of known project file paths
-            
+
         Returns:
             List of validated file paths that exist in the project
         """
         # Patterns for detecting file paths
         path_patterns = [
             r'["\']([^"\']+\.[a-zA-Z0-9]+)["\']',  # Quoted paths with extensions
-            r'`([^`]+\.[a-zA-Z0-9]+)`',             # Backtick paths
-            r'\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b', # Bare paths with extensions
+            r"`([^`]+\.[a-zA-Z0-9]+)`",  # Backtick paths
+            r"\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b",  # Bare paths with extensions
         ]
-        
+
         detected_paths = set()
-        
+
         # Extract paths using patterns
         for pattern in path_patterns:
             matches = re.findall(pattern, text)
@@ -365,32 +362,32 @@ class IntentParser:
                 path = match.strip().strip("'\"` ")
                 if path:
                     detected_paths.add(path)
-        
+
         # Validate against known project files
         validated = []
         project_files_lower = [f.lower() for f in project_files]
-        
+
         for path in detected_paths:
             path_lower = path.lower()
-            
+
             # Exact match
             if path in project_files:
                 validated.append(path)
                 continue
-            
+
             # Case-insensitive match
             if path_lower in project_files_lower:
                 idx = project_files_lower.index(path_lower)
                 validated.append(project_files[idx])
                 continue
-            
+
             # Partial match (filename in any directory)
             filename = Path(path).name
             for proj_file in project_files:
                 if Path(proj_file).name == filename:
                     validated.append(proj_file)
                     break
-        
+
         return validated
 
     def parse_intent(self, llm_response: str, user_query: str = "") -> ActionIntent:
@@ -486,52 +483,69 @@ class IntentParser:
             return for_match.group(1)
 
         return None
-    
+
     def detect_complexity(self, user_input: str) -> str:
         """Detect if query is simple, medium, or complex.
-        
+
         Args:
             user_input: User's query
-            
+
         Returns:
             "simple", "medium", or "complex"
         """
         user_lower = user_input.lower()
-        
+
         # Complex task indicators
         complex_keywords = [
-            "refactor all", "update all", "add to all", "modify all",
-            "migrate", "convert all", "restructure", "rewrite",
-            "implement feature", "add system", "create module",
-            "integrate", "build", "setup", "configure",
+            "refactor all",
+            "update all",
+            "add to all",
+            "modify all",
+            "migrate",
+            "convert all",
+            "restructure",
+            "rewrite",
+            "implement feature",
+            "add system",
+            "create module",
+            "integrate",
+            "build",
+            "setup",
+            "configure",
         ]
-        
+
         # Medium complexity indicators
         medium_keywords = [
-            "refactor", "update multiple", "create several",
-            "modify and test", "implement and test", "add and test",
-            "create new", "build a", "add feature",
+            "refactor",
+            "update multiple",
+            "create several",
+            "modify and test",
+            "implement and test",
+            "add and test",
+            "create new",
+            "build a",
+            "add feature",
         ]
-        
+
         # Check for multiple file references
-        file_count = len(re.findall(r'\b\w+\.\w+\b', user_input))
+        file_count = len(re.findall(r"\b\w+\.\w+\b", user_input))
         if file_count > 3:
             return "complex"
         elif file_count > 1:
             return "medium"
-        
+
         # Check for complexity keywords
         if any(keyword in user_lower for keyword in complex_keywords):
             return "complex"
         elif any(keyword in user_lower for keyword in medium_keywords):
             return "medium"
-        
+
         # Check length as a simple heuristic
         if len(user_input.split()) > 30:
             return "complex"
         elif len(user_input.split()) > 15:
             return "medium"
-        
+
         return "simple"
 
 
@@ -560,21 +574,27 @@ class Agent:
 
         # Initialize clarification system
         from .clarification import ClarificationEngine
+
         self.clarification = ClarificationEngine(settings, llm_client)
 
         # Initialize complexity detection system
         from .complexity import ComplexityDetector
+
         self.complexity_detector = ComplexityDetector(llm_client)
 
         # Initialize confirmation dialog system
         from .confirmation import ConfirmationEngine
-        self.confirmation_engine = ConfirmationEngine(data_dir=Path.home() / ".gerdsenai")
+
+        self.confirmation_engine = ConfirmationEngine(
+            data_dir=Path.home() / ".gerdsenai"
+        )
 
         # Initialize proactive suggestion system
         from .suggestions import ProactiveSuggestor
+
         self.suggestor = ProactiveSuggestor(
             complexity_detector=self.complexity_detector,
-            clarification_engine=self.clarification
+            clarification_engine=self.clarification,
         )
 
         # Security: Input validation and sanitization
@@ -584,7 +604,7 @@ class Agent:
 
         # Conversation state
         self.conversation = ConversationContext()
-        
+
         # Planning state
         self.planning_mode = False
 
@@ -614,8 +634,10 @@ class Agent:
             logger.error(f"Failed to initialize agent: {e}")
             show_error(f"Failed to initialize agent: {e}")
             return False
-    
-    def _track_file_access(self, file_path: str | Path, topic: str | None = None) -> None:
+
+    def _track_file_access(
+        self, file_path: str | Path, topic: str | None = None
+    ) -> None:
         """Track file access in memory system.
 
         Args:
@@ -647,7 +669,8 @@ class Agent:
 
             # Extract file paths mentioned
             import re
-            file_pattern = r'(?:^|\s)([a-zA-Z0-9_\-./]+\.[a-zA-Z]{2,5})(?:\s|$|,|:|;)'
+
+            file_pattern = r"(?:^|\s)([a-zA-Z0-9_\-./]+\.[a-zA-Z]{2,5})(?:\s|$|,|:|;)"
             user_files = re.findall(file_pattern, user_input)
             assistant_files = re.findall(file_pattern, assistant_response)
             all_files = list(set(user_files + assistant_files))
@@ -680,117 +703,130 @@ class Agent:
 
         except Exception as e:
             logger.warning(f"Failed to track conversation in memory: {e}")
-    
+
     def _show_suggestions(self, suggestions: list, context: str = "") -> str:
         """Format and display proactive suggestions.
-        
+
         Args:
             suggestions: List of Suggestion objects
             context: Context message to show before suggestions
-            
+
         Returns:
             Formatted suggestions string
         """
         if not suggestions:
             return ""
-        
+
         # Show suggestion generation activity
         if self._console and suggestions:
             self._console.set_intelligence_activity(
                 IntelligenceActivity.GENERATING_SUGGESTIONS,
                 f"Generated {len(suggestions)} suggestions",
-                progress=0.9
+                progress=0.9,
             )
-        
+
         # Check if suggestions are enabled
         if not self.settings.get_preference("show_suggestions", True):
             return ""
-        
+
         result = "\n\n---\n\n"
         result += "💡 **Suggestions:**\n\n"
-        
+
         if context:
             result += f"{context}\n\n"
-        
+
         for i, suggestion in enumerate(suggestions, 1):
             priority_emoji = {
                 "high": "🔴",
                 "medium": "🟡",
                 "low": "🟢",
             }.get(suggestion.priority, "⚪")
-            
+
             result += f"{i}. {priority_emoji} **{suggestion.title}**\n"
             result += f"   {suggestion.description}\n"
             if suggestion.file_path:
                 result += f"   File: `{suggestion.file_path}`\n"
             result += "\n"
-        
-        result += "_Tip: Disable suggestions with `/config set show_suggestions false`_\n"
-        
+
+        result += (
+            "_Tip: Disable suggestions with `/config set show_suggestions false`_\n"
+        )
+
         return result
-    
+
     async def _suggest_planning_mode(
         self, complexity: str, user_input: str
     ) -> str | None:
         """Suggest using planning mode for complex tasks.
-        
+
         Args:
             complexity: "medium" or "complex"
             user_input: Original user input
-            
+
         Returns:
             Planning suggestion message or None to continue normally
         """
         from rich.prompt import Confirm
-        
+
         # Don't suggest if already in planning mode
         if self.planning_mode:
             return None
-        
+
         # Don't suggest for every medium task - only offer for complex
         # or if user preference is set
         auto_suggest = self.settings.get_preference("auto_suggest_planning", True)
         if not auto_suggest:
             return None
-        
+
         if complexity == "medium":
             # Less aggressive for medium complexity
             threshold = 0.3  # 30% chance to suggest
         else:  # complex
             threshold = 0.8  # 80% chance to suggest
-        
+
         import random
+
         if random.random() > threshold:
             return None
-        
+
         # Build suggestion message
-        console.print("\n[yellow]This seems like a complex task that might benefit from planning.[/yellow]")
-        
+        console.print(
+            "\n[yellow]This seems like a complex task that might benefit from planning.[/yellow]"
+        )
+
         if complexity == "complex":
-            console.print("[dim]Complex tasks work better when broken into steps.[/dim]")
+            console.print(
+                "[dim]Complex tasks work better when broken into steps.[/dim]"
+            )
         else:
-            console.print("[dim]Planning helps track progress on multi-step tasks.[/dim]")
-        
-        console.print("\n[bold cyan]Would you like me to create a plan first?[/bold cyan]")
+            console.print(
+                "[dim]Planning helps track progress on multi-step tasks.[/dim]"
+            )
+
+        console.print(
+            "\n[bold cyan]Would you like me to create a plan first?[/bold cyan]"
+        )
         console.print("  • A plan will break this into manageable steps")
         console.print("  • You can review and approve each step")
         console.print("  • Progress will be tracked automatically")
-        
+
         try:
-            use_planning = Confirm.ask("\n[bold]Use planning mode?[/bold]", default=True)
-            
+            use_planning = Confirm.ask(
+                "\n[bold]Use planning mode?[/bold]", default=True
+            )
+
             if use_planning:
                 # Show planning activity
                 if self._console:
                     self._console.set_intelligence_activity(
                         IntelligenceActivity.PLANNING,
                         "Creating multi-step plan",
-                        progress=0.2
+                        progress=0.2,
                     )
-                
+
                 # Create a plan using the planner
                 console.print("\n[cyan]Creating plan...[/cyan]")
-                
+
                 try:
                     # Build context for plan creation
                     context_info = (
@@ -798,82 +834,88 @@ class Agent:
                         f"File count: {len(self.context_manager.files) if self.context_manager.files else 0}\n"
                         f"Task complexity: {complexity}"
                     )
-                    
+
                     # Create the plan
                     plan = await self.planner.create_plan(
-                        user_request=user_input,
-                        context=context_info
+                        user_request=user_input, context=context_info
                     )
-                    
+
                     if plan:
                         # Show plan preview
                         self.planner.show_plan_preview(plan)
-                        
+
                         # Ask if they want to execute now
                         execute_now = Confirm.ask(
-                            "\n[bold]Execute this plan now?[/bold]",
-                            default=True
+                            "\n[bold]Execute this plan now?[/bold]", default=True
                         )
-                        
+
                         if execute_now:
                             # Show plan execution activity
                             if self._console:
                                 self._console.set_intelligence_activity(
                                     IntelligenceActivity.EXECUTING_PLAN,
                                     f"Executing plan with {len(plan.steps)} steps",
-                                    progress=0.0
+                                    progress=0.0,
                                 )
-                            
+
                             # Execute the plan
                             self.planning_mode = True
-                            
+
                             # Enhanced status callback with activity tracking
                             def status_with_activity(status: str) -> None:
                                 console.print(f"[dim]{status}[/dim]")
                                 if self._console and "Step" in status:
                                     # Extract step info if available
                                     import re
-                                    match = re.search(r'Step (\d+)/(\d+)', status)
+
+                                    match = re.search(r"Step (\d+)/(\d+)", status)
                                     if match:
-                                        current, total = int(match.group(1)), int(match.group(2))
+                                        current, total = (
+                                            int(match.group(1)),
+                                            int(match.group(2)),
+                                        )
                                         progress = current / total
                                         self._console.update_intelligence_progress(
                                             progress=progress,
-                                            step_info=f"Step {current}/{total}"
+                                            step_info=f"Step {current}/{total}",
                                         )
-                            
+
                             await self.planner.execute_plan(
                                 plan,
                                 status_callback=status_with_activity,
                                 confirm_callback=lambda step_desc: Confirm.ask(
                                     f"\n[bold]Execute step: {step_desc}?[/bold]",
-                                    default=True
-                                )
+                                    default=True,
+                                ),
                             )
                             self.planning_mode = False
-                            
+
                             if self._console:
                                 self._console.clear_intelligence_activity()
-                            
+
                             return "✅ Plan completed!"
                         else:
                             return "Plan created. Use `/plan continue` to execute it later."
                     else:
-                        console.print("[yellow]Failed to create plan. Proceeding with normal processing.[/yellow]")
+                        console.print(
+                            "[yellow]Failed to create plan. Proceeding with normal processing.[/yellow]"
+                        )
                         return None
-                
+
                 except Exception as e:
                     logger.error(f"Failed to create plan: {e}")
                     console.print(f"[red]Error creating plan: {e}[/red]")
-                    console.print("[yellow]Proceeding with normal processing...[/yellow]")
+                    console.print(
+                        "[yellow]Proceeding with normal processing...[/yellow]"
+                    )
                     return None
             else:
                 # User declined - continue normally
                 return None
-        
+
         except (KeyboardInterrupt, EOFError):
             return None
-    
+
     async def _ask_for_clarification(
         self, intent: ActionIntent, user_input: str
     ) -> str | None:
@@ -894,7 +936,7 @@ class Agent:
             self._console.set_intelligence_activity(
                 IntelligenceActivity.ASKING_CLARIFICATION,
                 "Generating clarification options",
-                progress=0.3
+                progress=0.3,
             )
 
         try:
@@ -906,7 +948,9 @@ class Agent:
             # Check if we've seen similar input before and can learn from history
             past_interpretation = self.clarification.learn_from_history(user_input)
             if past_interpretation:
-                logger.info(f"Found similar past clarification: {past_interpretation.title}")
+                logger.info(
+                    f"Found similar past clarification: {past_interpretation.title}"
+                )
                 # Use past interpretation as the highest confidence option
                 # but still show other options for confirmation
 
@@ -915,7 +959,7 @@ class Agent:
                 self._console.set_intelligence_activity(
                     IntelligenceActivity.ASKING_CLARIFICATION,
                     "Analyzing possible interpretations",
-                    progress=0.6
+                    progress=0.6,
                 )
 
             interpretations = await self.clarification.generate_interpretations(
@@ -924,7 +968,7 @@ class Agent:
                     "action": intent.action_type.value,
                     "confidence": intent.confidence,
                     "reasoning": intent.reasoning,
-                }
+                },
             )
 
             if not interpretations:
@@ -941,11 +985,14 @@ class Agent:
 
             # Determine uncertainty type based on input patterns
             from .clarification import UncertaintyType
+
             uncertainty_type = UncertaintyType.MULTIPLE_INTERPRETATIONS
 
             if any(word in user_input.lower() for word in ["all", "everything"]):
                 uncertainty_type = UncertaintyType.AMBIGUOUS_SCOPE
-            elif any(word in user_input.lower() for word in ["fix", "improve", "better"]):
+            elif any(
+                word in user_input.lower() for word in ["fix", "improve", "better"]
+            ):
                 uncertainty_type = UncertaintyType.UNCLEAR_ACTION
 
             # Create clarifying question
@@ -961,10 +1008,13 @@ class Agent:
                 # Fallback to simple text display
                 console.print(f"\n[yellow]{question.question}[/yellow]\n")
                 for interp in interpretations:
-                    console.print(f"{interp.id}. {interp.title} (confidence: {interp.confidence:.0%})")
+                    console.print(
+                        f"{interp.id}. {interp.title} (confidence: {interp.confidence:.0%})"
+                    )
                     console.print(f"   {interp.description}\n")
 
                 from rich.prompt import Prompt
+
                 choice_str = Prompt.ask("Select interpretation", default="1")
                 choice_id = int(choice_str) if choice_str.isdigit() else None
 
@@ -997,88 +1047,94 @@ class Agent:
             logger.error(f"Error in clarification: {e}")
             # Fallback to continuing with original intent
             return None
-    
+
     def _describe_intent(self, intent: ActionIntent) -> str:
         """Generate a human-readable description of the intent.
-        
+
         Args:
             intent: The action intent to describe
-            
+
         Returns:
             Human-readable description
         """
         action = intent.action_type.value.replace("_", " ").title()
-        
+
         if intent.parameters:
             # Add relevant parameters
             file_path = intent.parameters.get("file_path")
             search_term = intent.parameters.get("search_term")
-            
+
             if file_path:
                 return f"{action} '{file_path}'"
             elif search_term:
                 return f"{action} for '{search_term}'"
-        
+
         if intent.reasoning:
             return f"{action} - {intent.reasoning}"
-        
+
         return action
-    
+
     def _generate_alternative_interpretations(
         self, intent: ActionIntent, user_input: str
     ) -> list[str]:
         """Generate alternative interpretations of user input.
-        
+
         Args:
             intent: The detected intent
             user_input: Original user input
-            
+
         Returns:
             List of alternative interpretations
         """
         alternatives = []
-        
+
         # Common alternative interpretations based on keywords
         user_lower = user_input.lower()
-        
+
         # If they mentioned "file" but intent isn't file-related
         if "file" in user_lower and intent.action_type not in [
-            ActionType.READ_FILE, ActionType.EDIT_FILE, ActionType.CREATE_FILE
+            ActionType.READ_FILE,
+            ActionType.EDIT_FILE,
+            ActionType.CREATE_FILE,
         ]:
             alternatives.append("Read or edit a specific file")
-        
+
         # If they mentioned "project" or "codebase"
-        if any(kw in user_lower for kw in ["project", "codebase", "repository", "repo"]):
+        if any(
+            kw in user_lower for kw in ["project", "codebase", "repository", "repo"]
+        ):
             if intent.action_type != ActionType.ANALYZE_PROJECT:
                 alternatives.append("Analyze the entire project structure")
-        
+
         # If they mentioned "find" or "search"
         if any(kw in user_lower for kw in ["find", "search", "locate", "where"]):
             if intent.action_type != ActionType.SEARCH_FILES:
                 alternatives.append("Search for code patterns across files")
-        
+
         # If they mentioned "explain" or "understand"
         if any(kw in user_lower for kw in ["explain", "understand", "how", "what"]):
             if intent.action_type != ActionType.EXPLAIN_CODE:
                 alternatives.append("Explain how specific code works")
-        
+
         # If they mentioned "create" or "new"
         if any(kw in user_lower for kw in ["create", "new", "add", "make"]):
             if intent.action_type != ActionType.CREATE_FILE:
                 alternatives.append("Create a new file or feature")
-        
+
         # Generic fallback
         if not alternatives:
             alternatives.append("Just have a conversation about it")
             alternatives.append("Get help with available commands")
-        
+
         return alternatives[:3]  # Limit to 3 alternatives
 
     async def process_user_input(self, user_input: str) -> str:
         """Process user input and return agent response."""
         try:
             # Security: Sanitize user input first
-            sanitized_input, warnings = self.input_validator.sanitize_user_input(user_input)
+            sanitized_input, warnings = self.input_validator.sanitize_user_input(
+                user_input
+            )
 
             # Show warnings if any were detected
             if warnings:
@@ -1097,7 +1153,7 @@ class Agent:
                 self._console.set_intelligence_activity(
                     IntelligenceActivity.DETECTING_INTENT,
                     "Analyzing your request",
-                    progress=0.1
+                    progress=0.1,
                 )
 
             # Add user message to conversation
@@ -1108,15 +1164,19 @@ class Agent:
             complexity = self.intent_parser.detect_complexity(user_input)
             if complexity in ["medium", "complex"]:
                 # Suggest using planning mode for complex tasks
-                planning_suggestion = await self._suggest_planning_mode(complexity, user_input)
+                planning_suggestion = await self._suggest_planning_mode(
+                    complexity, user_input
+                )
                 if planning_suggestion:
                     # User wants to use planning mode
                     return planning_suggestion
 
             # Try LLM-based intent detection first (Phase 8b feature)
             intent = None
-            use_llm_intent = self.settings.get_preference("enable_llm_intent_detection", True)
-            
+            use_llm_intent = self.settings.get_preference(
+                "enable_llm_intent_detection", True
+            )
+
             if use_llm_intent:
                 try:
                     # Show intelligence activity
@@ -1124,23 +1184,24 @@ class Agent:
                         self._console.set_intelligence_activity(
                             IntelligenceActivity.DETECTING_INTENT,
                             "Determining action type",
-                            progress=0.2
+                            progress=0.2,
                         )
-                    
+
                     # Get project file list for context
                     project_files = []
                     if self.context_manager.files:
                         project_files = [
-                            str(f.relative_path) for f in self.context_manager.files.values()
+                            str(f.relative_path)
+                            for f in self.context_manager.files.values()
                         ]
-                    
+
                     # Attempt LLM-based intent detection
                     intent = await self.intent_parser.detect_intent_with_llm(
                         llm_client=self.llm_client,
                         user_query=user_input,
-                        project_files=project_files
+                        project_files=project_files,
                     )
-                    
+
                     # Check confidence levels and handle accordingly
                     if intent and intent.confidence >= 0.7:
                         # High confidence - use LLM intent
@@ -1148,33 +1209,41 @@ class Agent:
                             f"LLM intent detection: {intent.action_type.value} "
                             f"(confidence: {intent.confidence:.2f})"
                         )
-                        
+
                         # For READ_FILE intent, we can execute directly without full LLM response
                         if intent.action_type == ActionType.READ_FILE:
-                            action_result = await self._execute_action(intent, user_input, "")
+                            action_result = await self._execute_action(
+                                intent, user_input, ""
+                            )
                             if action_result:
                                 return action_result
-                        
+
                         # For ANALYZE_PROJECT intent, execute directly
                         if intent.action_type == ActionType.ANALYZE_PROJECT:
-                            action_result = await self._execute_action(intent, user_input, "")
+                            action_result = await self._execute_action(
+                                intent, user_input, ""
+                            )
                             if action_result:
                                 return action_result
-                        
+
                         # For SEARCH_FILES intent, execute directly
                         if intent.action_type == ActionType.SEARCH_FILES:
-                            action_result = await self._execute_action(intent, user_input, "")
+                            action_result = await self._execute_action(
+                                intent, user_input, ""
+                            )
                             if action_result:
                                 return action_result
-                    
+
                     elif intent and 0.4 <= intent.confidence < 0.7:
                         # Medium confidence - ask for clarification
-                        clarification = await self._ask_for_clarification(intent, user_input)
+                        clarification = await self._ask_for_clarification(
+                            intent, user_input
+                        )
                         if clarification:
                             return clarification
                         # If user doesn't provide clarification, fall through to normal processing
                         intent = None
-                    
+
                     else:
                         # Low confidence - fall back to regex
                         logger.info(
@@ -1182,12 +1251,16 @@ class Agent:
                             "falling back to regex"
                         )
                         intent = None
-                
+
                 except (TimeoutError, asyncio.TimeoutError) as e:
-                    logger.warning(f"LLM intent detection timed out: {e}, falling back to regex")
+                    logger.warning(
+                        f"LLM intent detection timed out: {e}, falling back to regex"
+                    )
                     intent = None
                 except Exception as e:
-                    logger.warning(f"LLM intent detection failed: {e}, falling back to regex")
+                    logger.warning(
+                        f"LLM intent detection failed: {e}, falling back to regex"
+                    )
                     intent = None
 
             # Build context for LLM if needed
@@ -1258,11 +1331,11 @@ class Agent:
         self, user_input: str, status_callback=None
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Process user input and yield streaming response chunks.
-        
+
         Args:
             user_input: User's input message
             status_callback: Optional callback(operation: str) for status updates
-            
+
         Yields:
             Tuples of (chunk, accumulated_response)
         """
@@ -1273,29 +1346,36 @@ class Agent:
 
             # Try LLM-based intent detection first
             intent = None
-            use_llm_intent = self.settings.get_preference("enable_llm_intent_detection", True)
-            
+            use_llm_intent = self.settings.get_preference(
+                "enable_llm_intent_detection", True
+            )
+
             if use_llm_intent:
                 try:
                     # Notify: analyzing intent
                     if status_callback:
                         status_callback("analyzing")
-                    
+
                     project_files = []
                     if self.context_manager.files:
                         project_files = [
-                            str(f.relative_path) for f in self.context_manager.files.values()
+                            str(f.relative_path)
+                            for f in self.context_manager.files.values()
                         ]
-                    
+
                     intent = await self.intent_parser.detect_intent_with_llm(
                         llm_client=self.llm_client,
                         user_query=user_input,
-                        project_files=project_files
+                        project_files=project_files,
                     )
-                    
+
                     # For high-confidence file operations, execute directly
                     if intent and intent.confidence >= 0.7:
-                        if intent.action_type in [ActionType.READ_FILE, ActionType.ANALYZE_PROJECT, ActionType.SEARCH_FILES]:
+                        if intent.action_type in [
+                            ActionType.READ_FILE,
+                            ActionType.ANALYZE_PROJECT,
+                            ActionType.SEARCH_FILES,
+                        ]:
                             # Notify: executing action
                             if status_callback:
                                 if intent.action_type == ActionType.READ_FILE:
@@ -1304,17 +1384,21 @@ class Agent:
                                     status_callback("searching")
                                 else:
                                     status_callback("processing")
-                            
-                            action_result = await self._execute_action(intent, user_input, "")
+
+                            action_result = await self._execute_action(
+                                intent, user_input, ""
+                            )
                             if action_result:
                                 # Yield complete result as single chunk
                                 yield (action_result, action_result)
                                 return
                     else:
                         intent = None
-                
+
                 except (TimeoutError, asyncio.TimeoutError, Exception) as e:
-                    logger.warning(f"LLM intent detection failed: {e}, falling back to regex")
+                    logger.warning(
+                        f"LLM intent detection failed: {e}, falling back to regex"
+                    )
                     intent = None
 
             # Build context for LLM if needed
@@ -1323,14 +1407,14 @@ class Agent:
                 # Notify: building context
                 if status_callback:
                     status_callback("contextualizing")
-                
+
                 context_prompt = await self._build_project_context(user_input)
                 self.conversation.project_context_built = True
 
             # Prepare messages for LLM
             if status_callback:
                 status_callback("thinking")
-            
+
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
             # Stream the response
@@ -1367,7 +1451,7 @@ class Agent:
                     llm_response, action_result, intent
                 )
                 # Send the additional action result
-                additional = final_response[len(llm_response):]
+                additional = final_response[len(llm_response) :]
                 if additional:
                     yield (additional, final_response)
 
@@ -1404,38 +1488,38 @@ class Agent:
                 self._console.set_intelligence_activity(
                     IntelligenceActivity.ANALYZING_CONTEXT,
                     "Building project context",
-                    progress=0.3
+                    progress=0.3,
                 )
-            
+
             if not self.context_manager.files:
                 await self._analyze_project_structure()
 
             # Phase 8c: Get model context window and calculate token budget
             model_id = self.settings.get_preference("model", "")
             context_window = self.llm_client.get_model_context_window(model_id)
-            
+
             # Get context window usage preference (default 80%)
             context_usage = self.settings.get_preference("context_window_usage", 0.8)
-            
+
             # Calculate max tokens for context (reserve some for response)
             max_context_tokens = int(context_window * context_usage)
-            
+
             # Get auto-read strategy from settings
             strategy = self.settings.get_preference("auto_read_strategy", "smart")
-            
+
             # Track mentioned files from conversation for prioritization
             mentioned_files = self._extract_mentioned_files()
-            
+
             # Track recent files (last 5 files accessed)
             recent_files = self._get_recent_files()
-            
+
             # Use Phase 8c dynamic context building
             logger.info(
                 f"Building dynamic context: model={model_id}, "
                 f"context_window={context_window}, strategy={strategy}, "
                 f"max_tokens={max_context_tokens}"
             )
-            
+
             context = await self.context_manager.build_dynamic_context(
                 query=user_query,
                 max_tokens=max_context_tokens,
@@ -1484,7 +1568,9 @@ class Agent:
                 # Wrap user messages in security tags
                 escaped_msg = ChatMessage(
                     role="user",
-                    content=self.input_validator.escape_for_context(msg.content, "user_input")
+                    content=self.input_validator.escape_for_context(
+                        msg.content, "user_input"
+                    ),
                 )
                 recent_messages.append(escaped_msg)
             else:
@@ -1581,16 +1667,21 @@ How can I help you with your code today?"""
             )
             for ext, count in sorted_langs[:10]:
                 result += f"- {ext}: {count} files\n"
-        
+
         # Add proactive suggestions for project structure
         try:
-            file_dict = {str(k): v for k, v in self.context_manager.files.items()} if self.context_manager.files else {}
+            file_dict = (
+                {str(k): v for k, v in self.context_manager.files.items()}
+                if self.context_manager.files
+                else {}
+            )
             suggestions = self.suggestor.analyze_project_structure(
-                files=file_dict,
-                context={"stats": stats}
+                files=file_dict, context={"stats": stats}
             )
             filtered = self.suggestor.filter_suggestions(suggestions, max_count=3)
-            result += self._show_suggestions(filtered, "Based on your project structure:")
+            result += self._show_suggestions(
+                filtered, "Based on your project structure:"
+            )
         except Exception as e:
             logger.warning(f"Failed to generate project suggestions: {e}")
 
@@ -1622,20 +1713,18 @@ How can I help you with your code today?"""
         if success:
             self.files_modified += 1
             self._track_file_access(file_path, "editing")
-            
+
             # Generate suggestions after edit
             result = f"Successfully edited file: {file_path}"
             try:
                 suggestions = self.suggestor.suggest_after_edit(
-                    file_path=file_path,
-                    operation="modify",
-                    content=new_content
+                    file_path=file_path, operation="modify", content=new_content
                 )
                 filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
                 result += self._show_suggestions(filtered, "After editing this file:")
             except Exception as e:
                 logger.warning(f"Failed to generate suggestions after edit: {e}")
-            
+
             return result
         else:
             return f"Failed to edit file: {file_path}"
@@ -1668,20 +1757,18 @@ How can I help you with your code today?"""
         if success:
             self.files_modified += 1
             self._track_file_access(file_path, "creation")
-            
+
             # Generate suggestions after creation
             result = f"Successfully created file: {file_path}"
             try:
                 suggestions = self.suggestor.suggest_after_edit(
-                    file_path=file_path,
-                    operation="create",
-                    content=new_content
+                    file_path=file_path, operation="create", content=new_content
                 )
                 filtered = self.suggestor.filter_suggestions(suggestions, max_count=2)
                 result += self._show_suggestions(filtered, "After creating this file:")
             except Exception as e:
                 logger.warning(f"Failed to generate suggestions after creation: {e}")
-            
+
             return result
         else:
             return f"Failed to create file: {file_path}"
@@ -1825,35 +1912,35 @@ How can I help you with your code today?"""
     def _extract_mentioned_files(self) -> list[Path]:
         """Extract file paths mentioned in recent conversation."""
         mentioned = []
-        
+
         # Look at last 5 messages for file mentions
         recent_messages = self.conversation.messages[-5:]
-        
+
         for message in recent_messages:
             # Extract file paths from message content
-            file_pattern = r'\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b'
+            file_pattern = r"\b([a-zA-Z0-9_/.-]+\.[a-zA-Z0-9]+)\b"
             matches = re.findall(file_pattern, message.content)
-            
+
             for match in matches:
                 file_path = Path(match)
                 # Check if file exists in project
                 if file_path in self.context_manager.files:
                     mentioned.append(file_path)
-        
+
         return list(set(mentioned))  # Remove duplicates
-    
+
     def _get_recent_files(self) -> list[Path]:
         """Get recently modified files from the project."""
         if not self.context_manager.files:
             return []
-        
+
         # Sort files by modification time (most recent first)
         sorted_files = sorted(
             self.context_manager.files.values(),
             key=lambda f: f.modified_time,
-            reverse=True
+            reverse=True,
         )
-        
+
         # Return top 5 most recently modified files
         return [f.path for f in sorted_files[:5]]
 

@@ -42,7 +42,9 @@ class IntelligenceCommand(BaseCommand):
         """Get command category."""
         return "agent"
 
-    def __init__(self, agent: "Agent", enhanced_console: "EnhancedConsole | None" = None):
+    def __init__(
+        self, agent: "Agent", enhanced_console: "EnhancedConsole | None" = None
+    ):
         """Initialize intelligence command.
 
         Args:
@@ -178,12 +180,14 @@ class IntelligenceCommand(BaseCommand):
             memory = self.agent.memory
             memory_info = memory.get_summary()
 
-            console.print(Panel(
-                memory_info,
-                title="🧠 Memory System",
-                border_style="blue",
-                padding=(1, 2),
-            ))
+            console.print(
+                Panel(
+                    memory_info,
+                    title="🧠 Memory System",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
             console.print("\\n")
 
         return ""

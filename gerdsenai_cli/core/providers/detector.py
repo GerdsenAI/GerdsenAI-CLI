@@ -43,9 +43,7 @@ class ProviderDetector:
     ]
 
     async def detect_provider(
-        self,
-        url: str,
-        timeout: float = 5.0
+        self, url: str, timeout: float = 5.0
     ) -> Optional[LLMProvider]:
         """
         Try to detect which provider is at the given URL.
@@ -73,8 +71,7 @@ class ProviderDetector:
         return None
 
     async def scan_common_ports(
-        self,
-        timeout: float = 2.0
+        self, timeout: float = 2.0
     ) -> list[tuple[str, LLMProvider]]:
         """
         Scan common ports for LLM providers.
@@ -112,10 +109,7 @@ class ProviderDetector:
         return found_providers
 
     async def _check_url(
-        self,
-        url: str,
-        description: str,
-        timeout: float
+        self, url: str, description: str, timeout: float
     ) -> tuple[str, Optional[LLMProvider]]:
         """
         Check a single URL for providers.
@@ -136,8 +130,7 @@ class ProviderDetector:
             return (url, None)
 
     async def get_best_provider(
-        self,
-        preference: Optional[ProviderType] = None
+        self, preference: Optional[ProviderType] = None
     ) -> Optional[LLMProvider]:
         """
         Get the best available provider.
@@ -162,10 +155,7 @@ class ProviderDetector:
         # Return first available provider
         return providers[0][1]
 
-    def get_recommended_config(
-        self,
-        provider_type: ProviderType
-    ) -> dict[str, str]:
+    def get_recommended_config(self, provider_type: ProviderType) -> dict[str, str]:
         """
         Get recommended configuration for a provider type.
 
@@ -180,25 +170,25 @@ class ProviderDetector:
                 "protocol": "http",
                 "llm_host": "localhost",
                 "llm_port": "11434",
-                "description": "Ollama (default configuration)"
+                "description": "Ollama (default configuration)",
             },
             ProviderType.LM_STUDIO: {
                 "protocol": "http",
                 "llm_host": "localhost",
                 "llm_port": "1234",
-                "description": "LM Studio (default configuration)"
+                "description": "LM Studio (default configuration)",
             },
             ProviderType.VLLM: {
                 "protocol": "http",
                 "llm_host": "localhost",
                 "llm_port": "8000",
-                "description": "vLLM (default configuration)"
+                "description": "vLLM (default configuration)",
             },
             ProviderType.HUGGINGFACE_TGI: {
                 "protocol": "http",
                 "llm_host": "localhost",
                 "llm_port": "8080",
-                "description": "Hugging Face TGI (default configuration)"
+                "description": "Hugging Face TGI (default configuration)",
             },
         }
 
@@ -208,8 +198,8 @@ class ProviderDetector:
                 "protocol": "http",
                 "llm_host": "localhost",
                 "llm_port": "8080",
-                "description": "Generic OpenAI-compatible provider"
-            }
+                "description": "Generic OpenAI-compatible provider",
+            },
         )
 
     async def auto_configure(self) -> Optional[dict[str, str]]:
@@ -232,6 +222,7 @@ class ProviderDetector:
 
         # Override with actual detected URL
         from urllib.parse import urlparse
+
         parsed = urlparse(provider.base_url)
 
         config["protocol"] = parsed.scheme or "http"
@@ -243,10 +234,7 @@ class ProviderDetector:
 
         return config
 
-    async def test_provider(
-        self,
-        provider: LLMProvider
-    ) -> dict[str, Any]:
+    async def test_provider(self, provider: LLMProvider) -> dict[str, Any]:
         """
         Test a provider's functionality.
 
@@ -260,7 +248,7 @@ class ProviderDetector:
             "connection": False,
             "models": [],
             "capabilities": None,
-            "errors": []
+            "errors": [],
         }
 
         # Test connection
@@ -285,9 +273,7 @@ class ProviderDetector:
         return results
 
     def format_provider_info(
-        self,
-        provider: LLMProvider,
-        test_results: Optional[dict] = None
+        self, provider: LLMProvider, test_results: Optional[dict] = None
     ) -> str:
         """
         Format provider information for display.
@@ -305,7 +291,9 @@ class ProviderDetector:
         lines.append(f"URL: {provider.base_url}")
 
         if test_results:
-            lines.append(f"Connection: {'✅ OK' if test_results['connection'] else '❌ Failed'}")
+            lines.append(
+                f"Connection: {'✅ OK' if test_results['connection'] else '❌ Failed'}"
+            )
 
             if test_results["models"]:
                 lines.append(f"Models: {len(test_results['models'])}")
@@ -317,7 +305,9 @@ class ProviderDetector:
             caps = test_results["capabilities"]
             if caps:
                 lines.append("Capabilities:")
-                lines.append(f"  • Streaming: {'✅' if caps.supports_streaming else '❌'}")
+                lines.append(
+                    f"  • Streaming: {'✅' if caps.supports_streaming else '❌'}"
+                )
                 lines.append(f"  • Tools: {'✅' if caps.supports_tools else '❌'}")
                 lines.append(f"  • Vision: {'✅' if caps.supports_vision else '❌'}")
 

@@ -16,7 +16,7 @@ Categories:
 - UI/UX constants
 """
 
-from typing import Final, TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from gerdsenai_cli.core.providers.base import ProviderType
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 # =============================================================================
 # PERFORMANCE THRESHOLDS
 # =============================================================================
+
 
 class PerformanceTargets:
     """Performance targets for various operations (in seconds)."""
@@ -54,6 +55,7 @@ class PerformanceTargets:
 # LLM INFERENCE PARAMETERS
 # =============================================================================
 
+
 class LLMDefaults:
     """Default parameters for LLM inference operations."""
 
@@ -67,23 +69,24 @@ class LLMDefaults:
     INTENT_DETECTION_MAX_TOKENS: Final[int] = 300
     """Maximum tokens for intent detection responses"""
 
-    INTENT_DETECTION_TIMEOUT_SECONDS: Final[float] = 5.0
-    """Timeout for intent detection requests"""
+    INTENT_DETECTION_TIMEOUT_SECONDS: Final[float] = 60.0
+    """Timeout for intent detection requests (increased for local AI)"""
 
     # General completion parameters
     DEFAULT_TEMPERATURE: Final[float] = 0.7
     """Default temperature for general completions"""
 
-    DEFAULT_MAX_TOKENS: Final[int] = 2048
-    """Default maximum tokens for responses"""
+    DEFAULT_MAX_TOKENS: Final[int] = 4096
+    """Default maximum tokens for responses (increased for better responses)"""
 
-    DEFAULT_TIMEOUT_SECONDS: Final[float] = 120.0
-    """Default timeout for LLM requests"""
+    DEFAULT_TIMEOUT_SECONDS: Final[float] = 600.0
+    """Default timeout for LLM requests (10 minutes for local AI)"""
 
 
 # =============================================================================
 # FILE HANDLING LIMITS
 # =============================================================================
+
 
 class FileLimits:
     """Limits for file operations and context management."""
@@ -110,6 +113,7 @@ class FileLimits:
 
 # Note: ProviderType is defined in gerdsenai_cli.core.providers.base
 # To avoid circular imports, we use string keys here
+
 
 class ProviderDefaults:
     """Default configuration for LLM providers.
@@ -178,6 +182,7 @@ class ProviderDefaults:
 # FILE TYPE MAPPINGS
 # =============================================================================
 
+
 class FileTypeMapping:
     """Centralized file extension to language/type mappings."""
 
@@ -186,14 +191,24 @@ class FileTypeMapping:
         ".py": {"language": "python", "display": "Python", "category": "code"},
         ".pyi": {"language": "python", "display": "Python Stub", "category": "code"},
         ".pyx": {"language": "cython", "display": "Cython", "category": "code"},
-
         # JavaScript/TypeScript
         ".js": {"language": "javascript", "display": "JavaScript", "category": "code"},
-        ".mjs": {"language": "javascript", "display": "JavaScript Module", "category": "code"},
-        ".jsx": {"language": "javascriptreact", "display": "JavaScript React", "category": "code"},
+        ".mjs": {
+            "language": "javascript",
+            "display": "JavaScript Module",
+            "category": "code",
+        },
+        ".jsx": {
+            "language": "javascriptreact",
+            "display": "JavaScript React",
+            "category": "code",
+        },
         ".ts": {"language": "typescript", "display": "TypeScript", "category": "code"},
-        ".tsx": {"language": "typescriptreact", "display": "TypeScript React", "category": "code"},
-
+        ".tsx": {
+            "language": "typescriptreact",
+            "display": "TypeScript React",
+            "category": "code",
+        },
         # Web
         ".html": {"language": "html", "display": "HTML", "category": "code"},
         ".htm": {"language": "html", "display": "HTML", "category": "code"},
@@ -201,7 +216,6 @@ class FileTypeMapping:
         ".scss": {"language": "scss", "display": "SCSS", "category": "code"},
         ".sass": {"language": "sass", "display": "Sass", "category": "code"},
         ".less": {"language": "less", "display": "Less", "category": "code"},
-
         # Configuration
         ".json": {"language": "json", "display": "JSON", "category": "config"},
         ".yaml": {"language": "yaml", "display": "YAML", "category": "config"},
@@ -209,13 +223,19 @@ class FileTypeMapping:
         ".toml": {"language": "toml", "display": "TOML", "category": "config"},
         ".xml": {"language": "xml", "display": "XML", "category": "config"},
         ".ini": {"language": "ini", "display": "INI", "category": "config"},
-
         # Markdown/Documentation
         ".md": {"language": "markdown", "display": "Markdown", "category": "docs"},
-        ".markdown": {"language": "markdown", "display": "Markdown", "category": "docs"},
-        ".rst": {"language": "restructuredtext", "display": "reStructuredText", "category": "docs"},
+        ".markdown": {
+            "language": "markdown",
+            "display": "Markdown",
+            "category": "docs",
+        },
+        ".rst": {
+            "language": "restructuredtext",
+            "display": "reStructuredText",
+            "category": "docs",
+        },
         ".txt": {"language": "plaintext", "display": "Plain Text", "category": "docs"},
-
         # Systems languages
         ".c": {"language": "c", "display": "C", "category": "code"},
         ".h": {"language": "c", "display": "C Header", "category": "code"},
@@ -223,12 +243,10 @@ class FileTypeMapping:
         ".hpp": {"language": "cpp", "display": "C++ Header", "category": "code"},
         ".rs": {"language": "rust", "display": "Rust", "category": "code"},
         ".go": {"language": "go", "display": "Go", "category": "code"},
-
         # JVM languages
         ".java": {"language": "java", "display": "Java", "category": "code"},
         ".kt": {"language": "kotlin", "display": "Kotlin", "category": "code"},
         ".scala": {"language": "scala", "display": "Scala", "category": "code"},
-
         # Other
         ".sh": {"language": "bash", "display": "Shell Script", "category": "code"},
         ".bash": {"language": "bash", "display": "Bash Script", "category": "code"},
@@ -259,72 +277,141 @@ class FileTypeMapping:
 # TEXT FILE EXTENSIONS
 # =============================================================================
 
-TEXT_FILE_EXTENSIONS: Final[frozenset[str]] = frozenset([
-    # Code
-    ".py", ".pyi", ".pyx",
-    ".js", ".mjs", ".jsx", ".ts", ".tsx",
-    ".c", ".h", ".cpp", ".hpp", ".cc", ".cxx",
-    ".rs", ".go", ".java", ".kt", ".scala",
-    ".rb", ".php", ".swift", ".lua",
-    ".sh", ".bash", ".zsh", ".fish",
-
-    # Web
-    ".html", ".htm", ".css", ".scss", ".sass", ".less",
-    ".svg", ".vue", ".svelte",
-
-    # Configuration
-    ".json", ".yaml", ".yml", ".toml", ".xml", ".ini",
-    ".conf", ".config", ".env",
-
-    # Documentation
-    ".md", ".markdown", ".rst", ".txt", ".tex",
-    ".adoc", ".asciidoc",
-
-    # Data
-    ".sql", ".graphql", ".proto",
-    ".csv", ".tsv",
-])
+TEXT_FILE_EXTENSIONS: Final[frozenset[str]] = frozenset(
+    [
+        # Code
+        ".py",
+        ".pyi",
+        ".pyx",
+        ".js",
+        ".mjs",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".c",
+        ".h",
+        ".cpp",
+        ".hpp",
+        ".cc",
+        ".cxx",
+        ".rs",
+        ".go",
+        ".java",
+        ".kt",
+        ".scala",
+        ".rb",
+        ".php",
+        ".swift",
+        ".lua",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        # Web
+        ".html",
+        ".htm",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".svg",
+        ".vue",
+        ".svelte",
+        # Configuration
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".xml",
+        ".ini",
+        ".conf",
+        ".config",
+        ".env",
+        # Documentation
+        ".md",
+        ".markdown",
+        ".rst",
+        ".txt",
+        ".tex",
+        ".adoc",
+        ".asciidoc",
+        # Data
+        ".sql",
+        ".graphql",
+        ".proto",
+        ".csv",
+        ".tsv",
+    ]
+)
 
 
 # =============================================================================
 # DEFAULT IGNORE PATTERNS
 # =============================================================================
 
-DEFAULT_IGNORE_PATTERNS: Final[frozenset[str]] = frozenset([
-    # Version control
-    ".git", ".svn", ".hg", ".bzr",
-
-    # Dependencies
-    "node_modules", "venv", "env", ".env",
-    ".venv", "virtualenv", "__pycache__",
-    "site-packages", "dist-packages",
-    "vendor", "bower_components",
-
-    # Build outputs
-    "dist", "build", "out", "target",
-    ".next", ".nuxt", ".output",
-    "coverage", ".coverage",
-
-    # IDE/Editor
-    ".vscode", ".idea", ".vs",
-    "*.swp", "*.swo", "*~",
-    ".DS_Store", "Thumbs.db",
-
-    # Package managers
-    ".npm", ".yarn", ".pnpm-store",
-    "Cargo.lock", "package-lock.json",
-    "yarn.lock", "pnpm-lock.yaml",
-
-    # Temporary
-    "tmp", "temp", ".tmp", ".cache",
-    ".pytest_cache", ".mypy_cache",
-    ".ruff_cache", ".tox",
-])
+DEFAULT_IGNORE_PATTERNS: Final[frozenset[str]] = frozenset(
+    [
+        # Version control
+        ".git",
+        ".svn",
+        ".hg",
+        ".bzr",
+        # Dependencies
+        "node_modules",
+        "venv",
+        "env",
+        ".env",
+        ".venv",
+        "virtualenv",
+        "__pycache__",
+        "site-packages",
+        "dist-packages",
+        "vendor",
+        "bower_components",
+        # Build outputs
+        "dist",
+        "build",
+        "out",
+        "target",
+        ".next",
+        ".nuxt",
+        ".output",
+        "coverage",
+        ".coverage",
+        # IDE/Editor
+        ".vscode",
+        ".idea",
+        ".vs",
+        "*.swp",
+        "*.swo",
+        "*~",
+        ".DS_Store",
+        "Thumbs.db",
+        # Package managers
+        ".npm",
+        ".yarn",
+        ".pnpm-store",
+        "Cargo.lock",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        # Temporary
+        "tmp",
+        "temp",
+        ".tmp",
+        ".cache",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+    ]
+)
 
 
 # =============================================================================
 # UI/UX CONSTANTS
 # =============================================================================
+
 
 class UIConstants:
     """Constants for UI/UX behavior."""
@@ -354,6 +441,7 @@ class UIConstants:
 # =============================================================================
 # ERROR MESSAGE FORMATTING
 # =============================================================================
+
 
 class ErrorMessageStyle:
     """Standard formatting for error messages."""

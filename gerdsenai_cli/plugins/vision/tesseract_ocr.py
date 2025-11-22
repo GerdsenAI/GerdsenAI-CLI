@@ -39,11 +39,7 @@ class TesseractOCRPlugin:
     More accurate than LLaVA for text-heavy documents.
     """
 
-    def __init__(
-        self,
-        default_lang: str = "eng",
-        config: str = "--psm 3"
-    ):
+    def __init__(self, default_lang: str = "eng", config: str = "--psm 3"):
         """
         Initialize Tesseract OCR plugin.
 
@@ -81,7 +77,7 @@ class TesseractOCRPlugin:
                     "11": "Sparse text - find as much text as possible",
                     "13": "Raw line - treat image as single text line",
                 },
-            }
+            },
         )
         self._initialized = False
         self._tesseract_available = False
@@ -135,7 +131,9 @@ class TesseractOCRPlugin:
             try:
                 langs_output = self._pytesseract.get_languages()
                 self._available_languages = langs_output
-                logger.info(f"Available languages: {', '.join(self._available_languages[:10])}...")
+                logger.info(
+                    f"Available languages: {', '.join(self._available_languages[:10])}..."
+                )
 
                 # Check if default language is available
                 if self.default_lang not in self._available_languages:
@@ -181,7 +179,7 @@ class TesseractOCRPlugin:
             return {
                 "status": "unhealthy",
                 "message": "Plugin not initialized",
-                "details": {}
+                "details": {},
             }
 
         # Check if Tesseract is still available
@@ -190,7 +188,7 @@ class TesseractOCRPlugin:
             return {
                 "status": "unhealthy",
                 "message": "Tesseract binary not found",
-                "details": {}
+                "details": {},
             }
 
         return {
@@ -201,7 +199,7 @@ class TesseractOCRPlugin:
                 "default_lang": self.default_lang,
                 "available_languages": self._available_languages[:20],  # Limit output
                 "capabilities": self.metadata.capabilities,
-            }
+            },
         }
 
     async def ocr(
@@ -245,6 +243,7 @@ class TesseractOCRPlugin:
             if isinstance(image, bytes):
                 # Convert bytes to PIL Image
                 from io import BytesIO
+
                 img = self._PIL_Image.open(BytesIO(image))
             elif isinstance(image, (str, Path)):
                 path = Path(image)
@@ -263,7 +262,7 @@ class TesseractOCRPlugin:
                     img,
                     lang=lang_string,
                     config=config_string,
-                    output_type=self._pytesseract.Output.DICT
+                    output_type=self._pytesseract.Output.DICT,
                 )
 
                 # Extract text and calculate average confidence
@@ -279,7 +278,9 @@ class TesseractOCRPlugin:
                 ]
 
                 text = " ".join(texts)
-                avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+                avg_confidence = (
+                    sum(confidences) / len(confidences) if confidences else 0
+                )
 
                 logger.info(f"OCR complete - Average confidence: {avg_confidence:.1f}%")
 
@@ -292,9 +293,7 @@ class TesseractOCRPlugin:
             else:
                 # Simple text extraction
                 text = self._pytesseract.image_to_string(
-                    img,
-                    lang=lang_string,
-                    config=config_string
+                    img, lang=lang_string, config=config_string
                 )
 
                 logger.info(f"OCR complete - Extracted {len(text)} characters")
@@ -369,9 +368,7 @@ class TesseractOCRPlugin:
         return self._available_languages.copy()
 
     async def extract_layout(
-        self,
-        image: str | Path | bytes,
-        languages: list[str] = ["en"]
+        self, image: str | Path | bytes, languages: list[str] = ["en"]
     ) -> dict[str, Any]:
         """
         Extract text with layout information.
@@ -395,6 +392,7 @@ class TesseractOCRPlugin:
             # Load image
             if isinstance(image, bytes):
                 from io import BytesIO
+
                 img = self._PIL_Image.open(BytesIO(image))
             else:
                 img = self._PIL_Image.open(image)
@@ -404,26 +402,28 @@ class TesseractOCRPlugin:
                 img,
                 lang=lang_string,
                 config=self.config,
-                output_type=self._pytesseract.Output.DICT
+                output_type=self._pytesseract.Output.DICT,
             )
 
             # Organize by blocks/lines
             regions = []
             for i in range(len(data["text"])):
                 if int(data["conf"][i]) > 0:  # Filter low confidence
-                    regions.append({
-                        "text": data["text"][i],
-                        "confidence": int(data["conf"][i]),
-                        "bbox": {
-                            "x": data["left"][i],
-                            "y": data["top"][i],
-                            "width": data["width"][i],
-                            "height": data["height"][i],
-                        },
-                        "block": data["block_num"][i],
-                        "line": data["line_num"][i],
-                        "word": data["word_num"][i],
-                    })
+                    regions.append(
+                        {
+                            "text": data["text"][i],
+                            "confidence": int(data["conf"][i]),
+                            "bbox": {
+                                "x": data["left"][i],
+                                "y": data["top"][i],
+                                "width": data["width"][i],
+                                "height": data["height"][i],
+                            },
+                            "block": data["block_num"][i],
+                            "line": data["line_num"][i],
+                            "word": data["word_num"][i],
+                        }
+                    )
 
             return {
                 "regions": regions,

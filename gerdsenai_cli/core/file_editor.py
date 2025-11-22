@@ -388,81 +388,89 @@ class FileEditor:
     @measure_performance("file_editing")
     def _is_destructive_operation(self, edit: FileEdit) -> bool:
         """Check if operation is destructive (delete or large overwrite).
-        
+
         Args:
             edit: FileEdit to check
-            
+
         Returns:
             True if operation is destructive
         """
         # DELETE operations are always destructive
         if edit.operation == EditOperation.DELETE:
             return True
-        
+
         # MODIFY operations that remove significant content
         if edit.operation == EditOperation.MODIFY:
             if edit.original_content and edit.new_content:
                 orig_lines = edit.original_content.split("\n")
                 new_lines = edit.new_content.split("\n")
-                
+
                 # Check if more than 50% of content is removed
                 if len(new_lines) < len(orig_lines) * 0.5:
                     return True
-                
+
                 # Check if more than 100 lines are removed
                 if len(orig_lines) - len(new_lines) > 100:
                     return True
-        
+
         return False
-    
+
     async def _confirm_destructive_operation(self, edit: FileEdit) -> bool:
         """Enhanced confirmation for destructive operations.
-        
+
         Args:
             edit: FileEdit to confirm
-            
+
         Returns:
             True if user confirms
         """
         console.print("\n[bold red]⚠️  DESTRUCTIVE OPERATION WARNING[/bold red]\n")
-        
+
         if edit.operation == EditOperation.DELETE:
-            console.print(f"[yellow]This will permanently delete:[/yellow] {edit.target_path}")
-            console.print(f"[dim]File size: {edit.target_path.stat().st_size if edit.target_path.exists() else 0} bytes[/dim]")
-        
+            console.print(
+                f"[yellow]This will permanently delete:[/yellow] {edit.target_path}"
+            )
+            console.print(
+                f"[dim]File size: {edit.target_path.stat().st_size if edit.target_path.exists() else 0} bytes[/dim]"
+            )
+
         elif edit.operation == EditOperation.MODIFY:
             if edit.original_content and edit.new_content:
                 orig_lines = len(edit.original_content.split("\n"))
                 new_lines = len(edit.new_content.split("\n"))
                 removed_lines = orig_lines - new_lines
-                
-                console.print(f"[yellow]This will remove {removed_lines} lines from:[/yellow] {edit.target_path}")
-                console.print(f"[dim]Original: {orig_lines} lines → New: {new_lines} lines[/dim]")
-        
+
+                console.print(
+                    f"[yellow]This will remove {removed_lines} lines from:[/yellow] {edit.target_path}"
+                )
+                console.print(
+                    f"[dim]Original: {orig_lines} lines → New: {new_lines} lines[/dim]"
+                )
+
         # Show backup info
         if self.auto_backup:
             console.print("\n[green]✓ A backup will be created automatically[/green]")
         else:
             console.print("\n[red]✗ No backup will be created[/red]")
-        
+
         console.print()
-        
+
         # Double confirmation for destructive operations
         first_confirm = Confirm.ask(
             "[bold]Do you understand this is a destructive operation?[/bold]",
-            default=False
+            default=False,
         )
-        
+
         if not first_confirm:
             return False
-        
+
         second_confirm = Confirm.ask(
             f"[bold red]Proceed with {edit.operation.value} of {edit.target_path.name}?[/bold red]",
-            default=False
+            default=False,
         )
-        
+
         return second_confirm
-    
+
     async def preview_edit(self, edit: FileEdit, show_full_diff: bool = False) -> None:
         """Preview a file edit with diff display."""
         try:
@@ -607,7 +615,9 @@ class FileEditor:
                     edit.target_path.write_text(edit.new_content, encoding="utf-8")
                     return True
                 else:
-                    logger.error(f"No new content provided for {edit.operation.value} operation")
+                    logger.error(
+                        f"No new content provided for {edit.operation.value} operation"
+                    )
                     return False
 
             elif edit.operation == EditOperation.DELETE:

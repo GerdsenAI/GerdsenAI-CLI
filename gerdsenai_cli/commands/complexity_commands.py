@@ -43,16 +43,15 @@ class ComplexityCommand(BaseCommand):
         context = {}
 
         # Add project stats if available
-        if hasattr(self.agent, 'context_manager') and self.agent.context_manager.files:
+        if hasattr(self.agent, "context_manager") and self.agent.context_manager.files:
             stats = self.agent.context_manager.get_project_stats()
-            context['total_files'] = stats.total_files
-            context['text_files'] = stats.text_files
-            context['languages'] = list(stats.languages.keys())
+            context["total_files"] = stats.total_files
+            context["text_files"] = stats.text_files
+            context["languages"] = list(stats.languages.keys())
 
         # Perform complexity analysis
         analysis = self.agent.complexity_detector.analyze(
-            task_description,
-            context=context
+            task_description, context=context
         )
 
         # Display using rich UI if available
@@ -109,8 +108,12 @@ class ComplexityCommand(BaseCommand):
             output.append("  Side Effects:")
             for effect in impact.potential_side_effects:
                 output.append(f"    • {effect}")
-        output.append(f"  Breaking Changes: {'Likely' if impact.breaking_changes_likely else 'Unlikely'}")
-        output.append(f"  Migration Needed: {'Yes' if impact.requires_migration else 'No'}\n")
+        output.append(
+            f"  Breaking Changes: {'Likely' if impact.breaking_changes_likely else 'Unlikely'}"
+        )
+        output.append(
+            f"  Migration Needed: {'Yes' if impact.requires_migration else 'No'}\n"
+        )
 
         # Warnings
         if analysis.warnings:
@@ -130,7 +133,9 @@ class ComplexityCommand(BaseCommand):
 
         # Suggestions
         if analysis.requires_planning:
-            output.append("💡 Suggestion: Use multi-step planning for this task (/plan)")
+            output.append(
+                "💡 Suggestion: Use multi-step planning for this task (/plan)"
+            )
         if analysis.requires_confirmation:
             output.append("🔒 Required: User confirmation needed before execution")
 

@@ -19,7 +19,7 @@ class GerdsenAILayout:
 
     def __init__(self, console: Console):
         """Initialize the layout manager.
-        
+
         Args:
             console: Rich console instance
         """
@@ -32,7 +32,7 @@ class GerdsenAILayout:
 
     def _setup_layout(self) -> None:
         """Set up the initial layout structure.
-        
+
         Layout structure:
         ┌─────────────────────────────────────────┐
         │ GerdsenAI Response (expandable)         │
@@ -46,8 +46,8 @@ class GerdsenAILayout:
         # Create main layout with response, footer, and input
         self.layout.split(
             Layout(name="response", ratio=1),  # Main response area (expandable)
-            Layout(name="footer", size=3),      # Status/info bar
-            Layout(name="input", size=5),       # Compact input area (2-3 lines visible)
+            Layout(name="footer", size=3),  # Status/info bar
+            Layout(name="input", size=5),  # Compact input area (2-3 lines visible)
         )
 
     def update_status(
@@ -58,7 +58,7 @@ class GerdsenAILayout:
         current_task: Optional[str] = None,
     ) -> None:
         """Update the status bar information.
-        
+
         Args:
             model: Current model name
             context_files: Number of files in context
@@ -76,11 +76,11 @@ class GerdsenAILayout:
 
         # Build status text with task, tokens, context, model
         status_parts = []
-        
+
         # Task info (e.g., "Sublimating... (esc to interrupt · ctrl+t to show todos · 34s · ↓ 9.6k tokens)")
-        if hasattr(self, 'current_task') and self.current_task:
+        if hasattr(self, "current_task") and self.current_task:
             status_parts.append(f"Task: {self.current_task}")
-        
+
         if self.token_count > 0:
             # Format token count nicely (e.g., "9.6k tokens")
             if self.token_count >= 1000:
@@ -88,19 +88,23 @@ class GerdsenAILayout:
             else:
                 token_display = str(self.token_count)
             status_parts.append(f"↓ {token_display} tokens")
-        
+
         if self.context_files > 0:
             status_parts.append(f"Context: {self.context_files} files")
-            
+
         if self.current_model:
             # Shorten model name if it's long
-            model_display = self.current_model.split('/')[-1] if '/' in self.current_model else self.current_model
+            model_display = (
+                self.current_model.split("/")[-1]
+                if "/" in self.current_model
+                else self.current_model
+            )
             if len(model_display) > 30:
                 model_display = model_display[:27] + "..."
             status_parts.append(f"Model: {model_display}")
 
         status_text = " · ".join(status_parts) if status_parts else "Ready"
-        
+
         self.layout["footer"].update(
             Panel(
                 Text(status_text, style="dim white", justify="left"),
@@ -111,26 +115,26 @@ class GerdsenAILayout:
 
     def update_input(self, user_input: str, max_preview_lines: int = 3) -> None:
         """Update the input panel with user's message (compact, 2-3 lines).
-        
+
         For large blocks of text/code, shows a preview with indicator of hidden content.
-        
+
         Args:
             user_input: The user's input text
             max_preview_lines: Maximum lines to show before truncating
         """
-        lines = user_input.split('\n')
-        
+        lines = user_input.split("\n")
+
         if len(lines) > max_preview_lines:
             # Large block - show preview with indicator
             preview_lines = lines[:max_preview_lines]
-            preview_text = '\n'.join(preview_lines)
+            preview_text = "\n".join(preview_lines)
             content = Text()
             content.append(preview_text, style="white")
             content.append(f"\n[pasted text {len(lines)} rows]", style="dim yellow")
         else:
             # Small input - show all
             content = Text(user_input, style="white")
-        
+
         self.layout["input"].update(
             Panel(
                 content,
@@ -140,9 +144,11 @@ class GerdsenAILayout:
             )
         )
 
-    def update_response(self, response: str, is_code: bool = False, language: str = "python") -> None:
+    def update_response(
+        self, response: str, is_code: bool = False, language: str = "python"
+    ) -> None:
         """Update the response panel with AI's message.
-        
+
         Args:
             response: The AI's response text
             is_code: Whether the response is code (for syntax highlighting)
@@ -170,8 +176,6 @@ class GerdsenAILayout:
             )
         )
 
-
-
     def render(self) -> None:
         """Render the current layout to the console."""
         self.console.print(self.layout)
@@ -186,7 +190,7 @@ class LiveTUI:
 
     def __init__(self, console: Console):
         """Initialize live TUI.
-        
+
         Args:
             console: Rich console instance
         """

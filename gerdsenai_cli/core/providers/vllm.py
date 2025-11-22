@@ -71,7 +71,7 @@ class VLLMProvider(LLMProvider):
                             "owned_by": model_data.get("owned_by"),
                             "created": model_data.get("created"),
                         },
-                        is_loaded=True  # vLLM loads models at startup
+                        is_loaded=True,  # vLLM loads models at startup
                     )
                     models.append(model_info)
 
@@ -88,7 +88,7 @@ class VLLMProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate chat completion using vLLM.
@@ -115,8 +115,7 @@ class VLLMProvider(LLMProvider):
                     request_data.update(kwargs)
 
                 response = await client.post(
-                    f"{self.base_url}/v1/chat/completions",
-                    json=request_data
+                    f"{self.base_url}/v1/chat/completions", json=request_data
                 )
                 response.raise_for_status()
 
@@ -134,7 +133,7 @@ class VLLMProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream chat completion from vLLM.
@@ -160,9 +159,7 @@ class VLLMProvider(LLMProvider):
                     request_data.update(kwargs)
 
                 async with client.stream(
-                    "POST",
-                    f"{self.base_url}/v1/chat/completions",
-                    json=request_data
+                    "POST", f"{self.base_url}/v1/chat/completions", json=request_data
                 ) as response:
                     response.raise_for_status()
 
@@ -174,6 +171,7 @@ class VLLMProvider(LLMProvider):
 
                             try:
                                 import json
+
                                 data = json.loads(data_str)
                                 delta = data["choices"][0]["delta"]
                                 content = delta.get("content", "")
@@ -210,5 +208,5 @@ class VLLMProvider(LLMProvider):
                 "lora_adapters": True,
                 "continuous_batching": True,
                 "prefix_caching": True,
-            }
+            },
         )

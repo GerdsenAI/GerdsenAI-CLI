@@ -94,7 +94,7 @@ class WhisperPlugin:
                     "medium",
                     "large-v3",
                 ],
-            }
+            },
         )
         self._initialized = False
         self._model = None
@@ -134,6 +134,7 @@ class WhisperPlugin:
                 if self.device == "auto":
                     try:
                         import torch
+
                         device = "cuda" if torch.cuda.is_available() else "cpu"
                     except ImportError:
                         device = "cpu"
@@ -216,26 +217,24 @@ class WhisperPlugin:
             return {
                 "status": "unhealthy",
                 "message": "Plugin not initialized",
-                "details": {}
+                "details": {},
             }
 
         # Check if ffmpeg still available
         if not shutil.which("ffmpeg"):
-            return {
-                "status": "unhealthy",
-                "message": "ffmpeg not found",
-                "details": {}
-            }
+            return {"status": "unhealthy", "message": "ffmpeg not found", "details": {}}
 
         return {
             "status": "healthy",
             "message": "Whisper plugin operational",
             "details": {
                 "model_size": self.model_size,
-                "engine": "faster-whisper" if self._using_faster_whisper else "openai-whisper",
+                "engine": "faster-whisper"
+                if self._using_faster_whisper
+                else "openai-whisper",
                 "device": self.device,
                 "capabilities": self.metadata.capabilities,
-            }
+            },
         }
 
     async def transcribe(
@@ -339,7 +338,9 @@ class WhisperPlugin:
                     "text": result_raw["text"].strip(),
                     "language": result_raw.get("language"),
                     "duration": None,  # Not available in openai-whisper
-                    "segments": result_raw.get("segments") if return_timestamps else None,
+                    "segments": result_raw.get("segments")
+                    if return_timestamps
+                    else None,
                 }
 
             logger.info(f"Transcription complete - Language: {result['language']}")
@@ -409,7 +410,9 @@ class WhisperPlugin:
                     "probability": None,  # Not available
                 }
 
-            logger.info(f"Detected language: {result['language']} (confidence: {result.get('probability', 'N/A')})")
+            logger.info(
+                f"Detected language: {result['language']} (confidence: {result.get('probability', 'N/A')})"
+            )
             return result
 
         except Exception as e:

@@ -102,7 +102,9 @@ class Suggestion:
         return {
             "suggestion_type": self.category,
             "category": self.category,  # Backwards compatibility
-            "priority": self.priority.value if isinstance(self.priority, SuggestionPriority) else self.priority,
+            "priority": self.priority.value
+            if isinstance(self.priority, SuggestionPriority)
+            else self.priority,
             "title": self.title,
             "description": self.description,
             "reasoning": self.reasoning,
@@ -141,37 +143,61 @@ class ProactiveSuggestor:
                     "priority": SuggestionPriority.HIGH,
                     "title": "Add unit tests",
                     "description": "This file contains functions but no tests. Consider adding unit tests.",
-                    "benefits": ["Catch bugs early", "Document behavior", "Enable safe refactoring"],
+                    "benefits": [
+                        "Catch bugs early",
+                        "Document behavior",
+                        "Enable safe refactoring",
+                    ],
                 },
                 {
                     "trigger": lambda code: "class " in code and "Test" not in code,
                     "priority": SuggestionPriority.HIGH,
                     "title": "Add class tests",
                     "description": "This class could benefit from unit tests to ensure correctness.",
-                    "benefits": ["Verify class behavior", "Prevent regressions", "Improve confidence"],
+                    "benefits": [
+                        "Verify class behavior",
+                        "Prevent regressions",
+                        "Improve confidence",
+                    ],
                 },
             ],
             "documentation": [
                 {
-                    "trigger": lambda code: 'def ' in code and '"""' not in code and "'''" not in code,
+                    "trigger": lambda code: "def " in code
+                    and '"""' not in code
+                    and "'''" not in code,
                     "priority": SuggestionPriority.MEDIUM,
                     "title": "Add docstrings",
                     "description": "Functions are missing docstrings. Add documentation for better maintainability.",
-                    "benefits": ["Improve code understanding", "Enable auto-documentation", "Help IDE autocomplete"],
+                    "benefits": [
+                        "Improve code understanding",
+                        "Enable auto-documentation",
+                        "Help IDE autocomplete",
+                    ],
                 },
                 {
-                    "trigger": lambda code: 'class ' in code and '"""' not in code and "'''" not in code,
+                    "trigger": lambda code: "class " in code
+                    and '"""' not in code
+                    and "'''" not in code,
                     "priority": SuggestionPriority.MEDIUM,
                     "title": "Add class documentation",
                     "description": "Classes should have docstrings explaining their purpose and usage.",
-                    "benefits": ["Document class purpose", "Explain usage patterns", "Aid new developers"],
+                    "benefits": [
+                        "Document class purpose",
+                        "Explain usage patterns",
+                        "Aid new developers",
+                    ],
                 },
                 {
                     "trigger": lambda code: "# TODO" in code or "# FIXME" in code,
                     "priority": SuggestionPriority.LOW,
                     "title": "Address TODOs",
                     "description": "This file contains TODO or FIXME comments that should be addressed.",
-                    "benefits": ["Complete unfinished work", "Improve code quality", "Remove technical debt"],
+                    "benefits": [
+                        "Complete unfinished work",
+                        "Improve code quality",
+                        "Remove technical debt",
+                    ],
                 },
             ],
             "error_handling": [
@@ -180,21 +206,34 @@ class ProactiveSuggestor:
                     "priority": SuggestionPriority.HIGH,
                     "title": "Add error handling for file operations",
                     "description": "File operations should be wrapped in try-except blocks.",
-                    "benefits": ["Prevent crashes", "Handle errors gracefully", "Improve robustness"],
+                    "benefits": [
+                        "Prevent crashes",
+                        "Handle errors gracefully",
+                        "Improve robustness",
+                    ],
                 },
                 {
-                    "trigger": lambda code: ("requests." in code or "httpx." in code) and "try:" not in code,
+                    "trigger": lambda code: ("requests." in code or "httpx." in code)
+                    and "try:" not in code,
                     "priority": SuggestionPriority.HIGH,
                     "title": "Add error handling for network requests",
                     "description": "Network requests should handle exceptions for robustness.",
-                    "benefits": ["Handle network failures", "Improve reliability", "Better user experience"],
+                    "benefits": [
+                        "Handle network failures",
+                        "Improve reliability",
+                        "Better user experience",
+                    ],
                 },
                 {
                     "trigger": lambda code: "raise Exception(" in code,
                     "priority": SuggestionPriority.MEDIUM,
                     "title": "Use specific exception types",
                     "description": "Consider using specific exception types instead of generic Exception.",
-                    "benefits": ["Better error handling", "Clearer intent", "Easier debugging"],
+                    "benefits": [
+                        "Better error handling",
+                        "Clearer intent",
+                        "Easier debugging",
+                    ],
                 },
             ],
             "performance": [
@@ -203,14 +242,22 @@ class ProactiveSuggestor:
                     "priority": SuggestionPriority.LOW,
                     "title": "Consider enumerate()",
                     "description": "Use enumerate() instead of range(len()) for better readability.",
-                    "benefits": ["Improved readability", "More Pythonic", "Clearer intent"],
+                    "benefits": [
+                        "Improved readability",
+                        "More Pythonic",
+                        "Clearer intent",
+                    ],
                 },
                 {
                     "trigger": lambda code: code.count("import ") > 20,
                     "priority": SuggestionPriority.LOW,
                     "title": "Review import count",
                     "description": "Large number of imports may indicate the module is doing too much.",
-                    "benefits": ["Better modularity", "Clearer responsibilities", "Easier maintenance"],
+                    "benefits": [
+                        "Better modularity",
+                        "Clearer responsibilities",
+                        "Easier maintenance",
+                    ],
                 },
             ],
             "security": [
@@ -219,25 +266,38 @@ class ProactiveSuggestor:
                     "priority": SuggestionPriority.CRITICAL,
                     "title": "Avoid eval() and exec()",
                     "description": "Using eval() or exec() is a security risk. Consider safer alternatives.",
-                    "benefits": ["Improved security", "Prevent code injection", "Safer execution"],
+                    "benefits": [
+                        "Improved security",
+                        "Prevent code injection",
+                        "Safer execution",
+                    ],
                 },
                 {
                     "trigger": lambda code: "password" in code.lower() and '"' in code,
                     "priority": SuggestionPriority.CRITICAL,
                     "title": "Avoid hardcoded credentials",
                     "description": "Passwords or secrets should not be hardcoded in source files.",
-                    "benefits": ["Enhanced security", "Easier credential rotation", "No secrets in VCS"],
+                    "benefits": [
+                        "Enhanced security",
+                        "Easier credential rotation",
+                        "No secrets in VCS",
+                    ],
                 },
                 {
-                    "trigger": lambda code: "shell=True" in code and "subprocess" in code,
+                    "trigger": lambda code: "shell=True" in code
+                    and "subprocess" in code,
                     "priority": SuggestionPriority.CRITICAL,
                     "title": "Avoid shell=True in subprocess",
                     "description": "Using shell=True with subprocess is a security risk for command injection.",
-                    "benefits": ["Prevent command injection", "Improved security", "Safer subprocess execution"],
+                    "benefits": [
+                        "Prevent command injection",
+                        "Improved security",
+                        "Safer subprocess execution",
+                    ],
                 },
             ],
         }
-    
+
     def analyze_file(self, file_path: Path, content: str) -> list[Suggestion]:
         """Analyze a file and generate suggestions.
 
@@ -274,11 +334,9 @@ class ProactiveSuggestor:
                     logger.warning(f"Pattern check failed: {e}")
 
         return suggestions
-    
+
     def analyze_project_structure(
-        self,
-        files: dict[str, Any],
-        context: dict[str, Any]
+        self, files: dict[str, Any], context: dict[str, Any]
     ) -> list[Suggestion]:
         """Analyze project structure and suggest improvements.
 
@@ -297,25 +355,41 @@ class ProactiveSuggestor:
                 "priority": SuggestionPriority.HIGH,
                 "title": "Add README.md",
                 "description": "Projects should have a README explaining purpose and usage.",
-                "benefits": ["Better documentation", "Easier onboarding", "Project visibility"],
+                "benefits": [
+                    "Better documentation",
+                    "Easier onboarding",
+                    "Project visibility",
+                ],
             },
             "requirements.txt": {
                 "priority": SuggestionPriority.MEDIUM,
                 "title": "Add requirements.txt",
                 "description": "Python projects should list dependencies in requirements.txt.",
-                "benefits": ["Reproducible environment", "Clear dependencies", "Easier deployment"],
+                "benefits": [
+                    "Reproducible environment",
+                    "Clear dependencies",
+                    "Easier deployment",
+                ],
             },
             ".gitignore": {
                 "priority": SuggestionPriority.MEDIUM,
                 "title": "Add .gitignore",
                 "description": "Projects should have .gitignore to exclude unnecessary files.",
-                "benefits": ["Cleaner repository", "No sensitive data", "Faster operations"],
+                "benefits": [
+                    "Cleaner repository",
+                    "No sensitive data",
+                    "Faster operations",
+                ],
             },
             "tests": {
                 "priority": SuggestionPriority.HIGH,
                 "title": "Add tests directory",
                 "description": "Projects should have a dedicated tests directory.",
-                "benefits": ["Organized testing", "Better test discovery", "Clear structure"],
+                "benefits": [
+                    "Organized testing",
+                    "Better test discovery",
+                    "Clear structure",
+                ],
             },
         }
 
@@ -335,8 +409,10 @@ class ProactiveSuggestor:
                 suggestions.append(suggestion)
 
         return suggestions
-    
-    def suggest_after_edit(self, file_path: Path, operation: str, content: str | None = None) -> list[Suggestion]:
+
+    def suggest_after_edit(
+        self, file_path: Path, operation: str, content: str | None = None
+    ) -> list[Suggestion]:
         """Generate suggestions after a file edit.
 
         Args:
@@ -354,30 +430,46 @@ class ProactiveSuggestor:
             suggestions.extend(self.analyze_file(file_path, content))
 
         # Suggest creating tests for new files
-        if operation == "create" and file_path.suffix == ".py" and "test_" not in file_path.name:
-            suggestions.append(Suggestion(
-                suggestion_type=SuggestionType.TESTING,
-                priority=SuggestionPriority.HIGH,
-                title="Create tests for new file",
-                description=f"Consider creating test_{file_path.stem}.py to test this new module.",
-                reasoning="New modules should have corresponding test files",
-                affected_files=[str(file_path)],
-                benefits=["Ensure correctness", "Prevent regressions", "Document expected behavior"],
-                file_path=str(file_path),
-            ))
+        if (
+            operation == "create"
+            and file_path.suffix == ".py"
+            and "test_" not in file_path.name
+        ):
+            suggestions.append(
+                Suggestion(
+                    suggestion_type=SuggestionType.TESTING,
+                    priority=SuggestionPriority.HIGH,
+                    title="Create tests for new file",
+                    description=f"Consider creating test_{file_path.stem}.py to test this new module.",
+                    reasoning="New modules should have corresponding test files",
+                    affected_files=[str(file_path)],
+                    benefits=[
+                        "Ensure correctness",
+                        "Prevent regressions",
+                        "Document expected behavior",
+                    ],
+                    file_path=str(file_path),
+                )
+            )
 
         # Suggest documentation for new modules
         if operation == "create" and file_path.suffix == ".py":
-            suggestions.append(Suggestion(
-                suggestion_type=SuggestionType.DOCUMENTATION,
-                priority=SuggestionPriority.MEDIUM,
-                title="Document new module",
-                description="Add a module-level docstring explaining the purpose of this file.",
-                reasoning="Module docstrings improve code understanding",
-                affected_files=[str(file_path)],
-                benefits=["Better documentation", "Easier onboarding", "Clear purpose"],
-                file_path=str(file_path),
-            ))
+            suggestions.append(
+                Suggestion(
+                    suggestion_type=SuggestionType.DOCUMENTATION,
+                    priority=SuggestionPriority.MEDIUM,
+                    title="Document new module",
+                    description="Add a module-level docstring explaining the purpose of this file.",
+                    reasoning="Module docstrings improve code understanding",
+                    affected_files=[str(file_path)],
+                    benefits=[
+                        "Better documentation",
+                        "Easier onboarding",
+                        "Clear purpose",
+                    ],
+                    file_path=str(file_path),
+                )
+            )
 
         return suggestions
 
@@ -401,7 +493,10 @@ class ProactiveSuggestor:
 
         # Suggest planning for complex tasks
         if complexity_analysis:
-            if hasattr(complexity_analysis, "requires_planning") and complexity_analysis.requires_planning:
+            if (
+                hasattr(complexity_analysis, "requires_planning")
+                and complexity_analysis.requires_planning
+            ):
                 suggestions.append(
                     Suggestion(
                         suggestion_type=SuggestionType.PLANNING,
@@ -417,12 +512,17 @@ class ProactiveSuggestor:
                             "Reduced risk of errors",
                             "Clear progress tracking",
                         ],
-                        metadata={"complexity_score": complexity_analysis.complexity_score},
+                        metadata={
+                            "complexity_score": complexity_analysis.complexity_score
+                        },
                     )
                 )
 
             # Suggest confirmation for high-risk
-            if hasattr(complexity_analysis, "requires_confirmation") and complexity_analysis.requires_confirmation:
+            if (
+                hasattr(complexity_analysis, "requires_confirmation")
+                and complexity_analysis.requires_confirmation
+            ):
                 suggestions.append(
                     Suggestion(
                         suggestion_type=SuggestionType.CONFIRMATION,
@@ -441,7 +541,15 @@ class ProactiveSuggestor:
                 )
 
         # Suggest clarification for ambiguous tasks
-        ambiguous_patterns = ["this", "that", "everything", "all files", "fix", "improve", "better"]
+        ambiguous_patterns = [
+            "this",
+            "that",
+            "everything",
+            "all files",
+            "fix",
+            "improve",
+            "better",
+        ]
         detected_ambiguous = [p for p in ambiguous_patterns if p in user_input.lower()]
 
         if detected_ambiguous and len(detected_ambiguous) >= 2:
@@ -451,7 +559,8 @@ class ProactiveSuggestor:
                     priority=SuggestionPriority.MEDIUM,
                     title="Clarify task scope",
                     description="The task description contains ambiguous terms",
-                    reasoning="Ambiguous terms detected: " + ", ".join(detected_ambiguous),
+                    reasoning="Ambiguous terms detected: "
+                    + ", ".join(detected_ambiguous),
                     estimated_time=1,
                     benefits=[
                         "Ensure correct interpretation",
@@ -483,7 +592,10 @@ class ProactiveSuggestor:
             )
 
         # Suggest documentation for new features
-        if any(keyword in user_input.lower() for keyword in ["new feature", "add feature", "implement"]):
+        if any(
+            keyword in user_input.lower()
+            for keyword in ["new feature", "add feature", "implement"]
+        ):
             suggestions.append(
                 Suggestion(
                     suggestion_type=SuggestionType.DOCUMENTATION,
@@ -501,12 +613,12 @@ class ProactiveSuggestor:
             )
 
         return suggestions
-    
+
     def filter_suggestions(
         self,
         suggestions: list[Suggestion],
         max_count: int = 3,
-        min_priority: str | SuggestionPriority = "low"
+        min_priority: str | SuggestionPriority = "low",
     ) -> list[Suggestion]:
         """Filter and prioritize suggestions.
 

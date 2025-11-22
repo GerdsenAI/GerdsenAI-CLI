@@ -36,8 +36,30 @@ class Settings(BaseModel):
 
     current_model: str = Field(default="", description="Currently selected model name")
 
+    # Timeout Configuration (significantly increased for local AI models)
     api_timeout: float = Field(
-        default=30.0, ge=1.0, le=300.0, description="API timeout in seconds"
+        default=600.0,
+        ge=1.0,
+        le=3600.0,
+        description="Default API timeout in seconds (10 min for local AI)",
+    )
+    health_check_timeout: float = Field(
+        default=10.0, ge=1.0, le=60.0, description="Health check timeout in seconds"
+    )
+    model_list_timeout: float = Field(
+        default=30.0, ge=1.0, le=120.0, description="Model listing timeout in seconds"
+    )
+    chat_timeout: float = Field(
+        default=600.0,
+        ge=1.0,
+        le=3600.0,
+        description="Chat completion timeout in seconds",
+    )
+    stream_timeout: float = Field(
+        default=600.0,
+        ge=1.0,
+        le=3600.0,
+        description="Streaming response timeout in seconds",
     )
 
     # Phase 8c: Dynamic Context Management

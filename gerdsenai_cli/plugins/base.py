@@ -15,6 +15,7 @@ from typing import Any, AsyncGenerator, Protocol, runtime_checkable
 # ENUMS
 # =============================================================================
 
+
 class PluginCategory(Enum):
     """Plugin category for organization and discovery."""
 
@@ -44,6 +45,7 @@ class ContentType(Enum):
 # MULTIMODAL MESSAGE FORMAT
 # =============================================================================
 
+
 @dataclass
 class ContentPart:
     """
@@ -62,10 +64,14 @@ class ContentPart:
             raise ValueError(f"TEXT content must be str, got {type(self.data)}")
         elif self.type == ContentType.IMAGE:
             if not isinstance(self.data, (str, Path, bytes)):
-                raise ValueError(f"IMAGE content must be str|Path|bytes, got {type(self.data)}")
+                raise ValueError(
+                    f"IMAGE content must be str|Path|bytes, got {type(self.data)}"
+                )
         elif self.type == ContentType.AUDIO:
             if not isinstance(self.data, (str, Path, bytes)):
-                raise ValueError(f"AUDIO content must be str|Path|bytes, got {type(self.data)}")
+                raise ValueError(
+                    f"AUDIO content must be str|Path|bytes, got {type(self.data)}"
+                )
 
     @classmethod
     def text(cls, content: str, **metadata) -> "ContentPart":
@@ -116,19 +122,11 @@ class MultimodalMessage:
     @classmethod
     def from_text(cls, role: str, text: str, **metadata) -> "MultimodalMessage":
         """Create message from simple text."""
-        return cls(
-            role=role,
-            content=[ContentPart.text(text)],
-            metadata=metadata
-        )
+        return cls(role=role, content=[ContentPart.text(text)], metadata=metadata)
 
     @classmethod
     def from_image(
-        cls,
-        role: str,
-        image: str | Path | bytes,
-        prompt: str | None = None,
-        **metadata
+        cls, role: str, image: str | Path | bytes, prompt: str | None = None, **metadata
     ) -> "MultimodalMessage":
         """Create message with image (optionally with text prompt)."""
         content_parts = []
@@ -141,19 +139,13 @@ class MultimodalMessage:
     def get_text_content(self) -> str:
         """Extract all text content from message."""
         text_parts = [
-            part.data
-            for part in self.content
-            if part.type == ContentType.TEXT
+            part.data for part in self.content if part.type == ContentType.TEXT
         ]
         return "\n".join(text_parts)
 
     def get_images(self) -> list[str | Path | bytes]:
         """Extract all images from message."""
-        return [
-            part.data
-            for part in self.content
-            if part.type == ContentType.IMAGE
-        ]
+        return [part.data for part in self.content if part.type == ContentType.IMAGE]
 
     def has_type(self, content_type: ContentType) -> bool:
         """Check if message contains content of given type."""
@@ -163,6 +155,7 @@ class MultimodalMessage:
 # =============================================================================
 # PLUGIN METADATA
 # =============================================================================
+
 
 @dataclass
 class PluginMetadata:
@@ -188,6 +181,7 @@ class PluginMetadata:
 # =============================================================================
 # PLUGIN PROTOCOL
 # =============================================================================
+
 
 @runtime_checkable
 class Plugin(Protocol):
@@ -236,6 +230,7 @@ class Plugin(Protocol):
 # STREAMING PROCESSOR PROTOCOL
 # =============================================================================
 
+
 @runtime_checkable
 class StreamingProcessor(Protocol):
     """
@@ -245,8 +240,7 @@ class StreamingProcessor(Protocol):
     """
 
     async def process_stream(
-        self,
-        input_stream: AsyncGenerator[ContentPart, None]
+        self, input_stream: AsyncGenerator[ContentPart, None]
     ) -> AsyncGenerator[ContentPart, None]:
         """
         Process input stream and yield output stream.
@@ -264,6 +258,7 @@ class StreamingProcessor(Protocol):
 # VISION PLUGIN PROTOCOL
 # =============================================================================
 
+
 @runtime_checkable
 class VisionPlugin(Plugin, Protocol):
     """
@@ -274,9 +269,7 @@ class VisionPlugin(Plugin, Protocol):
 
     @abstractmethod
     async def understand_image(
-        self,
-        image: str | Path | bytes,
-        prompt: str | None = None
+        self, image: str | Path | bytes, prompt: str | None = None
     ) -> str:
         """
         Understand image content and optionally answer a question.
@@ -291,9 +284,7 @@ class VisionPlugin(Plugin, Protocol):
         ...
 
     async def ocr(
-        self,
-        image: str | Path | bytes,
-        languages: list[str] = ["en"]
+        self, image: str | Path | bytes, languages: list[str] = ["en"]
     ) -> str:
         """
         Extract text from image using OCR.
@@ -312,6 +303,7 @@ class VisionPlugin(Plugin, Protocol):
 # AUDIO PLUGIN PROTOCOL
 # =============================================================================
 
+
 @runtime_checkable
 class AudioPlugin(Plugin, Protocol):
     """
@@ -322,9 +314,7 @@ class AudioPlugin(Plugin, Protocol):
 
     @abstractmethod
     async def transcribe(
-        self,
-        audio: str | Path | bytes,
-        language: str | None = None
+        self, audio: str | Path | bytes, language: str | None = None
     ) -> str:
         """
         Transcribe audio to text.
@@ -339,10 +329,7 @@ class AudioPlugin(Plugin, Protocol):
         ...
 
     async def generate_speech(
-        self,
-        text: str,
-        voice: str | None = None,
-        **kwargs
+        self, text: str, voice: str | None = None, **kwargs
     ) -> bytes:
         """
         Generate speech from text.
@@ -362,6 +349,7 @@ class AudioPlugin(Plugin, Protocol):
 # VIDEO PLUGIN PROTOCOL
 # =============================================================================
 
+
 @runtime_checkable
 class VideoPlugin(Plugin, Protocol):
     """
@@ -372,10 +360,7 @@ class VideoPlugin(Plugin, Protocol):
 
     @abstractmethod
     async def understand_video(
-        self,
-        video: str | Path,
-        prompt: str | None = None,
-        sample_fps: float = 1.0
+        self, video: str | Path, prompt: str | None = None, sample_fps: float = 1.0
     ) -> str:
         """
         Understand video content.
@@ -394,6 +379,7 @@ class VideoPlugin(Plugin, Protocol):
 # =============================================================================
 # TOOL PROTOCOL
 # =============================================================================
+
 
 @runtime_checkable
 class Tool(Protocol):
@@ -432,6 +418,7 @@ class Tool(Protocol):
 # AGENT PROTOCOL
 # =============================================================================
 
+
 @runtime_checkable
 class Agent(Protocol):
     """
@@ -444,11 +431,7 @@ class Agent(Protocol):
     role: str  # "coordinator" | "researcher" | "coder" | "vision_expert" | etc.
     capabilities: list[str]
 
-    async def process_task(
-        self,
-        task: str,
-        context: dict[str, Any]
-    ) -> str:
+    async def process_task(self, task: str, context: dict[str, Any]) -> str:
         """
         Process task and return result.
 
@@ -461,11 +444,7 @@ class Agent(Protocol):
         """
         ...
 
-    async def communicate(
-        self,
-        message: str,
-        target_agent: str | None = None
-    ) -> None:
+    async def communicate(self, message: str, target_agent: str | None = None) -> None:
         """
         Communicate with other agents.
 

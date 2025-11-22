@@ -18,15 +18,12 @@ INJECTION_PATTERNS = [
     r"(?i)ignore\s+(all\s+)?(previous|prior|above)?\s*instructions?",
     r"(?i)new\s+(system\s+)?prompt",
     r"(?i)you\s+are\s+now\s+(a|an)\s+",
-
     # XML/JSON structure manipulation
     r"</?(system|user|assistant)>",
     r"\{\s*['\"]role['\"]\s*:\s*['\"]",
-
     # Command injection attempts
     r"(?i)(execute|run|eval|exec)\s*(command|code|script)",
     r"(?i)forget\s+(everything|all|your\s+instructions)",
-
     # Context manipulation
     r"(?i)(override|replace|change)\s+your\s+(system|instructions|prompt|behavior)",
     r"(?i)disregard\s+(all\s+)?(safety|security|previous)",
@@ -84,7 +81,9 @@ class InputValidator:
 
         # Check length
         if len(user_input) > MAX_USER_INPUT_LENGTH:
-            warnings.append(f"Input truncated from {len(user_input)} to {MAX_USER_INPUT_LENGTH} characters")
+            warnings.append(
+                f"Input truncated from {len(user_input)} to {MAX_USER_INPUT_LENGTH} characters"
+            )
             sanitized = user_input[:MAX_USER_INPUT_LENGTH]
 
         # Detect injection patterns
@@ -112,7 +111,7 @@ class InputValidator:
                 )
 
         # Additional sanitization: remove excessive whitespace
-        sanitized = re.sub(r'\s+', ' ', sanitized).strip()
+        sanitized = re.sub(r"\s+", " ", sanitized).strip()
 
         return sanitized, warnings
 
@@ -200,7 +199,7 @@ class InputValidator:
         if detected_patterns:
             file_ref = f" in {file_path}" if file_path else ""
             # Show only first 2 patterns for brevity
-            pattern_preview = ', '.join(p[:50] for p in detected_patterns[:2])
+            pattern_preview = ", ".join(p[:50] for p in detected_patterns[:2])
             warnings.append(
                 f"⚠️ Suspicious content detected{file_ref}: {pattern_preview}"
             )

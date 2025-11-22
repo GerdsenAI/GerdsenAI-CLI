@@ -61,14 +61,22 @@ class OllamaProvider(LLMProvider):
                         name=model_data.get("name", ""),
                         provider=ProviderType.OLLAMA,
                         size=model_data.get("size"),
-                        quantization=self._extract_quantization(model_data.get("name", "")),
-                        context_length=model_data.get("details", {}).get("context_length"),
+                        quantization=self._extract_quantization(
+                            model_data.get("name", "")
+                        ),
+                        context_length=model_data.get("details", {}).get(
+                            "context_length"
+                        ),
                         parameters={
                             "family": model_data.get("details", {}).get("family"),
-                            "parameter_size": model_data.get("details", {}).get("parameter_size"),
-                            "quantization_level": model_data.get("details", {}).get("quantization_level"),
+                            "parameter_size": model_data.get("details", {}).get(
+                                "parameter_size"
+                            ),
+                            "quantization_level": model_data.get("details", {}).get(
+                                "quantization_level"
+                            ),
                         },
-                        is_loaded=True  # Ollama keeps models loaded
+                        is_loaded=True,  # Ollama keeps models loaded
                     )
                     models.append(model_info)
 
@@ -85,7 +93,7 @@ class OllamaProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate chat completion using Ollama.
@@ -110,7 +118,7 @@ class OllamaProvider(LLMProvider):
                     "stream": False,
                     "options": {
                         "temperature": temperature,
-                    }
+                    },
                 }
 
                 if max_tokens:
@@ -124,8 +132,7 @@ class OllamaProvider(LLMProvider):
                     request_data["options"].update(kwargs)
 
                 response = await client.post(
-                    f"{self.base_url}/api/chat",
-                    json=request_data
+                    f"{self.base_url}/api/chat", json=request_data
                 )
                 response.raise_for_status()
 
@@ -143,7 +150,7 @@ class OllamaProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream chat completion from Ollama.
@@ -167,7 +174,7 @@ class OllamaProvider(LLMProvider):
                     "stream": True,
                     "options": {
                         "temperature": temperature,
-                    }
+                    },
                 }
 
                 if max_tokens:
@@ -180,9 +187,7 @@ class OllamaProvider(LLMProvider):
                     request_data["options"].update(kwargs)
 
                 async with client.stream(
-                    "POST",
-                    f"{self.base_url}/api/chat",
-                    json=request_data
+                    "POST", f"{self.base_url}/api/chat", json=request_data
                 ) as response:
                     response.raise_for_status()
 
@@ -190,6 +195,7 @@ class OllamaProvider(LLMProvider):
                         if line:
                             try:
                                 import json
+
                                 data = json.loads(line)
                                 content = data.get("message", {}).get("content", "")
                                 if content:
@@ -225,7 +231,7 @@ class OllamaProvider(LLMProvider):
                 "model_delete": True,
                 "embeddings": True,
                 "model_info": True,
-            }
+            },
         )
 
     def _extract_quantization(self, model_name: str) -> str | None:
@@ -243,7 +249,8 @@ class OllamaProvider(LLMProvider):
             tag = parts[1]
             # Extract quantization (q4_0, q5_k_m, etc.)
             import re
-            match = re.search(r'q\d+_[\w]+', tag, re.IGNORECASE)
+
+            match = re.search(r"q\d+_[\w]+", tag, re.IGNORECASE)
             if match:
                 return match.group(0).upper()
         return None
@@ -259,11 +266,11 @@ class OllamaProvider(LLMProvider):
             Progress updates
         """
         try:
-            async with httpx.AsyncClient(timeout=None) as client:  # No timeout for downloads
+            async with httpx.AsyncClient(
+                timeout=None
+            ) as client:  # No timeout for downloads
                 async with client.stream(
-                    "POST",
-                    f"{self.base_url}/api/pull",
-                    json={"name": model_name}
+                    "POST", f"{self.base_url}/api/pull", json={"name": model_name}
                 ) as response:
                     response.raise_for_status()
 
@@ -271,6 +278,7 @@ class OllamaProvider(LLMProvider):
                         if line:
                             try:
                                 import json
+
                                 yield json.loads(line)
                             except json.JSONDecodeError:
                                 continue
@@ -292,8 +300,7 @@ class OllamaProvider(LLMProvider):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.delete(
-                    f"{self.base_url}/api/delete",
-                    json={"name": model_name}
+                    f"{self.base_url}/api/delete", json={"name": model_name}
                 )
                 response.raise_for_status()
                 return True
@@ -315,8 +322,7 @@ class OllamaProvider(LLMProvider):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
-                    f"{self.base_url}/api/show",
-                    json={"name": model_name}
+                    f"{self.base_url}/api/show", json={"name": model_name}
                 )
                 response.raise_for_status()
                 return response.json()

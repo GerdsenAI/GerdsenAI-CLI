@@ -12,10 +12,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
-from ..plugins.registry import plugin_registry
 from ..plugins.base import PluginCategory
+from ..plugins.registry import plugin_registry
 from ..utils.display import show_error, show_info, show_success
+from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -95,14 +95,12 @@ class TranscribeCommand(BaseCommand):
             path = Path(audio_path)
             if not path.exists():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Audio file not found: {audio_path}"
+                    success=False, message=f"❌ Audio file not found: {audio_path}"
                 )
 
             if not path.is_file():
                 return CommandResult(
-                    success=False,
-                    message=f"❌ Path is not a file: {audio_path}"
+                    success=False, message=f"❌ Path is not a file: {audio_path}"
                 )
 
             # Get Whisper plugin
@@ -121,20 +119,21 @@ class TranscribeCommand(BaseCommand):
                         "   - Recommended: `pip install faster-whisper`\n"
                         "   - Alternative: `pip install openai-whisper`\n"
                         "3. Restart GerdsenAI CLI"
-                    )
+                    ),
                 )
 
             # Initialize plugin if needed
             plugin_id = f"{PluginCategory.AUDIO.value}.whisper"
             if plugin_id not in plugin_registry._initialized_plugins:
-                show_info("Initializing Whisper plugin (first use may download models)...")
+                show_info(
+                    "Initializing Whisper plugin (first use may download models)..."
+                )
                 success = await plugin_registry.initialize_plugin(
                     PluginCategory.AUDIO, "whisper"
                 )
                 if not success:
                     return CommandResult(
-                        success=False,
-                        message="❌ Failed to initialize Whisper plugin"
+                        success=False, message="❌ Failed to initialize Whisper plugin"
                     )
 
             # Show processing message
@@ -157,12 +156,14 @@ class TranscribeCommand(BaseCommand):
 
             # Display result
             console.print()
-            console.print(Panel(
-                result["text"],
-                title=f"📝 Transcription ({result['language'].upper()})",
-                border_style="cyan",
-                padding=(1, 2),
-            ))
+            console.print(
+                Panel(
+                    result["text"],
+                    title=f"📝 Transcription ({result['language'].upper()})",
+                    border_style="cyan",
+                    padding=(1, 2),
+                )
+            )
 
             # Show metadata
             if result.get("duration"):
@@ -171,7 +172,9 @@ class TranscribeCommand(BaseCommand):
             console.print(f"📊 Words: {len(result['text'].split())}")
 
             if result.get("language_probability"):
-                console.print(f"🎯 Language confidence: {result['language_probability']:.1%}")
+                console.print(
+                    f"🎯 Language confidence: {result['language_probability']:.1%}"
+                )
 
             # Show timestamps if requested
             if timestamps and result.get("segments"):
@@ -184,15 +187,12 @@ class TranscribeCommand(BaseCommand):
                     "language": result["language"],
                     "duration": result.get("duration"),
                     "segments": result.get("segments"),
-                }
+                },
             )
 
         except Exception as e:
             logger.error(f"Transcription failed: {e}", exc_info=True)
-            return CommandResult(
-                success=False,
-                message=f"❌ Transcription failed: {e}"
-            )
+            return CommandResult(success=False, message=f"❌ Transcription failed: {e}")
 
 
 class SpeakCommand(BaseCommand):
@@ -266,10 +266,7 @@ class SpeakCommand(BaseCommand):
         try:
             # Validate text
             if not text or len(text.strip()) == 0:
-                return CommandResult(
-                    success=False,
-                    message="❌ Text cannot be empty"
-                )
+                return CommandResult(success=False, message="❌ Text cannot be empty")
 
             word_count = len(text.split())
             if word_count > 200:
@@ -293,25 +290,28 @@ class SpeakCommand(BaseCommand):
                         "   `pip install scipy numpy`\n"
                         "3. Restart GerdsenAI CLI\n\n"
                         "Note: First use will download ~2-10GB of models"
-                    )
+                    ),
                 )
 
             # Initialize plugin if needed
             plugin_id = f"{PluginCategory.AUDIO.value}.bark"
             if plugin_id not in plugin_registry._initialized_plugins:
-                show_info("Initializing Bark plugin (first use will download models)...")
+                show_info(
+                    "Initializing Bark plugin (first use will download models)..."
+                )
                 success = await plugin_registry.initialize_plugin(
                     PluginCategory.AUDIO, "bark"
                 )
                 if not success:
                     return CommandResult(
-                        success=False,
-                        message="❌ Failed to initialize Bark plugin"
+                        success=False, message="❌ Failed to initialize Bark plugin"
                     )
 
             # Show processing message
             console.print(f"\n🔊 Generating speech...")
-            console.print(f"📝 Text: [yellow]{text[:100]}{'...' if len(text) > 100 else ''}[/yellow]")
+            console.print(
+                f"📝 Text: [yellow]{text[:100]}{'...' if len(text) > 100 else ''}[/yellow]"
+            )
             if voice:
                 console.print(f"🎙️  Voice: [cyan]{voice}[/cyan]")
             console.print(f"🌡️  Temperature: {temperature}")
@@ -329,7 +329,9 @@ class SpeakCommand(BaseCommand):
             # Display result
             console.print()
             if result["output_path"]:
-                console.print(f"✅ Speech saved to: [green]{result['output_path']}[/green]")
+                console.print(
+                    f"✅ Speech saved to: [green]{result['output_path']}[/green]"
+                )
             else:
                 console.print("✅ Speech generated (audio array in memory)")
 
@@ -344,14 +346,13 @@ class SpeakCommand(BaseCommand):
                     "duration": result["duration"],
                     "sample_rate": result["sample_rate"],
                     "voice_preset": result["voice_preset"],
-                }
+                },
             )
 
         except Exception as e:
             logger.error(f"Speech synthesis failed: {e}", exc_info=True)
             return CommandResult(
-                success=False,
-                message=f"❌ Speech synthesis failed: {e}"
+                success=False, message=f"❌ Speech synthesis failed: {e}"
             )
 
 
@@ -394,8 +395,7 @@ class AudioStatusCommand(BaseCommand):
 
             if not audio_plugins:
                 return CommandResult(
-                    success=False,
-                    message="❌ No audio plugins registered"
+                    success=False, message="❌ No audio plugins registered"
                 )
 
             # Create status table
@@ -445,42 +445,42 @@ class AudioStatusCommand(BaseCommand):
 
             # Show setup instructions if no plugins initialized
             initialized_count = sum(
-                1 for pm in audio_plugins
-                if f"{PluginCategory.AUDIO.value}.{pm.name}" in plugin_registry._initialized_plugins
+                1
+                for pm in audio_plugins
+                if f"{PluginCategory.AUDIO.value}.{pm.name}"
+                in plugin_registry._initialized_plugins
             )
 
             if initialized_count == 0:
-                console.print(Panel(
-                    "**Setup Audio Capabilities:**\n\n"
-                    "1. **Whisper** (Speech-to-Text):\n"
-                    "   ```\n"
-                    "   # Ubuntu/Debian\n"
-                    "   sudo apt install ffmpeg\n"
-                    "   pip install faster-whisper\n\n"
-                    "   # macOS\n"
-                    "   brew install ffmpeg\n"
-                    "   pip install faster-whisper\n"
-                    "   ```\n\n"
-                    "2. **Bark** (Text-to-Speech):\n"
-                    "   ```\n"
-                    "   pip install git+https://github.com/suno-ai/bark.git\n"
-                    "   pip install scipy numpy\n"
-                    "   ```",
-                    title="🔧 Setup Guide",
-                    border_style="yellow",
-                ))
+                console.print(
+                    Panel(
+                        "**Setup Audio Capabilities:**\n\n"
+                        "1. **Whisper** (Speech-to-Text):\n"
+                        "   ```\n"
+                        "   # Ubuntu/Debian\n"
+                        "   sudo apt install ffmpeg\n"
+                        "   pip install faster-whisper\n\n"
+                        "   # macOS\n"
+                        "   brew install ffmpeg\n"
+                        "   pip install faster-whisper\n"
+                        "   ```\n\n"
+                        "2. **Bark** (Text-to-Speech):\n"
+                        "   ```\n"
+                        "   pip install git+https://github.com/suno-ai/bark.git\n"
+                        "   pip install scipy numpy\n"
+                        "   ```",
+                        title="🔧 Setup Guide",
+                        border_style="yellow",
+                    )
+                )
 
             return CommandResult(
-                success=True,
-                data={"plugins": [pm.name for pm in audio_plugins]}
+                success=True, data={"plugins": [pm.name for pm in audio_plugins]}
             )
 
         except Exception as e:
             logger.error(f"Audio status check failed: {e}", exc_info=True)
-            return CommandResult(
-                success=False,
-                message=f"❌ Status check failed: {e}"
-            )
+            return CommandResult(success=False, message=f"❌ Status check failed: {e}")
 
 
 # Export commands

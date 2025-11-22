@@ -68,7 +68,9 @@ class AgentStatusCommand(BaseCommand):
             console.print(f"[red]Error: {error_msg}[/red]")
             return CommandResult(success=False, message=error_msg)
 
-    async def _display_simple_status(self, console: Console, agent: "Agent", context: Any):
+    async def _display_simple_status(
+        self, console: Console, agent: "Agent", context: Any
+    ):
         """Display simple agent status."""
         stats = agent.get_stats()
 
@@ -88,7 +90,9 @@ class AgentStatusCommand(BaseCommand):
 
         console.print(table)
 
-    async def _display_detailed_status(self, console: Console, agent: "Agent", context: Any):
+    async def _display_detailed_status(
+        self, console: Console, agent: "Agent", context: Any
+    ):
         """Display detailed agent status."""
         stats = agent.get_stats()
 
@@ -100,7 +104,9 @@ class AgentStatusCommand(BaseCommand):
         ]
 
         if stats.get("current_model"):
-            overview_lines.append(f"[bold]Current Model:[/bold] {stats['current_model']}")
+            overview_lines.append(
+                f"[bold]Current Model:[/bold] {stats['current_model']}"
+            )
 
         overview_panel = Panel(
             "\n".join(overview_lines), title="Agent Overview", border_style="green"
@@ -340,10 +346,14 @@ class RefreshContextCommand(BaseCommand):
         console = Console()
 
         try:
-            context_manager = getattr(context, "context_manager", None) if context else None
+            context_manager = (
+                getattr(context, "context_manager", None) if context else None
+            )
             if not context_manager:
                 console.print("[red]Context manager not available.[/red]")
-                return CommandResult(success=False, message="Context manager not available")
+                return CommandResult(
+                    success=False, message="Context manager not available"
+                )
 
             deep_refresh = args.get("deep", False)
 
@@ -497,7 +507,9 @@ class AgentConfigCommand(BaseCommand):
             console.print(f"[red]Error: {error_msg}[/red]")
             return CommandResult(success=False, message=error_msg)
 
-    async def _list_settings(self, console: Console, config: ConfigManager) -> CommandResult:
+    async def _list_settings(
+        self, console: Console, config: ConfigManager
+    ) -> CommandResult:
         """List all available agent settings."""
         settings_info = {
             "max_context_length": "Maximum context length for conversations",
@@ -510,7 +522,9 @@ class AgentConfigCommand(BaseCommand):
             "response_timeout": "Timeout for LLM responses (seconds)",
         }
 
-        table = Table(title="Available Agent Settings", show_header=True, header_style="bold blue")
+        table = Table(
+            title="Available Agent Settings", show_header=True, header_style="bold blue"
+        )
         table.add_column("Setting", style="cyan")
         table.add_column("Description", style="white")
         table.add_column("Current Value", justify="right", style="green")
@@ -522,7 +536,9 @@ class AgentConfigCommand(BaseCommand):
         console.print(table)
         return CommandResult(success=True, message="Listed available settings")
 
-    async def _show_all_settings(self, console: Console, config: ConfigManager) -> CommandResult:
+    async def _show_all_settings(
+        self, console: Console, config: ConfigManager
+    ) -> CommandResult:
         """Show all current agent settings."""
         agent_settings = config.get_setting("agent", {})
 
@@ -530,7 +546,9 @@ class AgentConfigCommand(BaseCommand):
             console.print("[yellow]No agent settings configured.[/yellow]")
             return CommandResult(success=True, message="No settings configured")
 
-        table = Table(title="Current Agent Settings", show_header=True, header_style="bold green")
+        table = Table(
+            title="Current Agent Settings", show_header=True, header_style="bold green"
+        )
         table.add_column("Setting", style="cyan")
         table.add_column("Value", style="white")
 

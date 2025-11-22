@@ -1099,9 +1099,7 @@ class CopyCommand(BaseCommand):
             else:
                 # Copy file contents
                 if not file_arg:
-                    return CommandResult(
-                        success=False, message="File path is required"
-                    )
+                    return CommandResult(success=False, message="File path is required")
                 file_path = Path(file_arg)
                 if not file_path.exists():
                     return CommandResult(
@@ -1193,7 +1191,7 @@ class CopyCommand(BaseCommand):
 
     def _extract_lines(self, content: str, lines_spec: str) -> str | None:
         """Extract specific lines from content based on line specification.
-        
+
         Returns:
             Extracted lines as string, or None if specification is invalid
         """
@@ -1261,7 +1259,7 @@ class CopyCommand(BaseCommand):
 
     async def _copy_to_clipboard(self, content: str) -> tuple[bool, str]:
         """Copy content to system clipboard with cross-platform support.
-        
+
         Returns:
             Tuple of (success: bool, error_message: str). Empty string for success.
         """
@@ -1751,7 +1749,8 @@ class TuiCommand(BaseCommand):
             new_mode = not current_mode
         else:
             return CommandResult(
-                success=False, message=f"Invalid mode: {mode}. Use 'on', 'off', or 'toggle'"
+                success=False,
+                message=f"Invalid mode: {mode}. Use 'on', 'off', or 'toggle'",
             )
 
         # Update settings

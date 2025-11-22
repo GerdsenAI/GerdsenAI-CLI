@@ -11,7 +11,14 @@ from .agent import (
     RefreshContextCommand,
     ResetCommand,
 )
+from .audio_commands import (
+    AudioStatusCommand,
+    SpeakCommand,
+    TranscribeCommand,
+)
 from .base import BaseCommand
+from .clarify_commands import ClarifyCommand
+from .complexity_commands import ComplexityCommand
 from .files import (
     CreateFileCommand,
     EditFileCommand,
@@ -30,6 +37,7 @@ from .model import (
 )
 from .parser import CommandParser
 from .planning import PlanCommand
+from .suggest_commands import SuggestCommand
 from .system import (
     AboutCommand,
     ConfigCommand,
@@ -42,20 +50,12 @@ from .system import (
     StatusCommand,
     ToolsCommand,
 )
+from .undo_commands import UndoCommand
 from .vision_commands import (
     ImageCommand,
     OCRCommand,
     VisionStatusCommand,
 )
-from .audio_commands import (
-    TranscribeCommand,
-    SpeakCommand,
-    AudioStatusCommand,
-)
-from .clarify_commands import ClarifyCommand
-from .complexity_commands import ComplexityCommand
-from .undo_commands import UndoCommand
-from .suggest_commands import SuggestCommand
 
 __all__ = [
     "BaseCommand",

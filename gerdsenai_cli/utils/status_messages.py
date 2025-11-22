@@ -12,7 +12,7 @@ from enum import Enum
 
 class OperationType(Enum):
     """Types of operations the AI can perform."""
-    
+
     THINKING = "thinking"
     READING = "reading"
     ANALYZING = "analyzing"
@@ -50,7 +50,6 @@ STATUS_MESSAGES = {
         "Crystallizing thought patterns",
         "Exploring cognitive landscapes",
     ],
-    
     OperationType.READING: [
         "Parsing lexical structures",
         "Digesting syntactic patterns",
@@ -73,7 +72,6 @@ STATUS_MESSAGES = {
         "Understanding class hierarchies",
         "Studying interface contracts",
     ],
-    
     OperationType.ANALYZING: [
         "Deconstructing semantic topology",
         "Triangulating logical dependencies",
@@ -96,7 +94,6 @@ STATUS_MESSAGES = {
         "Evaluating performance characteristics",
         "Inspecting error boundaries",
     ],
-    
     OperationType.WRITING: [
         "Synthesizing linguistic constructs",
         "Composing programmatic discourse",
@@ -119,7 +116,6 @@ STATUS_MESSAGES = {
         "Drafting interface contracts",
         "Scripting transformation logic",
     ],
-    
     OperationType.PLANNING: [
         "Strategizing execution vectors",
         "Blueprinting operational sequence",
@@ -142,7 +138,6 @@ STATUS_MESSAGES = {
         "Anticipating edge cases",
         "Constructing execution flowchart",
     ],
-    
     OperationType.SEARCHING: [
         "Scouring semantic manifolds",
         "Traversing knowledge graphs",
@@ -155,7 +150,6 @@ STATUS_MESSAGES = {
         "Scanning architectural substrate",
         "Mining cognitive archives",
     ],
-    
     OperationType.PROCESSING: [
         "Synthesizing contextual tributaries",
         "Integrating knowledge domains",
@@ -168,7 +162,6 @@ STATUS_MESSAGES = {
         "Converging solution pathways",
         "Crystallizing understanding",
     ],
-    
     OperationType.STREAMING: [
         "Channeling cognitive flow",
         "Transmitting thought vectors",
@@ -181,7 +174,6 @@ STATUS_MESSAGES = {
         "Diffusing knowledge particles",
         "Cascading logical progression",
     ],
-    
     OperationType.CONTEXTUALIZING: [
         "Situating within epistemic framework",
         "Establishing relational context",
@@ -194,7 +186,6 @@ STATUS_MESSAGES = {
         "Aligning with systemic patterns",
         "Attuning to codebase zeitgeist",
     ],
-    
     OperationType.SYNTHESIZING: [
         "Fusing conceptual boundaries",
         "Melding logical paradigms",
@@ -207,7 +198,6 @@ STATUS_MESSAGES = {
         "Composing holistic understanding",
         "Forging unified framework",
     ],
-    
     OperationType.EVALUATING: [
         "Assessing solution viability",
         "Gauging implementation efficacy",
@@ -255,36 +245,36 @@ def get_status_message(
 ) -> str:
     """
     Get a sophisticated status message for the given operation.
-    
+
     Args:
         operation: The type of operation being performed
         add_context: Whether to append a context suffix
         add_ellipsis: Whether to add trailing ellipsis
-        
+
     Returns:
         A sophisticated status message string
     """
     messages = STATUS_MESSAGES.get(operation, ["Processing"])
     base_message = random.choice(messages)
-    
+
     # Occasionally add a context suffix for extra sophistication
     if add_context and random.random() < 0.3:  # 30% chance
         suffix = random.choice(CONTEXT_SUFFIXES)
         base_message = f"{base_message} {suffix}"
-    
+
     if add_ellipsis:
         base_message += "..."
-    
+
     return base_message
 
 
 def get_completion_message(operation: OperationType) -> str:
     """
     Get a completion message for the given operation.
-    
+
     Args:
         operation: The type of operation that completed
-        
+
     Returns:
         A sophisticated completion message
     """
@@ -301,7 +291,7 @@ def get_completion_message(operation: OperationType) -> str:
         OperationType.SYNTHESIZING: "Synthesis manifested",
         OperationType.EVALUATING: "Evaluation rendered",
     }
-    
+
     return completions.get(operation, "Operation complete")
 
 
@@ -331,20 +321,20 @@ COMBINED_OPERATIONS = {
 def get_combined_status(operation_pair: str, add_ellipsis: bool = True) -> str:
     """
     Get a status message for combined operations.
-    
+
     Args:
         operation_pair: Combined operation key (e.g., "reading_and_analyzing")
         add_ellipsis: Whether to add trailing ellipsis
-        
+
     Returns:
         A sophisticated combined status message
     """
     messages = COMBINED_OPERATIONS.get(operation_pair, ["Processing"])
     base_message = random.choice(messages)
-    
+
     if add_ellipsis:
         base_message += "..."
-    
+
     return base_message
 
 

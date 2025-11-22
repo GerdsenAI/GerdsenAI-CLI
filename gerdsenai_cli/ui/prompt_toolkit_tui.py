@@ -38,7 +38,11 @@ from typing import Callable, Optional, cast
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
-from prompt_toolkit.formatted_text import FormattedText, fragment_list_to_text, to_formatted_text
+from prompt_toolkit.formatted_text import (
+    FormattedText,
+    fragment_list_to_text,
+    to_formatted_text,
+)
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout.containers import (
     HSplit,
@@ -59,6 +63,7 @@ from prompt_toolkit.widgets import Frame
 try:
     from rich.console import Console
     from rich.markdown import Markdown
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -73,10 +78,10 @@ log_file = log_dir / "tui.log"
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(log_file),
-    ]
+    ],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"TUI logging initialized - log file: {log_file}")
@@ -84,41 +89,41 @@ logger.info(f"TUI logging initialized - log file: {log_file}")
 
 class CommandParser:
     """Parse and handle TUI commands."""
-    
+
     COMMANDS = {
-        '/help': 'Show available commands',
-        '/clear': 'Clear conversation history',
-        '/copy': 'Copy conversation to clipboard (or use Ctrl+Y)',
-        '/model': 'Show or switch AI model (usage: /model [name])',
-        '/mode': 'Show or switch execution mode (usage: /mode [chat|architect|execute|llvl])',
-        '/thinking': 'Toggle AI thinking display (shows/hides reasoning process)',
-        '/mcp': 'Manage MCP servers (usage: /mcp [list|add|remove|connect|status])',
-        '/debug': 'Toggle debug mode',
-        '/save': 'Save conversation to file',
-        '/load': 'Load conversation from file',
-        '/export': 'Export conversation to markdown',
-        '/shortcuts': 'Show keyboard shortcuts',
-        '/exit': 'Exit the application',
-        '/quit': 'Exit the application',
+        "/help": "Show available commands",
+        "/clear": "Clear conversation history",
+        "/copy": "Copy conversation to clipboard (or use Ctrl+Y)",
+        "/model": "Show or switch AI model (usage: /model [name])",
+        "/mode": "Show or switch execution mode (usage: /mode [chat|architect|execute|llvl])",
+        "/thinking": "Toggle AI thinking display (shows/hides reasoning process)",
+        "/mcp": "Manage MCP servers (usage: /mcp [list|add|remove|connect|status])",
+        "/debug": "Toggle debug mode",
+        "/save": "Save conversation to file",
+        "/load": "Load conversation from file",
+        "/export": "Export conversation to markdown",
+        "/shortcuts": "Show keyboard shortcuts",
+        "/exit": "Exit the application",
+        "/quit": "Exit the application",
     }
-    
+
     @staticmethod
     def is_command(text: str) -> bool:
         """Check if text is a command."""
-        return text.strip().startswith('/')
-    
+        return text.strip().startswith("/")
+
     @staticmethod
     def parse(text: str) -> tuple[str, list[str]]:
         """Parse command and arguments.
-        
+
         Returns:
             (command, args) tuple
         """
         parts = text.strip().split()
-        command = parts[0] if parts else ''
+        command = parts[0] if parts else ""
         args = parts[1:] if len(parts) > 1 else []
         return command, args
-    
+
     @staticmethod
     def get_help_text() -> str:
         """Generate formatted help text for all commands."""
@@ -166,13 +171,16 @@ class CommandParser:
 
 class RichToFormattedTextConverter:
     """Convert Rich renderables to prompt_toolkit FormattedText."""
-    
+
     @staticmethod
-    def convert_markdown(markdown_text: str | None) -> list[tuple[str, str]]:
+    def convert_markdown(
+        markdown_text: str | None, terminal_width: int | None = None
+    ) -> list[tuple[str, str]]:
         """Convert markdown to formatted text tuples.
 
         Args:
             markdown_text: Markdown text to convert, or None for empty result
+            terminal_width: Terminal width for dynamic formatting (auto-detected if None)
 
         Returns:
             List of (style_class, text) tuples for FormattedText.
@@ -181,39 +189,63 @@ class RichToFormattedTextConverter:
         if markdown_text is None:
             return []
 
+        # Determine render width dynamically
+        if terminal_width is None:
+            import shutil
+
+            try:
+                terminal_width = shutil.get_terminal_size(fallback=(80, 24)).columns
+            except Exception:
+                terminal_width = 80
+
+        # Use 80% of terminal width for content, minimum 60, maximum 120
+        render_width = max(60, min(120, int(terminal_width * 0.8)))
+
         if not RICH_AVAILABLE:
             # Fallback: return plain text
             result = []
-            for line in markdown_text.split('\n'):
-                result.append(('class:ai-text', f"  {line}\n"))
+            for line in markdown_text.split("\n"):
+                result.append(("class:ai-text", f"  {line}\n"))
             return result
-        
+
         try:
-            # Create Rich console for rendering
-            console = Console(width=68, legacy_windows=False, force_terminal=True, force_interactive=False)
-            
+            # Create Rich console for rendering with dynamic width
+            console = Console(
+                width=render_width,
+                legacy_windows=False,
+                force_terminal=True,
+                force_interactive=False,
+                no_color=False,  # Enable colors
+                color_system="auto",  # Auto-detect color support
+            )
+
             # Render markdown
             md = Markdown(markdown_text, code_theme="monokai")
-            
+
             with console.capture() as capture:
                 console.print(md)
-            
+
             rendered = capture.get()
-            
+
             # Convert to formatted text
             result = []
-            for line in rendered.split('\n'):
-                result.append(('class:ai-text', f"  {line}\n"))
-            
-            logger.debug(f"Rendered {len(result)} lines of markdown")
+            for line in rendered.split("\n"):
+                result.append(("class:ai-text", f"  {line}\n"))
+
+            logger.debug(
+                f"Rendered {len(result)} lines of markdown (width: {render_width})"
+            )
             return result
-            
+
         except Exception as e:
             logger.error(f"Markdown conversion failed: {e}", exc_info=True)
-            # Fallback to plain text
-            result = []
-            for line in markdown_text.split('\n'):
-                result.append(('class:ai-text', f"  {line}\n"))
+            # Fallback to plain text with error message
+            result = [
+                ("class:error", f"  [Markdown rendering failed: {str(e)}]\n"),
+                ("class:ai-text", "\n"),
+            ]
+            for line in markdown_text.split("\n"):
+                result.append(("class:ai-text", f"  {line}\n"))
             return result
 
 
@@ -288,13 +320,13 @@ class FormattedBufferControl(BufferControl):
             word = []
 
             for char in text:
-                if char != '\n':
+                if char != "\n":
                     word.append(char)
                     continue
 
                 # Found newline - finish current word and line
                 if word:
-                    line.append((style, ''.join(word)))
+                    line.append((style, "".join(word)))
                     lines.append(line)
                 elif line:
                     lines.append(line)
@@ -306,7 +338,7 @@ class FormattedBufferControl(BufferControl):
 
             # Add remaining word to current line
             if word:
-                line.append((style, ''.join(word)))
+                line.append((style, "".join(word)))
 
         # Add final line if any
         if line:
@@ -319,12 +351,14 @@ class ConversationControl:
     """Manages conversation messages for display with BufferControl backend."""
 
     def __init__(self):
-        self.messages: list[tuple[str, str, datetime]] = []  # (role, content, timestamp)
+        self.messages: list[
+            tuple[str, str, datetime]
+        ] = []  # (role, content, timestamp)
         self.streaming_message: Optional[str] = None
         self.streaming_role: Optional[str] = None
         self.system_info: Optional[str] = None  # For model info, warnings, etc.
         self.debug_mode: bool = False  # Debug mode flag for enhanced logging
-        
+
         # Initialize Rich converter if available
         if RICH_AVAILABLE:
             self.converter = RichToFormattedTextConverter()
@@ -394,7 +428,9 @@ class ConversationControl:
         if not self.messages and self.streaming_message is None:
             result.append(("class:dim", "\n"))
             result.append(("class:dim", "  No messages yet.\n"))
-            result.append(("class:dim", "  Type your message below and press Enter to start.\n"))
+            result.append(
+                ("class:dim", "  Type your message below and press Enter to start.\n")
+            )
             result.append(("class:dim", "  Type /help to see available commands.\n"))
             result.append(("class:dim", "\n"))
             return FormattedText(result)
@@ -421,7 +457,7 @@ class ConversationControl:
             elif role == "assistant":
                 result.append(("class:ai-label", f"\n  GerdsenAI · {time_str}\n"))
                 result.append(("class:ai-border", "  " + "─" * 70 + "\n"))
-                
+
                 # Try Rich rendering if available
                 if self.converter:
                     try:
@@ -429,7 +465,9 @@ class ConversationControl:
                         # Add padding to each formatted line
                         for style, text in formatted:
                             # Add padding to the beginning of each line
-                            padded_text = "\n".join(f"  {line}" if line else "" for line in text.split("\n"))
+                            padded_text = "\n".join(
+                                f"  {line}" if line else "" for line in text.split("\n")
+                            )
                             result.append((style, padded_text))
                     except Exception as e:
                         # Fallback to plain text on error
@@ -440,9 +478,11 @@ class ConversationControl:
                     # Plain text fallback when Rich not available
                     for line in content.split("\n"):
                         result.append(("class:ai-text", f"  {line}\n"))
-            
+
             elif role == "command":
-                result.append(("class:command-label", f"\n  Command Result · {time_str}\n"))
+                result.append(
+                    ("class:command-label", f"\n  Command Result · {time_str}\n")
+                )
                 result.append(("class:command-border", "  " + "─" * 70 + "\n"))
                 # Add padding to command result lines
                 for line in content.split("\n"):
@@ -451,7 +491,9 @@ class ConversationControl:
         # Display streaming message if active
         if self.streaming_message is not None and self.streaming_role is not None:
             time_str = datetime.now().strftime("%H:%M:%S")
-            result.append(("class:ai-label", f"\n  GerdsenAI · {time_str} [streaming]\n"))
+            result.append(
+                ("class:ai-label", f"\n  GerdsenAI · {time_str} [streaming]\n")
+            )
             result.append(("class:ai-border", "  " + "─" * 70 + "\n"))
             # Add padding to streaming content
             for line in self.streaming_message.split("\n"):
@@ -489,12 +531,14 @@ class ConversationControl:
             current_cursor = self.buffer.cursor_position
             # Clamp cursor to valid range
             cursor_pos = min(current_cursor, len(plain_text))
-        
+
         # Update buffer with plain text
         self.buffer.set_document(Document(plain_text, cursor_pos), bypass_readonly=True)
 
         # Update formatted lines in the control for the processor
-        self.control.formatted_lines = self.control._parse_formatted_text(formatted_text)
+        self.control.formatted_lines = self.control._parse_formatted_text(
+            formatted_text
+        )
 
 
 class PromptToolkitTUI:
@@ -513,8 +557,12 @@ class PromptToolkitTUI:
         self.status_text = "Ready. Type your message and press Enter."
         self.running = False
         self.message_callback: Optional[Callable[[str], Awaitable[None]]] = None
-        self.command_callback: Optional[Callable[[str, list[str]], Awaitable[str]]] = None
-        self.conversation_window: Optional[Window] = None  # Store reference for scrolling
+        self.command_callback: Optional[Callable[[str, list[str]], Awaitable[str]]] = (
+            None
+        )
+        self.conversation_window: Optional[Window] = (
+            None  # Store reference for scrolling
+        )
         self.input_window: Optional[Window] = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
 
@@ -561,10 +609,14 @@ class PromptToolkitTUI:
         """Load and display ASCII art from file at startup."""
         try:
             # Get path to ASCII art file (now in examples/)
-            ascii_art_path = Path(__file__).parent.parent.parent / "examples" / "gerdsenai-ascii-art.txt"
+            ascii_art_path = (
+                Path(__file__).parent.parent.parent
+                / "examples"
+                / "gerdsenai-ascii-art.txt"
+            )
 
             if ascii_art_path.exists():
-                with open(ascii_art_path, 'r', encoding='utf-8') as f:
+                with open(ascii_art_path, "r", encoding="utf-8") as f:
                     ascii_art = f.read()
 
                 # Add ASCII art as first message with timestamp
@@ -590,7 +642,7 @@ class PromptToolkitTUI:
         render_info = self.conversation_window.render_info
         content_height = render_info.content_height or 0
         window_height = render_info.window_height or 1
-        current_scroll = getattr(self.conversation_window, 'vertical_scroll', 0)
+        current_scroll = getattr(self.conversation_window, "vertical_scroll", 0)
         max_scroll = max(0, content_height - window_height)
 
         # Consider "at bottom" if within 3 lines of actual bottom
@@ -600,10 +652,11 @@ class PromptToolkitTUI:
         """Create keyboard shortcut handlers."""
         kb = KeyBindings()
 
-        @kb.add('c-c')
+        @kb.add("c-c")
         def exit_app(event):
             """Exit application on Ctrl+C."""
-        @kb.add('enter')
+
+        @kb.add("enter")
         def submit_message(event):
             """Submit message on Enter key."""
             buffer = event.current_buffer
@@ -614,35 +667,41 @@ class PromptToolkitTUI:
                 if CommandParser.is_command(text):
                     command, args = CommandParser.parse(text)
                     logger.info(f"Processing command: {command} with args: {args}")
-                    
+
                     # Handle built-in commands
-                    if command in ['/exit', '/quit']:
+                    if command in ["/exit", "/quit"]:
                         event.app.exit()
                         return
-                    
-                    elif command == '/help':
+
+                    elif command == "/help":
                         help_text = CommandParser.get_help_text()
                         self.conversation.add_message("command", help_text)
-                    
-                    elif command == '/clear':
+
+                    elif command == "/clear":
                         self.conversation.clear_messages()
-                        self.conversation.add_message("command", "Conversation cleared.")
-                    
-                    elif command == '/debug':
+                        self.conversation.add_message(
+                            "command", "Conversation cleared."
+                        )
+
+                    elif command == "/debug":
                         self.conversation.debug_mode = not self.conversation.debug_mode
-                        status = "enabled" if self.conversation.debug_mode else "disabled"
+                        status = (
+                            "enabled" if self.conversation.debug_mode else "disabled"
+                        )
                         if self.conversation.debug_mode:
                             logger.setLevel(logging.DEBUG)
                         else:
                             logger.setLevel(logging.INFO)
-                        self.conversation.add_message("command", f"Debug mode {status}.")
+                        self.conversation.add_message(
+                            "command", f"Debug mode {status}."
+                        )
                         logger.info(f"Debug mode {status}")
-                    
-                    elif command == '/shortcuts':
+
+                    elif command == "/shortcuts":
                         shortcuts_text = CommandParser.get_shortcuts_text()
                         self.conversation.add_message("command", shortcuts_text)
 
-                    elif command == '/thinking':
+                    elif command == "/thinking":
                         self.thinking_enabled = not self.thinking_enabled
                         status = "enabled" if self.thinking_enabled else "disabled"
                         message = (
@@ -656,20 +715,23 @@ class PromptToolkitTUI:
                         self.conversation.add_message("command", message)
                         logger.info(f"Thinking mode {status}")
 
-                    elif command == '/copy':
+                    elif command == "/copy":
                         success, message = self.copy_conversation_to_clipboard()
                         if success:
-                            self.conversation.add_message("command", f"✅ {message}\n\nYou can now paste the conversation anywhere (Cmd+V on macOS, Ctrl+V on other platforms).")
+                            self.conversation.add_message(
+                                "command",
+                                f"✅ {message}\n\nYou can now paste the conversation anywhere (Cmd+V on macOS, Ctrl+V on other platforms).",
+                            )
                         else:
                             self.conversation.add_message("command", f"❌ {message}")
 
-                    elif command == '/mode':
+                    elif command == "/mode":
                         if not args:
                             # Show current mode
                             current_mode = self.mode_manager.get_mode()
                             mode_name = current_mode.value.upper()
                             description = self.mode_manager.get_mode_description()
-                            
+
                             message = (
                                 f"Current Mode: {mode_name}\n\n"
                                 f"{description}\n\n"
@@ -684,47 +746,69 @@ class PromptToolkitTUI:
                         else:
                             # Switch mode
                             mode_arg = args[0].lower()
-                            if mode_arg == 'chat':
+                            if mode_arg == "chat":
                                 self.mode_manager.set_mode(ExecutionMode.CHAT)
                                 self.update_mode_style()
-                                description = self.mode_manager.get_mode_description(ExecutionMode.CHAT)
-                                self.conversation.add_message("command", f"Switched to Chat Mode\n\n{description}")
+                                description = self.mode_manager.get_mode_description(
+                                    ExecutionMode.CHAT
+                                )
+                                self.conversation.add_message(
+                                    "command", f"Switched to Chat Mode\n\n{description}"
+                                )
                                 self.status_text = "Chat Mode active"
-                            elif mode_arg == 'architect':
+                            elif mode_arg == "architect":
                                 self.mode_manager.set_mode(ExecutionMode.ARCHITECT)
                                 self.update_mode_style()
-                                description = self.mode_manager.get_mode_description(ExecutionMode.ARCHITECT)
-                                self.conversation.add_message("command", f"Switched to Architect Mode\n\n{description}")
+                                description = self.mode_manager.get_mode_description(
+                                    ExecutionMode.ARCHITECT
+                                )
+                                self.conversation.add_message(
+                                    "command",
+                                    f"Switched to Architect Mode\n\n{description}",
+                                )
                                 self.status_text = "Architect Mode active"
-                            elif mode_arg == 'execute':
+                            elif mode_arg == "execute":
                                 self.mode_manager.set_mode(ExecutionMode.EXECUTE)
                                 self.update_mode_style()
-                                description = self.mode_manager.get_mode_description(ExecutionMode.EXECUTE)
-                                self.conversation.add_message("command", f"Switched to Execute Mode\n\n{description}")
+                                description = self.mode_manager.get_mode_description(
+                                    ExecutionMode.EXECUTE
+                                )
+                                self.conversation.add_message(
+                                    "command",
+                                    f"Switched to Execute Mode\n\n{description}",
+                                )
                                 self.status_text = "Execute Mode active"
-                            elif mode_arg == 'llvl':
+                            elif mode_arg == "llvl":
                                 # Show extra message for LLVL mode
                                 self.mode_manager.set_mode(ExecutionMode.LLVL)
                                 self.update_mode_style()
-                                description = self.mode_manager.get_mode_description(ExecutionMode.LLVL)
+                                description = self.mode_manager.get_mode_description(
+                                    ExecutionMode.LLVL
+                                )
                                 warning = (
                                     "🎸 LIVIN' LA VIDA LOCA MODE ACTIVATED 🎸\n"
                                     "All safety checks disabled!\n"
                                     "Make sure you have version control enabled!\n\n"
                                 )
-                                self.conversation.add_message("command", f"{warning}{description}")
-                                self.status_text = "LLVL Mode active - LIVIN' LA VIDA LOCA!"
+                                self.conversation.add_message(
+                                    "command", f"{warning}{description}"
+                                )
+                                self.status_text = (
+                                    "LLVL Mode active - LIVIN' LA VIDA LOCA!"
+                                )
                             else:
                                 self.conversation.add_message(
                                     "command",
                                     f"Unknown mode: {mode_arg}\n\n"
-                                    "Available modes: chat, architect, execute, llvl"
+                                    "Available modes: chat, architect, execute, llvl",
                                 )
-                    
-                    elif command == '/speed':
+
+                    elif command == "/speed":
                         if not args:
                             # Show current speed
-                            current_delay = self.streaming_chunk_delay * 1000  # Convert to ms
+                            current_delay = (
+                                self.streaming_chunk_delay * 1000
+                            )  # Convert to ms
                             message = (
                                 f"Current streaming speed: {current_delay}ms delay between chunks\n\n"
                                 "Available speeds:\n"
@@ -737,32 +821,42 @@ class PromptToolkitTUI:
                             self.conversation.add_message("command", message)
                         else:
                             speed_arg = args[0].lower()
-                            if speed_arg in ['slow', 'medium', 'fast', 'instant']:
+                            if speed_arg in ["slow", "medium", "fast", "instant"]:
                                 self.set_streaming_speed(speed_arg)
-                                self.conversation.add_message("command", f"Streaming speed set to: {speed_arg}")
+                                self.conversation.add_message(
+                                    "command", f"Streaming speed set to: {speed_arg}"
+                                )
                                 self.status_text = f"Streaming: {speed_arg}"
                             else:
                                 self.conversation.add_message(
                                     "command",
                                     f"Unknown speed: {speed_arg}\n\n"
-                                    "Available speeds: slow, medium, fast, instant"
+                                    "Available speeds: slow, medium, fast, instant",
                                 )
-                    
+
                     else:
                         # External command - use callback if set
                         callback = self.command_callback
                         if callback:
+
                             async def handle_command():
                                 try:
                                     response = await callback(command, args)
                                     self.conversation.add_message("command", response)
                                     self._auto_scroll_to_bottom()
                                 except Exception as e:
-                                    logger.error(f"Command callback error: {e}", exc_info=True)
-                                    self.conversation.add_message("command", f"Error: {str(e)}")
+                                    logger.error(
+                                        f"Command callback error: {e}", exc_info=True
+                                    )
+                                    self.conversation.add_message(
+                                        "command", f"Error: {str(e)}"
+                                    )
+
                             asyncio.ensure_future(handle_command())
                         else:
-                            self.conversation.add_message("command", f"Unknown command: {command}")
+                            self.conversation.add_message(
+                                "command", f"Unknown command: {command}"
+                            )
                 else:
                     # Regular message
                     self.conversation.add_message("user", text)
@@ -781,12 +875,12 @@ class PromptToolkitTUI:
                 # Invalidate to trigger redraw
                 event.app.invalidate()
 
-        @kb.add('escape')
+        @kb.add("escape")
         def clear_input(event):
             """Clear input field on Escape."""
             event.current_buffer.reset()
 
-        @kb.add('pageup')
+        @kb.add("pageup")
         def scroll_up(event):
             """Scroll conversation up on Page Up.
 
@@ -801,16 +895,20 @@ class PromptToolkitTUI:
                 # Calculate approximate lines per page (use window height if available)
                 lines_to_move = 10
                 if self.conversation_window and self.conversation_window.render_info:
-                    window_height = self.conversation_window.render_info.window_height or 10
+                    window_height = (
+                        self.conversation_window.render_info.window_height or 10
+                    )
                     lines_to_move = max(1, window_height - 2)
 
                 # Move cursor up in the buffer
                 current_pos = self.conversation.buffer.cursor_position
-                new_pos = max(0, current_pos - (lines_to_move * 50))  # Approximate chars per line
+                new_pos = max(
+                    0, current_pos - (lines_to_move * 50)
+                )  # Approximate chars per line
                 self.conversation.buffer.cursor_position = new_pos
                 event.app.invalidate()
 
-        @kb.add('pagedown')
+        @kb.add("pagedown")
         def scroll_down(event):
             """Scroll conversation down on Page Down.
 
@@ -821,13 +919,17 @@ class PromptToolkitTUI:
                 # Calculate approximate lines per page
                 lines_to_move = 10
                 if self.conversation_window and self.conversation_window.render_info:
-                    window_height = self.conversation_window.render_info.window_height or 10
+                    window_height = (
+                        self.conversation_window.render_info.window_height or 10
+                    )
                     lines_to_move = max(1, window_height - 2)
 
                 # Move cursor down in the buffer
                 current_pos = self.conversation.buffer.cursor_position
                 text_length = len(self.conversation.buffer.text)
-                new_pos = min(text_length, current_pos + (lines_to_move * 50))  # Approximate chars per line
+                new_pos = min(
+                    text_length, current_pos + (lines_to_move * 50)
+                )  # Approximate chars per line
                 self.conversation.buffer.cursor_position = new_pos
 
                 # Re-enable auto-scroll if we've reached the bottom
@@ -836,7 +938,7 @@ class PromptToolkitTUI:
 
                 event.app.invalidate()
 
-        @kb.add('c-s')
+        @kb.add("c-s")
         def suspend_for_text_selection(event):
             """Suspend TUI to allow text selection/copying (Ctrl+S)."""
             # Exit the application temporarily
@@ -844,7 +946,7 @@ class PromptToolkitTUI:
             # User can restart the TUI after copying
             event.app.exit()
 
-        @kb.add('c-y')
+        @kb.add("c-y")
         def copy_conversation(event):
             """Copy conversation to clipboard (Ctrl+Y)."""
             success, message = self.copy_conversation_to_clipboard()
@@ -854,7 +956,7 @@ class PromptToolkitTUI:
                 self.conversation.add_message("command", f"❌ {message}")
             event.app.invalidate()
 
-        @kb.add('s-tab')  # Shift+Tab
+        @kb.add("s-tab")  # Shift+Tab
         def toggle_mode(event):
             """Cycle through execution modes."""
             new_mode = self.mode_manager.toggle_mode()
@@ -865,7 +967,9 @@ class PromptToolkitTUI:
 
             # Update status bar with brief feedback (no conversation message)
             if new_mode == ExecutionMode.LLVL:
-                self.status_text = "🎸 LLVL Mode: LIVIN' LA VIDA LOCA! (Safety checks disabled)"
+                self.status_text = (
+                    "🎸 LLVL Mode: LIVIN' LA VIDA LOCA! (Safety checks disabled)"
+                )
             else:
                 self.status_text = f"Switched to {mode_name} Mode"
 
@@ -882,11 +986,13 @@ class PromptToolkitTUI:
         Returns:
             FormattedText for info bar display
         """
-        return FormattedText([
-            ("class:info-text", f"  📊 Tokens: {self.token_count:,} | "),
-            ("class:info-text", f"Context: {int(self.context_usage * 100)}% | "),
-            ("class:info-text", f"🔄 {self.current_activity}  "),
-        ])
+        return FormattedText(
+            [
+                ("class:info-text", f"  📊 Tokens: {self.token_count:,} | "),
+                ("class:info-text", f"Context: {int(self.context_usage * 100)}% | "),
+                ("class:info-text", f"🔄 {self.current_activity}  "),
+            ]
+        )
 
     def _create_layout(self) -> Layout:
         """Create the TUI layout structure.
@@ -902,9 +1008,14 @@ class PromptToolkitTUI:
         # Header window
         header = Window(
             content=FormattedTextControl(
-                text=lambda: FormattedText([
-                    ("class:header", "  GerdsenAI CLI - Interactive Chat Mode · Type /help for commands  "),
-                ])
+                text=lambda: FormattedText(
+                    [
+                        (
+                            "class:header",
+                            "  GerdsenAI CLI - Interactive Chat Mode · Type /help for commands  ",
+                        ),
+                    ]
+                )
             ),
             height=1,
             style="class:header-bg",
@@ -926,7 +1037,7 @@ class PromptToolkitTUI:
                 buffer=self.input_buffer,
                 input_processors=[],
             ),
-            height=lambda: min(5, max(1, self.input_buffer.text.count('\n') + 1)),
+            height=lambda: min(5, max(1, self.input_buffer.text.count("\n") + 1)),
         )
 
         # Wrap input in a frame
@@ -937,9 +1048,7 @@ class PromptToolkitTUI:
 
         # Info bar - displays operational info (integrated with conversation)
         info_bar = Window(
-            content=FormattedTextControl(
-                text=lambda: self._get_info_bar_text()
-            ),
+            content=FormattedTextControl(text=lambda: self._get_info_bar_text()),
             height=1,
             style="class:info-bar",
         )
@@ -949,25 +1058,38 @@ class PromptToolkitTUI:
         thinking_status = "ON" if self.thinking_enabled else "OFF"
         status_window = Window(
             content=FormattedTextControl(
-                text=lambda: FormattedText([
-                    ("class:status", f"  {self.mode_manager.format_status_line()} | "),
-                    ("class:status", f"Thinking: {thinking_status if self.thinking_enabled else 'OFF'} | "),
-                    ("class:status", f"{len(self.conversation.messages)} messages{scroll_indicator if not self._is_at_bottom() else ''} | "),
-                    ("class:status", f"Ctrl+Y: copy | Shift+Tab: mode | /help  "),
-                ])
+                text=lambda: FormattedText(
+                    [
+                        (
+                            "class:status",
+                            f"  {self.mode_manager.format_status_line()} | ",
+                        ),
+                        (
+                            "class:status",
+                            f"Thinking: {thinking_status if self.thinking_enabled else 'OFF'} | ",
+                        ),
+                        (
+                            "class:status",
+                            f"{len(self.conversation.messages)} messages{scroll_indicator if not self._is_at_bottom() else ''} | ",
+                        ),
+                        ("class:status", f"Ctrl+Y: copy | Shift+Tab: mode | /help  "),
+                    ]
+                )
             ),
             height=1,
             style="class:status-bg",
         )
 
         # Combine into vertical split
-        root_container = HSplit([
-            header,                   # Fixed at top
-            self.conversation_window, # Takes remaining space (scrollable)
-            info_bar,                 # Info bar (above input, integrated look)
-            input_frame,              # User input
-            status_window,            # Fixed at bottom (mode/thinking)
-        ])
+        root_container = HSplit(
+            [
+                header,  # Fixed at top
+                self.conversation_window,  # Takes remaining space (scrollable)
+                info_bar,  # Info bar (above input, integrated look)
+                input_frame,  # User input
+                status_window,  # Fixed at bottom (mode/thinking)
+            ]
+        )
 
         return Layout(root_container)
 
@@ -979,7 +1101,9 @@ class PromptToolkitTUI:
         """
         self.message_callback = callback
 
-    def set_command_callback(self, callback: Callable[[str, list[str]], Awaitable[str]]):
+    def set_command_callback(
+        self, callback: Callable[[str, list[str]], Awaitable[str]]
+    ):
         """Set callback function called when user submits a command.
 
         Args:
@@ -1018,7 +1142,12 @@ class PromptToolkitTUI:
         self.app.style = new_style
         self.app.invalidate()
 
-    def update_info_bar(self, tokens: int | None = None, context: float | None = None, activity: str | None = None):
+    def update_info_bar(
+        self,
+        tokens: int | None = None,
+        context: float | None = None,
+        activity: str | None = None,
+    ):
         """Update info bar display with operational status.
 
         Args:
@@ -1071,8 +1200,9 @@ class PromptToolkitTUI:
 
             # Try to copy to clipboard using pbcopy on macOS
             import subprocess
-            process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-            process.communicate(markdown_text.encode('utf-8'))
+
+            process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+            process.communicate(markdown_text.encode("utf-8"))
 
             message_count = len(self.conversation.messages)
             return True, f"Copied {message_count} messages to clipboard"
@@ -1081,35 +1211,41 @@ class PromptToolkitTUI:
             # pbcopy not available, try pyperclip
             try:
                 import pyperclip
+
                 pyperclip.copy(markdown_text)
                 message_count = len(self.conversation.messages)
                 return True, f"Copied {message_count} messages to clipboard"
             except ImportError:
-                return False, "Clipboard copy failed: pyperclip not installed and pbcopy not available"
+                return (
+                    False,
+                    "Clipboard copy failed: pyperclip not installed and pbcopy not available",
+                )
         except Exception as e:
             logger.error(f"Failed to copy conversation: {e}", exc_info=True)
             return False, f"Failed to copy conversation: {str(e)}"
 
     def set_streaming_speed(self, speed: str) -> None:
         """Set streaming animation speed.
-        
+
         Args:
             speed: 'slow', 'medium', 'fast', or 'instant'
         """
         speed_settings = {
-            'slow': (0.05, 5),      # 50ms delay, refresh every 5 chunks
-            'medium': (0.01, 3),    # 10ms delay, refresh every 3 chunks
-            'fast': (0.005, 2),     # 5ms delay, refresh every 2 chunks
-            'instant': (0.0, 1),    # No delay, refresh every chunk
+            "slow": (0.05, 5),  # 50ms delay, refresh every 5 chunks
+            "medium": (0.01, 3),  # 10ms delay, refresh every 3 chunks
+            "fast": (0.005, 2),  # 5ms delay, refresh every 2 chunks
+            "instant": (0.0, 1),  # No delay, refresh every chunk
         }
-        
+
         if speed in speed_settings:
-            self.streaming_chunk_delay, self.streaming_refresh_interval = speed_settings[speed]
+            self.streaming_chunk_delay, self.streaming_refresh_interval = (
+                speed_settings[speed]
+            )
             logger.info(f"Streaming speed set to: {speed}")
-    
+
     def show_animation(self, message: str, animation_type: str = "spinner"):
         """Show animated status message.
-        
+
         Args:
             message: Status message
             animation_type: Type of animation (spinner, thinking, planning, analyzing, executing, dots)
@@ -1117,7 +1253,7 @@ class PromptToolkitTUI:
         # Stop any existing animation
         if self.current_animation:
             self.current_animation.stop()
-        
+
         # Get animation frames
         frames_map = {
             "spinner": AnimationFrames.SPINNER,
@@ -1128,78 +1264,88 @@ class PromptToolkitTUI:
             "dots": AnimationFrames.DOTS,
         }
         frames = frames_map.get(animation_type, AnimationFrames.SPINNER)
-        
+
         # Create and start animation
         self.current_animation = StatusAnimation(self, message, frames)
         self.current_animation.start()
         logger.debug(f"Started {animation_type} animation: {message}")
-    
+
     def hide_animation(self):
         """Stop and hide current animation."""
         if self.current_animation:
             self.current_animation.stop()
             self.current_animation = None
             mode_name = self.mode_manager.get_mode().value.upper()
-            self.status_text = f"[{mode_name}] Ready. Type your message and press Enter."
+            self.status_text = (
+                f"[{mode_name}] Ready. Type your message and press Enter."
+            )
             self.app.invalidate()
             logger.debug("Animation hidden")
-    
+
     def show_plan_for_approval(self, plan: dict):
         """Show plan summary and enter approval mode.
-        
+
         Args:
             plan: Plan dict from PlanCapture.extract_summary
         """
         self.pending_plan = plan
         self.approval_mode = True
-        
+
         # Format and display plan
         preview = PlanCapture.format_plan_preview(plan)
         self.conversation.add_message("command", preview)
-        
+
         # Update status
         self.status_text = "⏸️  Waiting for approval (yes/no/show full)"
         self.app.invalidate()
         logger.info("Plan shown for approval")
-    
+
     async def handle_approval_response(self, response: str) -> bool:
         """Handle user response to approval prompt.
-        
+
         Args:
             response: User's response text
-            
+
         Returns:
             True if plan was approved, False if cancelled
         """
         response_lower = response.lower().strip()
-        
-        if response_lower in ['yes', 'approve', 'y', 'proceed', 'go', 'execute']:
+
+        if response_lower in ["yes", "approve", "y", "proceed", "go", "execute"]:
             # User approved
-            self.conversation.add_message("command", "✅ Plan approved! Switching to EXECUTE mode...")
+            self.conversation.add_message(
+                "command", "✅ Plan approved! Switching to EXECUTE mode..."
+            )
             self.approval_mode = False
             logger.info("Plan approved by user")
             return True
-        
-        elif response_lower in ['no', 'cancel', 'n', 'abort', 'stop']:
+
+        elif response_lower in ["no", "cancel", "n", "abort", "stop"]:
             # User cancelled
             self.conversation.add_message("command", "❌ Plan cancelled.")
             self.approval_mode = False
             self.pending_plan = None
             logger.info("Plan cancelled by user")
             return False
-        
-        elif 'show' in response_lower and 'full' in response_lower:
+
+        elif "show" in response_lower and "full" in response_lower:
             # User wants to see full plan
             if self.pending_plan:
-                full_response = self.pending_plan.get('full_response', 'No details available')
+                full_response = self.pending_plan.get(
+                    "full_response", "No details available"
+                )
                 self.conversation.add_message("assistant", full_response)
-                self.conversation.add_message("command", "\n" + "━" * 70 + "\nApprove? (yes/no)")
+                self.conversation.add_message(
+                    "command", "\n" + "━" * 70 + "\nApprove? (yes/no)"
+                )
                 logger.info("Showing full plan details")
             return False
-        
+
         else:
             # Invalid response
-            self.conversation.add_message("command", "⚠️  Please respond with 'yes' to approve or 'no' to cancel.")
+            self.conversation.add_message(
+                "command", "⚠️  Please respond with 'yes' to approve or 'no' to cancel."
+            )
             return False
 
     def _auto_scroll_to_bottom(self):
@@ -1274,51 +1420,53 @@ def get_mode_style(mode: ExecutionMode) -> Style:
     # Define mode-specific colors
     mode_colors = {
         ExecutionMode.CHAT: {
-            'primary': '#0066ff',      # Blue
-            'primary_bg': '#004499',   # Dark blue
-            'border': '#0088ff',       # Light blue
+            "primary": "#0066ff",  # Blue
+            "primary_bg": "#004499",  # Dark blue
+            "border": "#0088ff",  # Light blue
         },
         ExecutionMode.ARCHITECT: {
-            'primary': '#ffaa00',      # Yellow/Orange
-            'primary_bg': '#cc8800',   # Dark orange
-            'border': '#ffcc00',       # Light yellow
+            "primary": "#ffaa00",  # Yellow/Orange
+            "primary_bg": "#cc8800",  # Dark orange
+            "border": "#ffcc00",  # Light yellow
         },
         ExecutionMode.EXECUTE: {
-            'primary': '#00ff00',      # Green
-            'primary_bg': '#00aa00',   # Dark green
-            'border': '#00ff88',       # Light green
+            "primary": "#00ff00",  # Green
+            "primary_bg": "#00aa00",  # Dark green
+            "border": "#00ff88",  # Light green
         },
         ExecutionMode.LLVL: {
-            'primary': '#ff00ff',      # Magenta
-            'primary_bg': '#cc00cc',   # Dark magenta
-            'border': '#ff44ff',       # Light magenta
+            "primary": "#ff00ff",  # Magenta
+            "primary_bg": "#cc00cc",  # Dark magenta
+            "border": "#ff44ff",  # Light magenta
         },
     }
 
     colors = mode_colors.get(mode, mode_colors[ExecutionMode.CHAT])
 
-    return Style.from_dict({
-        'header': f'bg:{colors["primary"]} #ffffff bold',
-        'header-bg': f'bg:{colors["primary_bg"]}',
-        'status': '#ffffff',
-        'status-bg': 'bg:#444444',
-        'user-label': f'{colors["primary"]} bold',
-        'user-border': colors['border'],
-        'user-text': '#ffffff',
-        'ai-label': f'{colors["primary"]} bold',
-        'ai-border': colors['border'],
-        'ai-text': '#ffffff',
-        'command-label': '#ffaa00 bold',
-        'command-border': '#aa8800',
-        'command-text': '#ffddaa',
-        'system-label': '#ffaa00 bold',
-        'system-border': '#aa8800',
-        'system-text': '#ffddaa',
-        'system-footer': '#888888',
-        'system-footer-bg': 'bg:#2a2a2a',
-        'info-bar': 'bg:#1a1a1a',         # Subtle dark bg (integrated look)
-        'info-text': '#888888',           # Dim gray text
-        'cursor': '#ffff00 blink',
-        'dim': '#888888 italic',
-        'frame.border': colors['border'],  # For input frame border
-    })
+    return Style.from_dict(
+        {
+            "header": f"bg:{colors['primary']} #ffffff bold",
+            "header-bg": f"bg:{colors['primary_bg']}",
+            "status": "#ffffff",
+            "status-bg": "bg:#444444",
+            "user-label": f"{colors['primary']} bold",
+            "user-border": colors["border"],
+            "user-text": "#ffffff",
+            "ai-label": f"{colors['primary']} bold",
+            "ai-border": colors["border"],
+            "ai-text": "#ffffff",
+            "command-label": "#ffaa00 bold",
+            "command-border": "#aa8800",
+            "command-text": "#ffddaa",
+            "system-label": "#ffaa00 bold",
+            "system-border": "#aa8800",
+            "system-text": "#ffddaa",
+            "system-footer": "#888888",
+            "system-footer-bg": "bg:#2a2a2a",
+            "info-bar": "bg:#1a1a1a",  # Subtle dark bg (integrated look)
+            "info-text": "#888888",  # Dim gray text
+            "cursor": "#ffff00 blink",
+            "dim": "#888888 italic",
+            "frame.border": colors["border"],  # For input frame border
+        }
+    )

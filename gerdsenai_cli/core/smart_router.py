@@ -256,7 +256,7 @@ class SmartRouter:
 
 **Files**: {files_str}
 
-**My understanding**: {intent.reasoning or 'No specific reasoning provided'}
+**My understanding**: {intent.reasoning or "No specific reasoning provided"}
 
 **Confidence**: {intent.confidence:.0%}
 
@@ -304,7 +304,9 @@ Is this correct? You can:
             Set of file paths mentioned
         """
         # Simple pattern for common file extensions
-        pattern = r"[\w/.-]+\.(?:py|js|ts|java|cpp|h|hpp|md|txt|json|yaml|toml|sh|bash|zsh)"
+        pattern = (
+            r"[\w/.-]+\.(?:py|js|ts|java|cpp|h|hpp|md|txt|json|yaml|toml|sh|bash|zsh)"
+        )
         matches = re.findall(pattern, text)
         return set(matches)
 

@@ -182,7 +182,7 @@ class ListModelsCommand(BaseCommand):
             panel_style = "green" if is_current else "blue"
             panel = Panel(
                 "\n".join(details),
-                title=f"Model {i+1}/{len(models)}",
+                title=f"Model {i + 1}/{len(models)}",
                 border_style=panel_style,
             )
             console.print(panel)

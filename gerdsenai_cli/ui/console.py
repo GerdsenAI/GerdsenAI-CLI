@@ -7,17 +7,17 @@ Provides a modern, bordered interface for the GerdsenAI CLI.
 import re
 from typing import Optional
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
-from rich.live import Live
-from prompt_toolkit import PromptSession
-from prompt_toolkit.formatted_text import HTML
 
+from ..utils.status_messages import OperationType, get_status_message
 from .layout import GerdsenAILayout
 from .status_display import IntelligenceActivity, StatusDisplayManager
-from ..utils.status_messages import OperationType, get_status_message
 
 
 class EnhancedConsole:
@@ -25,7 +25,7 @@ class EnhancedConsole:
 
     def __init__(self, console: Optional[Console] = None):
         """Initialize enhanced console.
-        
+
         Args:
             console: Rich console instance (creates new if None)
         """
@@ -39,19 +39,19 @@ class EnhancedConsole:
 
     def set_tui_mode(self, enabled: bool) -> None:
         """Enable or disable TUI mode.
-        
+
         Args:
             enabled: Whether to use TUI layout
         """
         self.use_tui = enabled
-    
+
     def start_persistent_tui(self) -> None:
         """Start persistent Live TUI that stays on screen for the entire session."""
         if self.use_tui and not self._persistent_live:
             # Initialize layout with empty state
             self.layout.update_input("")
             self.layout.update_response("", is_code=False)
-            
+
             # Start persistent Live display
             self._persistent_live = Live(
                 self.layout.layout,
@@ -60,40 +60,42 @@ class EnhancedConsole:
                 transient=False,
             )
             self._persistent_live.start()
-            
+
             # Create prompt session for input
             self._prompt_session = PromptSession()
-    
+
     def stop_persistent_tui(self) -> None:
         """Stop persistent Live TUI."""
         if self._persistent_live:
             self._persistent_live.stop()
             self._persistent_live = None
-    
+
     async def get_input_in_tui(self) -> str:
         """Get user input while maintaining the TUI display.
-        
+
         Returns:
             User input string
         """
         if not self._prompt_session:
             self._prompt_session = PromptSession()
-        
+
         # Temporarily stop Live to allow input
         if self._persistent_live:
             self._persistent_live.stop()
-        
+
         try:
             # Get input with styled prompt
             user_input = await self._prompt_session.prompt_async(
-                HTML('<style fg="#00FFFF" bold="true">GerdsenAI</style><prompt> > </prompt>'),
+                HTML(
+                    '<style fg="#00FFFF" bold="true">GerdsenAI</style><prompt> > </prompt>'
+                ),
                 multiline=False,
             )
-            
+
             # Update layout with user input
             self.layout.update_input(user_input)
             self.layout.update_response("", is_code=False)
-            
+
             # Restart Live display
             if self.use_tui:
                 self._persistent_live = Live(
@@ -103,9 +105,9 @@ class EnhancedConsole:
                     transient=False,
                 )
                 self._persistent_live.start()
-            
+
             return user_input.strip()
-        
+
         except (KeyboardInterrupt, EOFError):
             # Restart Live before raising
             if self.use_tui and not self._persistent_live:
@@ -120,38 +122,40 @@ class EnhancedConsole:
 
     def _detect_code_blocks(self, text: str) -> list[dict]:
         """Detect code blocks in markdown-formatted text.
-        
+
         Args:
             text: Text to analyze
-            
+
         Returns:
             List of code block info dicts with 'language', 'code', 'start', 'end'
         """
         # Match ```language\ncode\n``` patterns
         pattern = r"```(\w+)?\n(.*?)```"
         matches = re.finditer(pattern, text, re.DOTALL)
-        
+
         blocks = []
         for match in matches:
             language = match.group(1) or "text"
             code = match.group(2).strip()
-            blocks.append({
-                "language": language,
-                "code": code,
-                "start": match.start(),
-                "end": match.end(),
-            })
-        
+            blocks.append(
+                {
+                    "language": language,
+                    "code": code,
+                    "start": match.start(),
+                    "end": match.end(),
+                }
+            )
+
         return blocks
 
     def _render_response_with_syntax(self, response: str) -> None:
         """Render response with syntax highlighting for code blocks.
-        
+
         Args:
             response: The response text potentially containing code blocks
         """
         code_blocks = self._detect_code_blocks(response)
-        
+
         if not code_blocks:
             # No code blocks, render as plain text
             if self.use_tui:
@@ -159,7 +163,7 @@ class EnhancedConsole:
             else:
                 self.console.print(Markdown(response))
             return
-        
+
         # For TUI mode, we need to display just the first code block
         # (since update_response only shows one block at a time)
         # For now, prioritize showing code blocks
@@ -173,10 +177,10 @@ class EnhancedConsole:
             for block in code_blocks:
                 # Print text before code block
                 if block["start"] > last_end:
-                    text_before = response[last_end:block["start"]].strip()
+                    text_before = response[last_end : block["start"]].strip()
                     if text_before:
                         self.console.print(text_before)
-                
+
                 # Print code block with syntax highlighting
                 syntax = Syntax(
                     block["code"],
@@ -185,9 +189,9 @@ class EnhancedConsole:
                     line_numbers=True,
                 )
                 self.console.print(syntax)
-                
+
                 last_end = block["end"]
-            
+
             # Print remaining text after last code block
             if last_end < len(response):
                 text_after = response[last_end:].strip()
@@ -200,7 +204,7 @@ class EnhancedConsole:
         ai_response: str,
     ) -> None:
         """Print a message exchange with automatic code detection.
-        
+
         Args:
             user_input: User's input
             ai_response: AI's response (may contain code blocks)
@@ -217,7 +221,7 @@ class EnhancedConsole:
 
     def start_streaming(self, user_input: str) -> None:
         """Start streaming response display.
-        
+
         Args:
             user_input: User's input to display
         """
@@ -232,7 +236,7 @@ class EnhancedConsole:
                 # Initialize layout for streaming
                 self.layout.update_input(user_input)
                 self.layout.update_response("", is_code=False)
-                
+
                 # Start Live display for in-place updates
                 self._live = Live(
                     self.layout.layout,
@@ -247,7 +251,7 @@ class EnhancedConsole:
 
     def stream_chunk(self, chunk: str, accumulated_response: str) -> None:
         """Stream a chunk of the response.
-        
+
         Args:
             chunk: The new chunk to display
             accumulated_response: Full response so far (including this chunk)
@@ -255,7 +259,7 @@ class EnhancedConsole:
         if self.use_tui:
             # Update TUI with accumulated response
             self.layout.update_response(accumulated_response, is_code=False)
-            
+
             # Update the active Live display (persistent or temporary)
             if self._persistent_live:
                 self._persistent_live.update(self.layout.layout)
@@ -286,7 +290,7 @@ class EnhancedConsole:
         operation: Optional[str] = None,
     ) -> None:
         """Update status bar.
-        
+
         Args:
             model: Current model name
             context_files: Number of context files
@@ -298,7 +302,7 @@ class EnhancedConsole:
         if operation and operation.upper() in OperationType.__members__:
             op_type = OperationType[operation.upper()]
             current_task = get_status_message(op_type)
-        
+
         if self.use_tui:
             self.layout.update_status(
                 model=model,
@@ -306,10 +310,10 @@ class EnhancedConsole:
                 token_count=token_count,
                 current_task=current_task,
             )
-    
+
     def set_operation(self, operation: str) -> None:
         """Set current operation with sophisticated status message.
-        
+
         Args:
             operation: Operation type (thinking, reading, analyzing, writing, planning,
                       searching, processing, streaming, contextualizing, synthesizing, evaluating)
@@ -318,10 +322,10 @@ class EnhancedConsole:
 
     def get_input(self, prompt: str = ">>> ") -> str:
         """Get user input.
-        
+
         Args:
             prompt: Prompt text
-            
+
         Returns:
             User input string
         """
@@ -333,11 +337,11 @@ class EnhancedConsole:
         default: bool = False,
     ) -> bool:
         """Get confirmation from user.
-        
+
         Args:
             message: Confirmation message
             default: Default value if user just presses Enter
-            
+
         Returns:
             True if confirmed, False otherwise
         """
@@ -349,7 +353,7 @@ class EnhancedConsole:
 
     def print_error(self, message: str) -> None:
         """Print an error message.
-        
+
         Args:
             message: Error message
         """
@@ -357,7 +361,7 @@ class EnhancedConsole:
 
     def print_success(self, message: str) -> None:
         """Print a success message.
-        
+
         Args:
             message: Success message
         """
@@ -365,7 +369,7 @@ class EnhancedConsole:
 
     def print_info(self, message: str) -> None:
         """Print an info message.
-        
+
         Args:
             message: Info message
         """
@@ -373,7 +377,7 @@ class EnhancedConsole:
 
     def print_warning(self, message: str) -> None:
         """Print a warning message.
-        
+
         Args:
             message: Warning message
         """
@@ -396,7 +400,9 @@ class EnhancedConsole:
             details: Optional activity details
             step_info: Optional step information (e.g., "Step 2/5")
         """
-        self.status_display.set_activity(activity, message, progress, details, step_info)
+        self.status_display.set_activity(
+            activity, message, progress, details, step_info
+        )
 
         # Update layout with new status
         if self.use_tui:
@@ -530,9 +536,7 @@ class EnhancedConsole:
         table.add_column("Value", style="white")
 
         table.add_row("Total Clarifications", str(stats.get("total_clarifications", 0)))
-        table.add_row(
-            "Helpful Rate", f"{stats.get('helpful_rate', 0.0) * 100:.1f}%"
-        )
+        table.add_row("Helpful Rate", f"{stats.get('helpful_rate', 0.0) * 100:.1f}%")
         table.add_row("Most Common Type", str(stats.get("most_common_type", "N/A")))
 
         # Type breakdown
@@ -579,16 +583,17 @@ class EnhancedConsole:
         header.append("Complexity: ", style="bold")
         header.append(
             f"{analysis.complexity_level.value.upper().replace('_', ' ')}",
-            style=f"bold {complexity_color}"
+            style=f"bold {complexity_color}",
         )
         header.append(" | Risk: ", style="bold")
         header.append(
-            f"{analysis.risk_level.value.upper()}",
-            style=f"bold {risk_color}"
+            f"{analysis.risk_level.value.upper()}", style=f"bold {risk_color}"
         )
 
         self.console.print()
-        self.console.print(Panel(header, title="Task Complexity Analysis", border_style="cyan"))
+        self.console.print(
+            Panel(header, title="Task Complexity Analysis", border_style="cyan")
+        )
 
         # Reasoning
         self.console.print()
@@ -596,7 +601,9 @@ class EnhancedConsole:
 
         # Resource Estimate
         self.console.print()
-        est_table = Table(title="Resource Estimate", show_header=True, border_style="dim")
+        est_table = Table(
+            title="Resource Estimate", show_header=True, border_style="dim"
+        )
         est_table.add_column("Resource", style="cyan")
         est_table.add_column("Estimate", style="white")
 
@@ -610,46 +617,46 @@ class EnhancedConsole:
         est_table.add_row("Files Affected", str(est.file_count))
         est_table.add_row("Lines of Code", f"~{est.lines_of_code}")
         est_table.add_row(
-            "Tests Needed",
-            "✓ Yes" if est.test_coverage_needed else "- No"
+            "Tests Needed", "✓ Yes" if est.test_coverage_needed else "- No"
         )
         est_table.add_row(
-            "Docs Needed",
-            "✓ Yes" if est.documentation_needed else "- No"
+            "Docs Needed", "✓ Yes" if est.documentation_needed else "- No"
         )
 
         self.console.print(est_table)
 
         # Impact Assessment
         self.console.print()
-        impact_table = Table(title="Impact Assessment", show_header=True, border_style="dim")
+        impact_table = Table(
+            title="Impact Assessment", show_header=True, border_style="dim"
+        )
         impact_table.add_column("Aspect", style="cyan")
         impact_table.add_column("Details", style="white")
 
         impact = analysis.impact_assessment
         impact_table.add_row(
-            "Scope",
-            impact.impact_scope.value.replace("_", " ").title()
+            "Scope", impact.impact_scope.value.replace("_", " ").title()
         )
-        impact_table.add_row(
-            "Components",
-            ", ".join(impact.affected_components)
-        )
+        impact_table.add_row("Components", ", ".join(impact.affected_components))
 
         if impact.potential_side_effects:
             impact_table.add_row(
                 "Side Effects",
-                "\n".join(f"• {effect}" for effect in impact.potential_side_effects)
+                "\n".join(f"• {effect}" for effect in impact.potential_side_effects),
             )
 
         impact_table.add_row(
             "Breaking Changes",
-            "[red]Likely[/red]" if impact.breaking_changes_likely else "[green]Unlikely[/green]"
+            "[red]Likely[/red]"
+            if impact.breaking_changes_likely
+            else "[green]Unlikely[/green]",
         )
 
         impact_table.add_row(
             "Migration Needed",
-            "[yellow]Yes[/yellow]" if impact.requires_migration else "[green]No[/green]"
+            "[yellow]Yes[/yellow]"
+            if impact.requires_migration
+            else "[green]No[/green]",
         )
 
         self.console.print(impact_table)
@@ -661,7 +668,7 @@ class EnhancedConsole:
                 "\n".join(analysis.warnings),
                 title="⚠️  Warnings",
                 border_style="yellow",
-                style="yellow"
+                style="yellow",
             )
             self.console.print(warning_panel)
 
@@ -781,18 +788,10 @@ class EnhancedConsole:
 
         # Prompt for confirmation
         self.console.print()
-        self.console.print(
-            "[bold]Do you want to proceed with this operation?[/bold]"
-        )
-        self.console.print(
-            "  [green]yes[/green] - Proceed with operation"
-        )
-        self.console.print(
-            "  [red]no[/red] - Cancel operation"
-        )
-        self.console.print(
-            "  [cyan]preview[/cyan] - Show detailed diff preview"
-        )
+        self.console.print("[bold]Do you want to proceed with this operation?[/bold]")
+        self.console.print("  [green]yes[/green] - Proceed with operation")
+        self.console.print("  [red]no[/red] - Cancel operation")
+        self.console.print("  [cyan]preview[/cyan] - Show detailed diff preview")
 
         # Get user input
         response = input("\nYour choice (yes/no/preview): ").strip().lower()
@@ -804,7 +803,9 @@ class EnhancedConsole:
         elif response in ["p", "preview"]:
             return "preview"
         else:
-            self.console.print("[yellow]Invalid response. Operation cancelled.[/yellow]")
+            self.console.print(
+                "[yellow]Invalid response. Operation cancelled.[/yellow]"
+            )
             return "no"
 
     def show_file_diff(self, file_change) -> None:
@@ -936,7 +937,9 @@ class EnhancedConsole:
             f"\nTotal snapshots: {len(snapshots)} | Use /undo to restore the last operation"
         )
 
-    def show_undo_result(self, success: bool, message: str, files_restored: int = 0) -> None:
+    def show_undo_result(
+        self, success: bool, message: str, files_restored: int = 0
+    ) -> None:
         """
         Display result of undo operation.
 
@@ -1072,7 +1075,11 @@ class EnhancedConsole:
             # Build content
             content = f"[bold]Type:[/bold] {type_value}\n"
             # Ensure priority_value is string for .upper()
-            priority_str = str(priority_value) if not isinstance(priority_value, str) else priority_value
+            priority_str = (
+                str(priority_value)
+                if not isinstance(priority_value, str)
+                else priority_value
+            )
             content += f"[bold]Priority:[/bold] [{priority_color}]{priority_str.upper()}[/{priority_color}]\n\n"
             content += f"{suggestion.description}\n"
 
@@ -1085,10 +1092,14 @@ class EnhancedConsole:
                     content += f" (+{len(suggestion.affected_files) - 3} more)"
 
             if hasattr(suggestion, "code_example") and suggestion.code_example:
-                content += f"\n\n[bold]Example:[/bold]\n[dim]{suggestion.code_example}[/dim]"
+                content += (
+                    f"\n\n[bold]Example:[/bold]\n[dim]{suggestion.code_example}[/dim]"
+                )
 
             if hasattr(suggestion, "action_command") and suggestion.action_command:
-                content += f"\n\n[bold green]Action:[/bold green] {suggestion.action_command}"
+                content += (
+                    f"\n\n[bold green]Action:[/bold green] {suggestion.action_command}"
+                )
 
             if hasattr(suggestion, "estimated_time"):
                 content += f"\n[bold]Estimated Time:[/bold] ~{suggestion.estimated_time} minutes"

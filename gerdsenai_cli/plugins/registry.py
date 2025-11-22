@@ -107,8 +107,7 @@ class PluginRegistry:
         return self.plugins[category][name]
 
     def list_plugins(
-        self,
-        category: PluginCategory | str | None = None
+        self, category: PluginCategory | str | None = None
     ) -> list[PluginMetadata]:
         """
         List all available plugins.
@@ -130,10 +129,7 @@ class PluginRegistry:
         if isinstance(category, str):
             category = PluginCategory(category)
 
-        return [
-            plugin.metadata
-            for plugin in self.plugins[category].values()
-        ]
+        return [plugin.metadata for plugin in self.plugins[category].values()]
 
     def is_available(self, category: PluginCategory | str, name: str) -> bool:
         """
@@ -152,9 +148,7 @@ class PluginRegistry:
         return name in self.plugins[category]
 
     async def initialize_plugin(
-        self,
-        category: PluginCategory | str,
-        name: str
+        self, category: PluginCategory | str, name: str
     ) -> bool:
         """
         Initialize a specific plugin.
@@ -193,13 +187,12 @@ class PluginRegistry:
             return success
 
         except Exception as e:
-            logger.error(
-                f"Plugin {plugin_id} initialization error: {e}",
-                exc_info=True
-            )
+            logger.error(f"Plugin {plugin_id} initialization error: {e}", exc_info=True)
             return False
 
-    async def initialize_all(self, category: PluginCategory | None = None) -> dict[str, bool]:
+    async def initialize_all(
+        self, category: PluginCategory | None = None
+    ) -> dict[str, bool]:
         """
         Initialize all plugins in a category or all categories.
 
@@ -240,8 +233,7 @@ class PluginRegistry:
 
             except Exception as e:
                 logger.error(
-                    f"Error shutting down plugin {plugin_id}: {e}",
-                    exc_info=True
+                    f"Error shutting down plugin {plugin_id}: {e}", exc_info=True
                 )
 
         self._initialized_plugins.clear()
@@ -282,7 +274,8 @@ class PluginRegistry:
                     if (
                         isinstance(attr, type)
                         and hasattr(attr, "metadata")
-                        and attr_name not in ("Plugin", "VisionPlugin", "AudioPlugin", "VideoPlugin")
+                        and attr_name
+                        not in ("Plugin", "VisionPlugin", "AudioPlugin", "VideoPlugin")
                     ):
                         try:
                             # Instantiate and register
@@ -293,13 +286,13 @@ class PluginRegistry:
                         except Exception as e:
                             logger.error(
                                 f"Error instantiating plugin {attr_name}: {e}",
-                                exc_info=True
+                                exc_info=True,
                             )
 
             except Exception as e:
                 logger.error(
                     f"Error importing plugin module {module_info.name}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
         logger.info(f"Discovered {discovered_count} plugins")
@@ -327,15 +320,13 @@ class PluginRegistry:
                 results[plugin_id] = {
                     "status": "unhealthy",
                     "message": f"Health check failed: {e}",
-                    "details": {}
+                    "details": {},
                 }
 
         return results
 
     def get_plugin_info(
-        self,
-        category: PluginCategory | str,
-        name: str
+        self, category: PluginCategory | str, name: str
     ) -> dict[str, Any]:
         """
         Get detailed information about a plugin.

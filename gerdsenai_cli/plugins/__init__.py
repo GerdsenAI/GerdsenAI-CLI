@@ -21,12 +21,12 @@ Plugin Categories:
 """
 
 from .base import (
+    ContentPart,
+    ContentType,
+    MultimodalMessage,
     Plugin,
     PluginCategory,
     PluginMetadata,
-    ContentType,
-    ContentPart,
-    MultimodalMessage,
 )
 from .registry import PluginRegistry, plugin_registry
 
