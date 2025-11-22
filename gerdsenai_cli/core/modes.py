@@ -10,7 +10,6 @@ Provides four distinct modes of operation:
 
 import logging
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +165,7 @@ class ModeManager:
         """
         return self.current_mode != ExecutionMode.CHAT
 
-    def get_mode_description(self, mode: Optional[ExecutionMode] = None) -> str:
+    def get_mode_description(self, mode: ExecutionMode | None = None) -> str:
         """Get description for a mode.
 
         Args:

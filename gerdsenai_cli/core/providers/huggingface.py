@@ -5,7 +5,8 @@ Supports HF's high-performance inference engine.
 """
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 

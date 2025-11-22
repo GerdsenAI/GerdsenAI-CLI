@@ -9,7 +9,6 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +129,8 @@ class ProactiveContextBuilder:
     async def build_smart_context(
         self,
         user_query: str,
-        conversation_history: Optional[list[str]] = None,
-        explicitly_mentioned: Optional[list[str]] = None,
+        conversation_history: list[str] | None = None,
+        explicitly_mentioned: list[str] | None = None,
     ) -> dict[str, FileReadResult]:
         """
         Build context by reading mentioned files and their dependencies.
@@ -231,7 +230,7 @@ class ProactiveContextBuilder:
 
     async def _read_file_with_priority(
         self, file_path: Path, priority: int, reason: str
-    ) -> Optional[FileReadResult]:
+    ) -> FileReadResult | None:
         """
         Read a file with given priority.
 
@@ -348,7 +347,7 @@ class ProactiveContextBuilder:
 
     def _import_to_path(
         self, import_str: str, source_file: Path, lang: str
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Convert an import string to a file path."""
         if lang == "python":
             # Convert module path to file path (e.g., "foo.bar" -> "foo/bar.py")
@@ -364,7 +363,7 @@ class ProactiveContextBuilder:
 
         return None
 
-    def _find_test_file(self, file_path: Path) -> Optional[Path]:
+    def _find_test_file(self, file_path: Path) -> Path | None:
         """Find corresponding test file for given source file."""
         # Pattern: source.py -> test_source.py or source_test.py
         name = file_path.stem
@@ -382,7 +381,7 @@ class ProactiveContextBuilder:
 
         return None
 
-    def _resolve_file_path(self, file_str: str) -> Optional[Path]:
+    def _resolve_file_path(self, file_str: str) -> Path | None:
         """
         Resolve a file string to an absolute Path.
 

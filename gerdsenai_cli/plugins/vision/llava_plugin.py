@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 
-from ..base import PluginCategory, PluginMetadata, VisionPlugin
+from ..base import PluginCategory, PluginMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -270,10 +270,10 @@ class LLaVAPlugin:
         except httpx.TimeoutException:
             logger.error(f"LLaVA request timed out after {self.timeout}s")
             raise RuntimeError(
-                f"LLaVA request timed out. Try:\n"
-                f"- Using a smaller model (llava:7b)\n"
-                f"- Increasing timeout\n"
-                f"- Reducing image size"
+                "LLaVA request timed out. Try:\n"
+                "- Using a smaller model (llava:7b)\n"
+                "- Increasing timeout\n"
+                "- Reducing image size"
             )
         except httpx.HTTPError as e:
             logger.error(f"LLaVA request failed: {e}")
@@ -282,7 +282,7 @@ class LLaVAPlugin:
     async def ocr(
         self,
         image: str | Path | bytes,
-        languages: list[str] = ["en"],
+        languages: list[str] = None,
         model: str | None = None,
     ) -> str:
         """
@@ -299,6 +299,8 @@ class LLaVAPlugin:
         Returns:
             Extracted text
         """
+        if languages is None:
+            languages = ["en"]
         if not self._initialized:
             raise RuntimeError("LLaVA plugin not initialized")
 

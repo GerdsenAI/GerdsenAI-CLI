@@ -10,7 +10,6 @@ Detects and tracks what features the current AI model supports:
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +22,8 @@ class ModelCapabilities:
     supports_vision: bool = False
     supports_tools: bool = False
     supports_streaming: bool = False
-    model_name: Optional[str] = None
-    detected_at: Optional[str] = None
+    model_name: str | None = None
+    detected_at: str | None = None
 
 
 class CapabilityDetector:

@@ -6,7 +6,7 @@ and error recovery scenarios.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -14,7 +14,6 @@ import pytest
 from gerdsenai_cli.core.errors import (
     ContextLengthError,
     ErrorCategory,
-    ErrorSeverity,
     GerdsenAIError,
     ModelNotFoundError,
     NetworkError,
@@ -432,7 +431,6 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_half_open_recovery(self):
         """Test circuit enters half-open state after timeout."""
-        import time
 
         breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
 

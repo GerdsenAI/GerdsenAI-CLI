@@ -4,7 +4,6 @@ Pytest configuration for GerdsenAI CLI tests.
 Configures pytest-asyncio and other test settings.
 """
 
-import pytest  # type: ignore[import-not-found]
 
 
 # Configure pytest-asyncio

@@ -19,7 +19,7 @@ Categories:
 from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
-    from gerdsenai_cli.core.providers.base import ProviderType
+    pass
 
 # =============================================================================
 # PERFORMANCE THRESHOLDS

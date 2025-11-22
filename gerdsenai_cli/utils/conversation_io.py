@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class ConversationSerializer:
     @staticmethod
     def serialize(
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Serialize conversation messages to a JSON-compatible dict.
 
@@ -82,7 +82,7 @@ class ConversationSerializer:
     def save_to_file(
         filepath: Path,
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Save conversation to a JSON file.
 
@@ -121,7 +121,7 @@ class ConversationSerializer:
         if not filepath.exists():
             raise FileNotFoundError(f"Conversation file not found: {filepath}")
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
 
         messages = ConversationSerializer.deserialize(data)
@@ -137,7 +137,7 @@ class ConversationExporter:
     @staticmethod
     def to_markdown(
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Export conversation to markdown format.
 
@@ -195,7 +195,7 @@ class ConversationExporter:
     def save_markdown(
         filepath: Path,
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Save conversation as markdown file.
 
@@ -220,7 +220,7 @@ class ConversationExporter:
 class ConversationManager:
     """High-level manager for conversation I/O operations."""
 
-    def __init__(self, base_dir: Optional[Path] = None):
+    def __init__(self, base_dir: Path | None = None):
         """Initialize conversation manager.
 
         Args:
@@ -251,7 +251,7 @@ class ConversationManager:
         self,
         filename: str,
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Path:
         """Save conversation with automatic filename handling.
 
@@ -291,9 +291,9 @@ class ConversationManager:
 
     def export_conversation(
         self,
-        filename: Optional[str],
+        filename: str | None,
         messages: list[tuple[str, str, datetime]],
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Path:
         """Export conversation to markdown with automatic filename handling.
 

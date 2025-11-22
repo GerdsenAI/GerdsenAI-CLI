@@ -7,7 +7,7 @@ configurations, and edge case handling.
 
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from ..core.errors import ConfigurationError, ErrorCategory, GerdsenAIError
@@ -67,7 +67,7 @@ class InputValidator:
 
     @classmethod
     def validate_user_input(
-        cls, user_input: str, max_length: Optional[int] = None
+        cls, user_input: str, max_length: int | None = None
     ) -> str:
         """
         Validate and sanitize user input.
@@ -474,8 +474,8 @@ class InputValidator:
         key: str,
         value: Any,
         expected_type: type,
-        min_value: Optional[Any] = None,
-        max_value: Optional[Any] = None,
+        min_value: Any | None = None,
+        max_value: Any | None = None,
     ) -> Any:
         """
         Validate configuration value.

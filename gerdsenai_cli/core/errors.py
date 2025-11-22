@@ -7,7 +7,7 @@ Defines error types, classification, and recovery strategies.
 import asyncio
 import json
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ErrorCategory(Enum):
@@ -49,9 +49,9 @@ class GerdsenAIError(Exception):
         category: ErrorCategory,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         recoverable: bool = True,
-        suggestion: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None,
-        original_exception: Optional[Exception] = None,
+        suggestion: str | None = None,
+        context: dict[str, Any] | None = None,
+        original_exception: Exception | None = None,
     ):
         """
         Initialize error with comprehensive context.
@@ -115,9 +115,9 @@ class NetworkError(GerdsenAIError):
     def __init__(
         self,
         message: str,
-        suggestion: Optional[str] = None,
-        context: Optional[dict] = None,
-        original_exception: Optional[Exception] = None,
+        suggestion: str | None = None,
+        context: dict | None = None,
+        original_exception: Exception | None = None,
     ):
         super().__init__(
             message=message,
@@ -137,8 +137,8 @@ class TimeoutError(GerdsenAIError):
         self,
         message: str,
         timeout_seconds: float,
-        suggestion: Optional[str] = None,
-        context: Optional[dict] = None,
+        suggestion: str | None = None,
+        context: dict | None = None,
     ):
         super().__init__(
             message=message,
@@ -157,8 +157,8 @@ class ModelNotFoundError(GerdsenAIError):
     def __init__(
         self,
         model_name: str,
-        available_models: Optional[list[str]] = None,
-        suggestion: Optional[str] = None,
+        available_models: list[str] | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=f"Model '{model_name}' not found",
@@ -170,7 +170,7 @@ class ModelNotFoundError(GerdsenAIError):
         )
 
     @staticmethod
-    def _generate_suggestion(available_models: Optional[list[str]]) -> str:
+    def _generate_suggestion(available_models: list[str] | None) -> str:
         """Generate helpful suggestion based on available models."""
         if available_models:
             return f"Available models: {', '.join(available_models[:5])}. Use /models to list all models."
@@ -181,7 +181,7 @@ class ContextLengthError(GerdsenAIError):
     """Context window exceeded error."""
 
     def __init__(
-        self, current_tokens: int, max_tokens: int, suggestion: Optional[str] = None
+        self, current_tokens: int, max_tokens: int, suggestion: str | None = None
     ):
         super().__init__(
             message=f"Context length {current_tokens} exceeds maximum {max_tokens}",
@@ -202,8 +202,8 @@ class ProviderError(GerdsenAIError):
         provider_name: str,
         message: str,
         can_fallback: bool = False,
-        suggestion: Optional[str] = None,
-        original_exception: Optional[Exception] = None,
+        suggestion: str | None = None,
+        original_exception: Exception | None = None,
     ):
         super().__init__(
             message=f"{provider_name}: {message}",
@@ -223,8 +223,8 @@ class ConfigurationError(GerdsenAIError):
     def __init__(
         self,
         message: str,
-        config_key: Optional[str] = None,
-        suggestion: Optional[str] = None,
+        config_key: str | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=message,
@@ -243,8 +243,8 @@ class ParseError(GerdsenAIError):
     def __init__(
         self,
         message: str,
-        raw_response: Optional[str] = None,
-        suggestion: Optional[str] = None,
+        raw_response: str | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=message,
@@ -269,7 +269,7 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
     """
     import httpx
 
-    exception_type = type(exception).__name__
+    type(exception).__name__
     error_message = str(exception).lower()
 
     # Network errors

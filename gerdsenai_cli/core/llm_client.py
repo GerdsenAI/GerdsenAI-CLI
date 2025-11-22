@@ -345,7 +345,7 @@ class LLMClient:
                     else:
                         logger.debug(f"Non-200 status code: {response.status_code}")
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.debug(
                         f"Timeout on endpoint {endpoint} (>{OPERATION_TIMEOUTS['health']}s)"
                     )

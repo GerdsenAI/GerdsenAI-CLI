@@ -103,7 +103,7 @@ class IntelligenceCommand(BaseCommand):
         content += f"📋 {current.get_display_text()}\\n"
 
         if current.details:
-            content += f"\\n[dim]Details:[/dim]\\n"
+            content += "\\n[dim]Details:[/dim]\\n"
             for key, value in current.details.items():
                 content += f"  • {key}: {value}\\n"
 

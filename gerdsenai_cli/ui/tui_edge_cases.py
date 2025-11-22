@@ -13,9 +13,10 @@ Handles all edge cases, error scenarios, and polishing for the TUI:
 
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from ..core.errors import (
     ErrorCategory,
@@ -44,7 +45,7 @@ class TUIStateGuard:
         self.is_processing = False
         self.is_waiting_approval = False
         self.operation_lock = asyncio.Lock()
-        self.last_operation_time: Optional[datetime] = None
+        self.last_operation_time: datetime | None = None
 
     def can_accept_input(self) -> tuple[bool, str]:
         """
@@ -200,9 +201,9 @@ class StreamRecoveryHandler:
             timeout_seconds: Timeout for stream operations
         """
         self.timeout_seconds = timeout_seconds
-        self.stream_start_time: Optional[datetime] = None
+        self.stream_start_time: datetime | None = None
         self.chunks_received = 0
-        self.last_chunk_time: Optional[datetime] = None
+        self.last_chunk_time: datetime | None = None
 
     def start_stream(self):
         """Mark stream start."""
@@ -215,7 +216,7 @@ class StreamRecoveryHandler:
         self.chunks_received += 1
         self.last_chunk_time = datetime.now()
 
-    def check_health(self) -> tuple[bool, Optional[str]]:
+    def check_health(self) -> tuple[bool, str | None]:
         """
         Check stream health.
 
@@ -379,7 +380,7 @@ class ProviderFailureHandler:
 
     def __init__(self):
         self.consecutive_failures = 0
-        self.last_failure_time: Optional[datetime] = None
+        self.last_failure_time: datetime | None = None
 
     def record_failure(self):
         """Record a provider failure."""
@@ -490,7 +491,7 @@ class TUIEdgeCaseHandler:
 
     def manage_conversation_memory(
         self, messages: list, tui_conversation: Any
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Manage conversation memory to prevent issues.
 

@@ -11,7 +11,6 @@ import pytest_asyncio
 from gerdsenai_cli.config.settings import Settings
 from gerdsenai_cli.core.llm_client import LLMClient
 
-
 pytestmark = pytest.mark.asyncio
 
 

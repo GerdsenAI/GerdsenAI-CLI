@@ -5,22 +5,14 @@ Tests provider detection, model listing, chat completion, streaming,
 error handling, and edge cases.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
-from gerdsenai_cli.core.errors import (
-    ErrorCategory,
-    ModelNotFoundError,
-    NetworkError,
-    ProviderError,
-)
 from gerdsenai_cli.core.providers import (
     HuggingFaceProvider,
     LMStudioProvider,
-    ModelInfo,
     OllamaProvider,
     ProviderDetector,
     ProviderType,

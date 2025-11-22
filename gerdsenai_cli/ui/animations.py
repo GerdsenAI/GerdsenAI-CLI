@@ -9,7 +9,7 @@ Provides:
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .prompt_toolkit_tui import PromptToolkitTUI
@@ -43,7 +43,7 @@ class StatusAnimation:
         self.message = message
         self.frames = frames
         self.running = False
-        self.task: Optional[asyncio.Task] = None
+        self.task: asyncio.Task | None = None
         self.frame_index = 0
 
     async def _animate(self):

@@ -205,7 +205,7 @@ class TesseractOCRPlugin:
     async def ocr(
         self,
         image: str | Path | bytes,
-        languages: list[str] = ["en"],
+        languages: list[str] = None,
         config: str | None = None,
         return_confidence: bool = False,
     ) -> str | dict[str, Any]:
@@ -226,6 +226,8 @@ class TesseractOCRPlugin:
             ValueError: If image format is invalid
             FileNotFoundError: If image file doesn't exist
         """
+        if languages is None:
+            languages = ["en"]
         if not self._initialized:
             raise RuntimeError("Tesseract OCR plugin not initialized")
 
@@ -368,7 +370,7 @@ class TesseractOCRPlugin:
         return self._available_languages.copy()
 
     async def extract_layout(
-        self, image: str | Path | bytes, languages: list[str] = ["en"]
+        self, image: str | Path | bytes, languages: list[str] = None
     ) -> dict[str, Any]:
         """
         Extract text with layout information.
@@ -382,6 +384,8 @@ class TesseractOCRPlugin:
         Returns:
             Dictionary with layout information
         """
+        if languages is None:
+            languages = ["en"]
         if not self._initialized:
             raise RuntimeError("Tesseract OCR plugin not initialized")
 

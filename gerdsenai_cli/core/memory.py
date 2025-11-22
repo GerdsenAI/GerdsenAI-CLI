@@ -191,7 +191,7 @@ class ProjectMemory:
             return False
 
         try:
-            with open(self.memory_file, "r") as f:
+            with open(self.memory_file) as f:
                 data = json.load(f)
 
             # Load files
@@ -586,7 +586,7 @@ class ProjectMemory:
             Formatted context summary
         """
         recent_files = self.get_recent_files(5)
-        frequent_files = self.get_frequent_files(5)
+        self.get_frequent_files(5)
 
         summary = ""
 

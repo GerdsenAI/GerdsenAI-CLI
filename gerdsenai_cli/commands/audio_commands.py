@@ -9,12 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
 
 from ..plugins.base import PluginCategory
 from ..plugins.registry import plugin_registry
-from ..utils.display import show_error, show_info, show_success
+from ..utils.display import show_info
 from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 logger = logging.getLogger(__name__)
@@ -308,7 +307,7 @@ class SpeakCommand(BaseCommand):
                     )
 
             # Show processing message
-            console.print(f"\n🔊 Generating speech...")
+            console.print("\n🔊 Generating speech...")
             console.print(
                 f"📝 Text: [yellow]{text[:100]}{'...' if len(text) > 100 else ''}[/yellow]"
             )

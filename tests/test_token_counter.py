@@ -368,7 +368,7 @@ class TestGlobalTokenCounter:
 
     def test_get_token_counter_different_models(self):
         """Test different models get different counters."""
-        counter1 = get_token_counter("llama-2-7b")
+        get_token_counter("llama-2-7b")
         counter2 = get_token_counter("gpt-4")
         # Second call updates the singleton
         assert counter2.model == "gpt-4"

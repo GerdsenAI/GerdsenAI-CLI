@@ -198,7 +198,7 @@ class SuggestCommand(BaseCommand):
             )
 
             if not suggestions:
-                return f"No specific suggestions for this task"
+                return "No specific suggestions for this task"
 
             # Display suggestions
             if self.console:

@@ -14,7 +14,7 @@ from rich.panel import Panel
 
 from ..plugins.base import PluginCategory
 from ..plugins.registry import plugin_registry
-from ..utils.display import show_error, show_info, show_success
+from ..utils.display import show_info
 from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
 logger = logging.getLogger(__name__)

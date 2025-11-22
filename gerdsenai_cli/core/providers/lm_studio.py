@@ -5,7 +5,8 @@ LM Studio uses OpenAI-compatible API for local GGUF models.
 """
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 

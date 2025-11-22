@@ -9,18 +9,19 @@ Tests cover:
 - Command execution
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
 from dataclasses import dataclass
+from pathlib import Path
+from unittest.mock import Mock
 
+import pytest
+
+from gerdsenai_cli.commands.suggest_commands import SuggestCommand
 from gerdsenai_cli.core.suggestions import (
     ProactiveSuggestor,
     Suggestion,
-    SuggestionType,
     SuggestionPriority,
+    SuggestionType,
 )
-from gerdsenai_cli.commands.suggest_commands import SuggestCommand
 
 
 class TestSuggestionDataclasses:

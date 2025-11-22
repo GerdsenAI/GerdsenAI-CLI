@@ -5,7 +5,8 @@ Ollama-specific API client with native format support.
 """
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 

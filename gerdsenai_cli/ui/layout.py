@@ -4,7 +4,6 @@ Enhanced TUI layout system for GerdsenAI CLI.
 Provides a rich, bordered interface similar to modern AI coding assistants.
 """
 
-from typing import Optional
 
 from rich.console import Console
 from rich.layout import Layout
@@ -26,7 +25,7 @@ class GerdsenAILayout:
         self.console = console
         self.layout = Layout()
         self._setup_layout()
-        self.current_model: Optional[str] = None
+        self.current_model: str | None = None
         self.context_files: int = 0
         self.token_count: int = 0
 
@@ -52,10 +51,10 @@ class GerdsenAILayout:
 
     def update_status(
         self,
-        model: Optional[str] = None,
-        context_files: Optional[int] = None,
-        token_count: Optional[int] = None,
-        current_task: Optional[str] = None,
+        model: str | None = None,
+        context_files: int | None = None,
+        token_count: int | None = None,
+        current_task: str | None = None,
     ) -> None:
         """Update the status bar information.
 
@@ -196,7 +195,7 @@ class LiveTUI:
         """
         self.console = console
         self.layout = GerdsenAILayout(console)
-        self.live: Optional[Live] = None
+        self.live: Live | None = None
 
     def __enter__(self):
         """Start the live display."""

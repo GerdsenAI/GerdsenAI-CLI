@@ -5,7 +5,6 @@ Provides a modern, bordered interface for the GerdsenAI CLI.
 """
 
 import re
-from typing import Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
@@ -23,7 +22,7 @@ from .status_display import IntelligenceActivity, StatusDisplayManager
 class EnhancedConsole:
     """Enhanced console with rich TUI capabilities."""
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """Initialize enhanced console.
 
         Args:
@@ -33,9 +32,9 @@ class EnhancedConsole:
         self.layout = GerdsenAILayout(self.console)
         self.use_tui: bool = True
         self.status_display = StatusDisplayManager(self.console)
-        self._live: Optional[Live] = None  # Track active Live display
-        self._persistent_live: Optional[Live] = None  # Persistent Live for full session
-        self._prompt_session: Optional[PromptSession] = None  # For input in TUI mode
+        self._live: Live | None = None  # Track active Live display
+        self._persistent_live: Live | None = None  # Persistent Live for full session
+        self._prompt_session: PromptSession | None = None  # For input in TUI mode
 
     def set_tui_mode(self, enabled: bool) -> None:
         """Enable or disable TUI mode.
@@ -216,7 +215,7 @@ class EnhancedConsole:
         else:
             # Fallback to simple printing
             self.console.print(f"[bold green]You:[/bold green] {user_input}")
-            self.console.print(f"[bold blue]GerdsenAI:[/bold blue]")
+            self.console.print("[bold blue]GerdsenAI:[/bold blue]")
             self._render_response_with_syntax(ai_response)
 
     def start_streaming(self, user_input: str) -> None:
@@ -283,11 +282,11 @@ class EnhancedConsole:
 
     def update_status(
         self,
-        model: Optional[str] = None,
-        context_files: Optional[int] = None,
-        token_count: Optional[int] = None,
-        current_task: Optional[str] = None,
-        operation: Optional[str] = None,
+        model: str | None = None,
+        context_files: int | None = None,
+        token_count: int | None = None,
+        current_task: str | None = None,
+        operation: str | None = None,
     ) -> None:
         """Update status bar.
 
@@ -975,7 +974,6 @@ class EnhancedConsole:
             suggestions: List of Suggestion objects
             max_display: Maximum number of suggestions to display
         """
-        from rich.panel import Panel
         from rich.table import Table
 
         if not suggestions:
@@ -1042,7 +1040,6 @@ class EnhancedConsole:
             suggestions: List of Suggestion objects
         """
         from rich.panel import Panel
-        from rich.table import Table
 
         if not suggestions:
             self.console.print("[yellow]No suggestions available[/yellow]")

@@ -10,10 +10,11 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from rich.console import Console
 
@@ -24,7 +25,6 @@ from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
 from .input_validator import (
-    InputValidator,
     create_defensive_system_prompt,
     get_validator,
 )
@@ -210,7 +210,7 @@ class IntentParser:
                     ),
                     timeout=LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     f"LLM intent detection timed out after "
                     f"{LLMDefaults.INTENT_DETECTION_TIMEOUT_SECONDS}s"
@@ -1252,7 +1252,7 @@ class Agent:
                         )
                         intent = None
 
-                except (TimeoutError, asyncio.TimeoutError) as e:
+                except TimeoutError as e:
                     logger.warning(
                         f"LLM intent detection timed out: {e}, falling back to regex"
                     )
@@ -1395,7 +1395,7 @@ class Agent:
                     else:
                         intent = None
 
-                except (TimeoutError, asyncio.TimeoutError, Exception) as e:
+                except (TimeoutError, Exception) as e:
                     logger.warning(
                         f"LLM intent detection failed: {e}, falling back to regex"
                     )

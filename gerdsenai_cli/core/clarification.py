@@ -369,8 +369,8 @@ Respond with JSON only:
         # Generate appropriate question based on uncertainty type
         if uncertainty_type == UncertaintyType.AMBIGUOUS_SCOPE:
             question = (
-                f"Your request mentions a broad scope. "
-                f"Which interpretation matches your intent?"
+                "Your request mentions a broad scope. "
+                "Which interpretation matches your intent?"
             )
         elif uncertainty_type == UncertaintyType.UNCLEAR_ACTION:
             question = "I want to help, but I'm not sure exactly what action to take. Which of these would you like?"

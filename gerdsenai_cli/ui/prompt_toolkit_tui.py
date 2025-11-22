@@ -30,10 +30,10 @@ Key features:
 
 import asyncio
 import logging
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional, cast
+from typing import cast
 
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
@@ -354,9 +354,9 @@ class ConversationControl:
         self.messages: list[
             tuple[str, str, datetime]
         ] = []  # (role, content, timestamp)
-        self.streaming_message: Optional[str] = None
-        self.streaming_role: Optional[str] = None
-        self.system_info: Optional[str] = None  # For model info, warnings, etc.
+        self.streaming_message: str | None = None
+        self.streaming_role: str | None = None
+        self.system_info: str | None = None  # For model info, warnings, etc.
         self.debug_mode: bool = False  # Debug mode flag for enhanced logging
 
         # Initialize Rich converter if available
@@ -556,14 +556,14 @@ class PromptToolkitTUI:
         self.input_buffer = Buffer(multiline=True)  # Support multiline input
         self.status_text = "Ready. Type your message and press Enter."
         self.running = False
-        self.message_callback: Optional[Callable[[str], Awaitable[None]]] = None
-        self.command_callback: Optional[Callable[[str, list[str]], Awaitable[str]]] = (
+        self.message_callback: Callable[[str], Awaitable[None]] | None = None
+        self.command_callback: Callable[[str, list[str]], Awaitable[str]] | None = (
             None
         )
-        self.conversation_window: Optional[Window] = (
+        self.conversation_window: Window | None = (
             None  # Store reference for scrolling
         )
-        self.input_window: Optional[Window] = None  # Store reference for dynamic height
+        self.input_window: Window | None = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
 
         # Streaming configuration for smooth animation
@@ -571,8 +571,8 @@ class PromptToolkitTUI:
         self.streaming_refresh_interval = 3  # Refresh every N chunks
 
         # Animation and approval state
-        self.current_animation: Optional[StatusAnimation] = None
-        self.pending_plan: Optional[dict] = None
+        self.current_animation: StatusAnimation | None = None
+        self.pending_plan: dict | None = None
         self.approval_mode = False
 
         # Thinking mode - shows/hides AI reasoning
@@ -616,7 +616,7 @@ class PromptToolkitTUI:
             )
 
             if ascii_art_path.exists():
-                with open(ascii_art_path, "r", encoding="utf-8") as f:
+                with open(ascii_art_path, encoding="utf-8") as f:
                     ascii_art = f.read()
 
                 # Add ASCII art as first message with timestamp
@@ -1072,7 +1072,7 @@ class PromptToolkitTUI:
                             "class:status",
                             f"{len(self.conversation.messages)} messages{scroll_indicator if not self._is_at_bottom() else ''} | ",
                         ),
-                        ("class:status", f"Ctrl+Y: copy | Shift+Tab: mode | /help  "),
+                        ("class:status", "Ctrl+Y: copy | Shift+Tab: mode | /help  "),
                     ]
                 )
             ),

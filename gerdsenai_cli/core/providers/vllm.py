@@ -5,7 +5,8 @@ vLLM uses OpenAI-compatible API with additional features.
 """
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 

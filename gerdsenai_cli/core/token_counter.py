@@ -176,7 +176,7 @@ def estimate_max_response_tokens(
     input_tokens = count_messages_tokens(messages, model)
 
     # Calculate max input budget
-    max_input_tokens = int(context_window * context_usage)
+    int(context_window * context_usage)
 
     # Calculate remaining tokens for response
     remaining_tokens = context_window - input_tokens

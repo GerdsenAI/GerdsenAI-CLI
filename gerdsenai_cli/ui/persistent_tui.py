@@ -8,7 +8,6 @@ Similar to Claude CLI and Gemini CLI where the layout is always visible with:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
@@ -23,7 +22,7 @@ from rich.text import Text
 class ConversationMessage:
     """Represents a single message in the conversation."""
 
-    def __init__(self, role: str, content: str, timestamp: Optional[datetime] = None):
+    def __init__(self, role: str, content: str, timestamp: datetime | None = None):
         """Initialize a conversation message.
 
         Args:
@@ -55,9 +54,9 @@ class PersistentTUI:
         self.console = console
         self.messages: list[ConversationMessage] = []
         self.layout = Layout()
-        self.live: Optional[Live] = None
+        self.live: Live | None = None
         self.streaming_content = ""
-        self.prompt_session: Optional[PromptSession] = None
+        self.prompt_session: PromptSession | None = None
         self.status_text = "Type your message and press Enter"
 
         # Setup layout structure

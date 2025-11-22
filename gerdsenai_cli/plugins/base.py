@@ -6,10 +6,11 @@ Uses Protocol for maximum flexibility (duck typing with type safety).
 """
 
 from abc import abstractmethod
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncGenerator, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 # =============================================================================
 # ENUMS
@@ -284,7 +285,7 @@ class VisionPlugin(Plugin, Protocol):
         ...
 
     async def ocr(
-        self, image: str | Path | bytes, languages: list[str] = ["en"]
+        self, image: str | Path | bytes, languages: list[str] = None
     ) -> str:
         """
         Extract text from image using OCR.

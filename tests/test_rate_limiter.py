@@ -42,7 +42,7 @@ class TestRateLimiter:
         """Test multiple token acquisitions."""
         limiter = RateLimiter(requests_per_second=100.0, burst_size=10)
 
-        for i in range(5):
+        for _i in range(5):
             await limiter.acquire()
 
         assert limiter._total_requests == 5

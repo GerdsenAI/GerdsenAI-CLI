@@ -5,9 +5,10 @@ Defines the interface that all LLM providers must implement.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncGenerator
+from typing import Any
 
 
 class ProviderType(Enum):

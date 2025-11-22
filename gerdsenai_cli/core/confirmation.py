@@ -503,7 +503,7 @@ class ConfirmationEngine:
             return
 
         try:
-            with open(snapshots_file, "r") as f:
+            with open(snapshots_file) as f:
                 data = json.load(f)
 
             self.snapshots = [

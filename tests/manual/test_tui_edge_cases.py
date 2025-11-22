@@ -15,6 +15,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from gerdsenai_cli.core.errors import ErrorCategory, GerdsenAIError
 from gerdsenai_cli.ui.tui_edge_cases import (
     ConversationMemoryManager,
     InputSanitizer,
@@ -23,7 +24,6 @@ from gerdsenai_cli.ui.tui_edge_cases import (
     TUIEdgeCaseHandler,
     TUIStateGuard,
 )
-from gerdsenai_cli.core.errors import GerdsenAIError, ErrorCategory
 
 
 class TestResult:
@@ -51,7 +51,7 @@ class TestResult:
         print("\n" + "=" * 70)
         print(f"Test Summary: {self.passed}/{total} passed")
         if self.failed > 0:
-            print(f"\nFailed tests:")
+            print("\nFailed tests:")
             for error in self.errors:
                 print(f"  - {error}")
         print("=" * 70)

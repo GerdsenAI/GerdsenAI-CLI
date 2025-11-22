@@ -7,10 +7,11 @@ and enables user confirmation before execution.
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ class PlanStep:
     estimated_tokens: int
     dependencies: list[int] = field(default_factory=list)  # Step IDs this depends on
     status: StepStatus = StepStatus.PENDING
-    result: Optional[str] = None
-    error: Optional[str] = None
+    result: str | None = None
+    error: str | None = None
 
     def can_execute(self, completed_steps: set[int]) -> bool:
         """Check if all dependencies are satisfied.
@@ -88,7 +89,7 @@ class TaskPlan:
     created_at: str
     user_query: str = ""
 
-    def get_next_step(self) -> Optional[PlanStep]:
+    def get_next_step(self) -> PlanStep | None:
         """Get the next pending step with satisfied dependencies.
 
         Returns:
@@ -226,7 +227,7 @@ class TaskPlanner:
         """
         self.llm_client = llm_client
         self.agent = agent
-        self.current_plan: Optional[TaskPlan] = None
+        self.current_plan: TaskPlan | None = None
 
     async def create_plan(self, user_request: str, context: str = "") -> TaskPlan:
         """Create a plan by asking LLM to break down the task.
@@ -438,8 +439,8 @@ Guidelines:
     async def execute_plan(
         self,
         plan: TaskPlan,
-        status_callback: Optional[Callable[[str], None]] = None,
-        confirm_callback: Optional[Callable[[str], bool]] = None,
+        status_callback: Callable[[str], None] | None = None,
+        confirm_callback: Callable[[str], bool] | None = None,
     ) -> bool:
         """Execute a plan step by step.
 
@@ -497,7 +498,7 @@ Guidelines:
                 # Ask if user wants to continue
                 if confirm_callback:
                     if not confirm_callback(
-                        f"Step failed. Continue with remaining steps?"
+                        "Step failed. Continue with remaining steps?"
                     ):
                         return False
 
@@ -506,7 +507,7 @@ Guidelines:
     async def _execute_step(
         self,
         step: PlanStep,
-        status_callback: Optional[Callable[[str], None]] = None,
+        status_callback: Callable[[str], None] | None = None,
     ) -> str:
         """Execute a single plan step.
 

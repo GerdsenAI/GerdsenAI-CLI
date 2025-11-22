@@ -15,7 +15,7 @@ import importlib
 import logging
 import pkgutil
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 from ..config.settings import Settings
 from .base import Plugin, PluginCategory, PluginMetadata

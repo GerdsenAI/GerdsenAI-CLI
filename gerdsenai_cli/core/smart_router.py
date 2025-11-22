@@ -14,7 +14,7 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..config.settings import Settings
 from .agent import ActionIntent, ActionType, IntentParser
@@ -37,9 +37,9 @@ class RouteDecision:
     """Represents a routing decision."""
 
     route_type: RouteType
-    command: Optional[str] = None  # For slash commands
-    intent: Optional[ActionIntent] = None  # For natural language
-    clarification_prompt: Optional[str] = None  # For clarification
+    command: str | None = None  # For slash commands
+    intent: ActionIntent | None = None  # For natural language
+    clarification_prompt: str | None = None  # For clarification
     confidence: float = 1.0
     reasoning: str = ""
 
@@ -82,7 +82,7 @@ class SmartRouter:
         logger.info("SmartRouter initialized")
 
     async def route(
-        self, user_input: str, project_files: Optional[list[str]] = None
+        self, user_input: str, project_files: list[str] | None = None
     ) -> RouteDecision:
         """
         Route user input to the appropriate handler.

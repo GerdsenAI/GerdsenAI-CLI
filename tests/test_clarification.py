@@ -6,14 +6,14 @@ learning from history, and integration with the agent.
 """
 
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from gerdsenai_cli.config.settings import Settings
 from gerdsenai_cli.core.clarification import (
     ClarificationEngine,
-    ClarifyingQuestion,
     Interpretation,
     UncertaintyType,
 )
@@ -153,7 +153,7 @@ def test_record_and_load_clarification(clarification_engine, tmp_path):
         assert len(clarification_engine.history) == 1
 
         # Create new engine and verify it loads the history
-        new_engine = ClarificationEngine(clarification_engine.settings)
+        ClarificationEngine(clarification_engine.settings)
         # History loads automatically in __init__
         # Check that file exists
         history_file = tmp_path / ".gerdsenai" / "clarification_history.json"

@@ -6,7 +6,7 @@ Automatically detects which LLM provider is running at a given URL.
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from ...constants import ProviderDefaults
 from .base import LLMProvider, ProviderType
@@ -44,7 +44,7 @@ class ProviderDetector:
 
     async def detect_provider(
         self, url: str, timeout: float = 5.0
-    ) -> Optional[LLMProvider]:
+    ) -> LLMProvider | None:
         """
         Try to detect which provider is at the given URL.
 
@@ -110,7 +110,7 @@ class ProviderDetector:
 
     async def _check_url(
         self, url: str, description: str, timeout: float
-    ) -> tuple[str, Optional[LLMProvider]]:
+    ) -> tuple[str, LLMProvider | None]:
         """
         Check a single URL for providers.
 
@@ -130,8 +130,8 @@ class ProviderDetector:
             return (url, None)
 
     async def get_best_provider(
-        self, preference: Optional[ProviderType] = None
-    ) -> Optional[LLMProvider]:
+        self, preference: ProviderType | None = None
+    ) -> LLMProvider | None:
         """
         Get the best available provider.
 
@@ -148,7 +148,7 @@ class ProviderDetector:
 
         # If preference specified, try to find it
         if preference:
-            for url, provider in providers:
+            for _url, provider in providers:
                 if provider and provider.get_provider_type() == preference:
                     return provider
 
@@ -202,7 +202,7 @@ class ProviderDetector:
             },
         )
 
-    async def auto_configure(self) -> Optional[dict[str, str]]:
+    async def auto_configure(self) -> dict[str, str] | None:
         """
         Automatically detect and configure the best provider.
 
@@ -273,7 +273,7 @@ class ProviderDetector:
         return results
 
     def format_provider_info(
-        self, provider: LLMProvider, test_results: Optional[dict] = None
+        self, provider: LLMProvider, test_results: dict | None = None
     ) -> str:
         """
         Format provider information for display.

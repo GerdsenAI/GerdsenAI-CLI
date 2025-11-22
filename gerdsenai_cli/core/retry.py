@@ -6,7 +6,8 @@ Provides smart retry strategies for different error types.
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from .errors import (
     ErrorCategory,
@@ -53,8 +54,8 @@ class RetryStrategy:
 
     def __init__(
         self,
-        max_retries: Optional[dict[ErrorCategory, int]] = None,
-        backoff_factors: Optional[dict[ErrorCategory, float]] = None,
+        max_retries: dict[ErrorCategory, int] | None = None,
+        backoff_factors: dict[ErrorCategory, float] | None = None,
         initial_delay: float = 1.0,
         max_delay: float = 60.0,
         jitter: bool = True,
@@ -79,8 +80,8 @@ class RetryStrategy:
         self,
         operation: Callable[[], Any],
         operation_name: str = "operation",
-        category: Optional[ErrorCategory] = None,
-        on_retry: Optional[Callable[[int, Exception], None]] = None,
+        category: ErrorCategory | None = None,
+        on_retry: Callable[[int, Exception], None] | None = None,
     ) -> T:
         """
         Execute operation with smart retry.
@@ -97,7 +98,7 @@ class RetryStrategy:
         Raises:
             GerdsenAIError: If all retries exhausted
         """
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
         attempt = 0
 
         while True:
@@ -223,7 +224,7 @@ class RetryStrategy:
         try:
             return await asyncio.wait_for(operation(), timeout=timeout_seconds)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             from .errors import TimeoutError as GerdsenAITimeoutError
 
             raise GerdsenAITimeoutError(
@@ -291,7 +292,7 @@ class CircuitBreaker:
         self.expected_exception = expected_exception
 
         self.failure_count = 0
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self.state = "closed"  # closed, open, half_open
 
     async def call(
@@ -339,7 +340,7 @@ class CircuitBreaker:
 
             return result
 
-        except self.expected_exception as e:
+        except self.expected_exception:
             self.failure_count += 1
             self.last_failure_time = time.time()
 

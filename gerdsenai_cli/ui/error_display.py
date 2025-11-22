@@ -6,21 +6,14 @@ and recovery options.
 """
 
 import logging
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 
 from ..core.errors import (
-    ContextLengthError,
     ErrorCategory,
     ErrorSeverity,
     GerdsenAIError,
-    ModelNotFoundError,
-    NetworkError,
-    ProviderError,
-    TimeoutError,
 )
 
 logger = logging.getLogger(__name__)
@@ -285,7 +278,7 @@ class ErrorDisplay:
         return " ".join(parts)
 
     @classmethod
-    def format_success_message(cls, message: str, details: Optional[str] = None) -> str:
+    def format_success_message(cls, message: str, details: str | None = None) -> str:
         """
         Format a success message.
 
@@ -305,7 +298,7 @@ class ErrorDisplay:
 
     @classmethod
     def format_warning_message(
-        cls, message: str, suggestion: Optional[str] = None
+        cls, message: str, suggestion: str | None = None
     ) -> str:
         """
         Format a warning message.

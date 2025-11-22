@@ -341,7 +341,6 @@ class GerdsenAICLI:
         Plugins (Vision, Audio) are registered but not initialized
         until first use (lazy loading for performance).
         """
-        from pathlib import Path
 
         from .plugins.audio.bark_plugin import BarkPlugin
         from .plugins.audio.whisper_plugin import WhisperPlugin
@@ -440,7 +439,7 @@ class GerdsenAICLI:
 
                     # Get available models
                     models = await temp_client.list_models()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.debug("Connection test timed out after 15 seconds")
                 show_error(
                     "Connection test timed out. Please check if your LLM server is running and accessible."
@@ -808,7 +807,7 @@ class GerdsenAICLI:
                     # Build response
                     msg_count = len(messages)
                     lines = [
-                        f"Conversation loaded successfully!",
+                        "Conversation loaded successfully!",
                         f"\nFile: {filename}",
                         f"Messages: {msg_count}",
                     ]
@@ -1127,7 +1126,7 @@ class GerdsenAICLI:
                         logger.error(f"SmartRouter error: {e}", exc_info=True)
                         tui.conversation.add_message(
                             "system",
-                            f"⚠️  Routing error, falling back to standard processing",
+                            "⚠️  Routing error, falling back to standard processing",
                         )
                         tui.app.invalidate()
 
@@ -1387,7 +1386,7 @@ class GerdsenAICLI:
                         # Record success for provider health tracking
                         tui_edge_handler.provider_handler.record_success()
 
-                    except asyncio.TimeoutError as timeout_err:
+                    except TimeoutError:
                         # Record provider failure
                         tui_edge_handler.provider_handler.record_failure()
 
@@ -1588,7 +1587,7 @@ class GerdsenAICLI:
                             )
                             tui.app.invalidate()
 
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         timeout_value = (
                             self.settings.request_timeout if self.settings else 120
                         )

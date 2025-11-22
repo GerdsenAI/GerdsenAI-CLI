@@ -5,26 +5,21 @@ Tests the confirmation engine, operation previews, file changes, diff analysis,
 undo snapshots, and integration with complexity detector.
 """
 
-import json
-import pytest
 import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock
 
+import pytest
+
+from gerdsenai_cli.core.complexity import (
+    ComplexityDetector,
+)
 from gerdsenai_cli.core.confirmation import (
     ConfirmationEngine,
-    ConfirmationResponse,
     FileChange,
     OperationPreview,
     OperationType,
-    UndoSnapshot,
-)
-from gerdsenai_cli.core.complexity import (
-    ComplexityDetector,
-    ComplexityLevel,
-    RiskLevel,
 )
 
 
@@ -377,7 +372,7 @@ def test_undo_file_modification(confirmation_engine, temp_dir):
     )
 
     # Create snapshot
-    snapshot = confirmation_engine.create_snapshot(preview, backup_files=True)
+    confirmation_engine.create_snapshot(preview, backup_files=True)
 
     # Modify file
     test_file.write_text(new_content)
@@ -417,7 +412,7 @@ def test_undo_file_deletion(confirmation_engine, temp_dir):
     )
 
     # Create snapshot
-    snapshot = confirmation_engine.create_snapshot(preview, backup_files=True)
+    confirmation_engine.create_snapshot(preview, backup_files=True)
 
     # Delete file
     test_file.unlink()
@@ -455,7 +450,7 @@ def test_undo_file_creation(confirmation_engine, temp_dir):
     )
 
     # Create snapshot (before file exists)
-    snapshot = confirmation_engine.create_snapshot(preview, backup_files=False)
+    confirmation_engine.create_snapshot(preview, backup_files=False)
 
     # Create file
     test_file.write_text(content)

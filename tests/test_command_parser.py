@@ -62,7 +62,7 @@ class TestCommandParser:
     def test_get_help_text_format(self):
         """Test that help text is properly formatted."""
         help_text = CommandParser.get_help_text()
-        
+
         assert "Available Commands:" in help_text
         assert "/help" in help_text
         assert "/clear" in help_text
@@ -78,7 +78,7 @@ class TestCommandParser:
     def test_get_help_text_has_descriptions(self):
         """Test that help text includes descriptions."""
         help_text = CommandParser.get_help_text()
-        
+
         # Check that descriptions are present
         assert "Show available commands" in help_text
         assert "Clear conversation history" in help_text
@@ -88,7 +88,7 @@ class TestCommandParser:
     def test_get_shortcuts_text_format(self):
         """Test that shortcuts text is properly formatted."""
         shortcuts_text = CommandParser.get_shortcuts_text()
-        
+
         assert "Keyboard Shortcuts:" in shortcuts_text
         assert "Message Input:" in shortcuts_text
         assert "Navigation:" in shortcuts_text
@@ -98,7 +98,7 @@ class TestCommandParser:
     def test_get_shortcuts_text_has_shortcuts(self):
         """Test that shortcuts text includes key shortcuts."""
         shortcuts_text = CommandParser.get_shortcuts_text()
-        
+
         assert "Enter" in shortcuts_text
         assert "Shift+Enter" in shortcuts_text
         assert "Page Up" in shortcuts_text
@@ -110,7 +110,7 @@ class TestCommandParser:
     def test_commands_dict_completeness(self):
         """Test that COMMANDS dict has all expected commands."""
         commands = CommandParser.COMMANDS
-        
+
         assert "/help" in commands
         assert "/clear" in commands
         assert "/model" in commands
