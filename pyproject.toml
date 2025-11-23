@@ -6,10 +6,8 @@ build-backend = "hatchling.build"
 name = "gerdsenai-cli"
 version = "0.1.0"
 description = "A terminal-based agentic coding tool for local AI models"
-authors = [
-    {name = "GerdsenAI", email = "admin@gerdsenai.com"},
-]
-license = {text = "MIT"}
+authors = [{ name = "GerdsenAI", email = "admin@gerdsenai.com" }]
+license = { text = "MIT" }
 readme = "README.md"
 keywords = ["ai", "cli", "coding", "assistant", "local-llm"]
 classifiers = [
@@ -67,30 +65,6 @@ Documentation = "https://github.com/GerdsenAI/GerdsenAI-CLI#readme"
 packages = ["gerdsenai_cli"]
 include = ["gerdsenai_cli/py.typed"]
 
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["gerdsenai_cli"]
-
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
@@ -133,8 +107,8 @@ select = [
     "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
+    "E501", # line too long, handled by black
+    "B008", # do not perform function calls in argument defaults
 ]
 
 [tool.ruff.lint.per-file-ignores]
