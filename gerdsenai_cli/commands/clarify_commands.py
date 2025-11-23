@@ -4,7 +4,9 @@ Clarification commands for GerdsenAI CLI.
 Provides commands to manage and view clarification settings and statistics.
 """
 
-from .base import BaseCommand
+from typing import Any
+
+from .base import BaseCommand, CommandCategory
 
 
 class ClarifyCommand(BaseCommand):
@@ -13,6 +15,11 @@ class ClarifyCommand(BaseCommand):
     name = "clarify"
     description = "Show clarification statistics or adjust settings"
     usage = "/clarify [stats|threshold <value>|reset]"
+    category = CommandCategory.AGENT
+
+    # Instance attributes set by caller
+    agent: Any = None
+    console: Any = None
 
     async def execute(self, args: list[str]) -> str:
         """

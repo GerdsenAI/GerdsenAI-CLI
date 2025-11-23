@@ -41,7 +41,7 @@ class FileInfo:
     content_hash: str | None = None
     cached_content: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize computed properties."""
         if self.mime_type is None:
             self.mime_type, _ = mimetypes.guess_type(str(self.path))
@@ -558,7 +558,7 @@ class ProjectContext:
             for encoding in encodings:
                 try:
 
-                    def read_with_encoding(enc=encoding):
+                    def read_with_encoding(enc: str = encoding) -> str:
                         return file_path.read_text(encoding=enc)
 
                     content = await loop.run_in_executor(None, read_with_encoding)
@@ -567,7 +567,8 @@ class ProjectContext:
                     if file_path in self.files:
                         self.files[file_path].encoding = encoding
 
-                    return content
+                    result: str = content
+                    return result
 
                 except UnicodeDecodeError:
                     continue
@@ -582,7 +583,8 @@ class ProjectContext:
                 if file_path in self.files:
                     self.files[file_path].encoding = "utf-8-with-errors"
 
-                return content
+                result_final: str = content
+                return result_final
 
             except Exception:
                 logger.debug(f"Cannot read file as text: {file_path}")
@@ -796,11 +798,12 @@ class ProjectContext:
 
     def _format_size(self, size_bytes: int) -> str:
         """Format file size in human readable format."""
+        size: float = float(size_bytes)
         for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024:
-                return f"{int(size_bytes):.1f} {unit}"
-            size_bytes /= 1024
-        return f"{int(size_bytes):.1f} TB"
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics."""

@@ -150,7 +150,7 @@ class Settings(BaseModel):
         return v.strip()
 
     @model_validator(mode="after")
-    def sync_url_components(self):
+    def sync_url_components(self) -> "Settings":
         """Synchronize llm_server_url with protocol/host/port (both directions)."""
         try:
             # Build the URL from granular components

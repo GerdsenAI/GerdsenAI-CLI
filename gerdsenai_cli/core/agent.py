@@ -89,7 +89,7 @@ class ActionIntent:
     reasoning: str | None = None
     requires_confirmation: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize computed properties."""
         # File operations require confirmation by default
         if self.action_type in {
@@ -114,7 +114,7 @@ class ConversationContext:
 class IntentParser:
     """Parses LLM responses for action intents."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize intent parser with patterns and keywords."""
         # Initialize input validator for security
         from .input_validator import get_validator
@@ -259,10 +259,10 @@ class IntentParser:
             )
 
             # Build parameters
-            parameters = {}
+            parameters: dict[str, Any] = {}
             if validated_files:
                 parameters["file_path"] = validated_files[0]  # Use first file
-                parameters["files"] = validated_files
+                parameters["files"] = validated_files  # List of all files
             if intent_data.get("scope"):
                 parameters["scope"] = intent_data["scope"]
 
@@ -312,7 +312,8 @@ class IntentParser:
                         )
                         continue
 
-                    return parsed_json
+                    result: dict[str, Any] = parsed_json
+                    return result
                 except json.JSONDecodeError:
                     continue
 
@@ -328,7 +329,8 @@ class IntentParser:
                 logger.warning(f"Intent response validation failed: {error_msg}")
                 return None
 
-            return parsed_json
+            final_result: dict[str, Any] = parsed_json
+            return final_result
         except json.JSONDecodeError:
             logger.warning(
                 f"Failed to parse intent JSON from response: {response[:100]}"
@@ -1326,7 +1328,7 @@ class Agent:
             return f"I encountered an error while processing your request: {e}"
 
     async def process_user_input_stream(
-        self, user_input: str, status_callback=None
+        self, user_input: str, status_callback: Any = None
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Process user input and yield streaming response chunks.
 
@@ -1837,7 +1839,8 @@ How can I help you with your code today?"""
 
         if matches:
             # Return the largest code block
-            return max(matches, key=len).strip()
+            result: str = max(matches, key=len).strip()
+            return result
 
         # If no code blocks, look for lines that look like code
         lines = response.split("\n")
