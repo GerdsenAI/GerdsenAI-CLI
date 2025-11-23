@@ -19,13 +19,7 @@
   "python.linting.mypyEnabled": true,
   // Ruff (Modern Linting & Formatting)
   "ruff.enable": true,
-  "ruff.lint.run": "onSave",
-  "ruff.format.args": [
-    "--line-length=100"
-  ],
-  "ruff.lint.args": [
-    "--line-length=100"
-  ],
+  "ruff.nativeServer": true,
   // MyPy Type Checking
   "mypy-type-checker.args": [
     "--ignore-missing-imports",
