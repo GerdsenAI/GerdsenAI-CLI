@@ -41,7 +41,7 @@ INTENT_DETECTION_PROMPT = """You are an intent classifier for a coding assistant
 
 Analyze the user's query and determine their intent. Respond ONLY with valid JSON.
 
-Available actions:
+Available actions (use EXACTLY one of these):
 - read_and_explain: User wants to read/understand specific files
 - whole_repo_analysis: User wants overview of entire project
 - iterative_search: User wants to find code/patterns across files
@@ -54,13 +54,13 @@ Project files (first 100):
 
 User query: {user_query}
 
-Respond with JSON only (no other text):
+IMPORTANT: Use the EXACT action names above. Respond with JSON only (no other text):
 {{
-  "action": "<action_type>",
-  "files": ["<file_paths>"],
+  "action": "<exactly one of: read_and_explain, whole_repo_analysis, iterative_search, edit_files, create_files, chat>",
+  "files": ["<file_paths if applicable>"],
   "reasoning": "<brief explanation>",
   "scope": "<single_file|whole_repo|search|specific_files>",
-  "confidence": <0.0-1.0>
+  "confidence": <number between 0.0 and 1.0>
 }}"""
 
 
@@ -231,6 +231,7 @@ class IntentParser:
             # Parse JSON response
             intent_data = self._parse_intent_json(response)
             if not intent_data:
+                logger.warning(f"Intent JSON parsing failed. Raw response: {response[:200]}")
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,
@@ -253,10 +254,23 @@ class IntentParser:
 
             # Extract file paths from detected files
             detected_files = intent_data.get("files", [])
-            validated_files = self.extract_file_paths(
-                " ".join(detected_files) if detected_files else user_query,
-                project_files,
-            )
+            logger.debug(f"LLM returned files: {detected_files}")
+
+            # Try to extract file paths from LLM response or user query
+            search_text = " ".join(detected_files) if detected_files else user_query
+            logger.debug(f"Searching for files in: {search_text}")
+            logger.debug(f"Project has {len(project_files)} files. First 3: {project_files[:3]}")
+
+            # Debug: Check if target is in the list
+            target = 'gerdsenai_cli/core/agent.py'
+            logger.debug(f"'{target}' in project_files: {target in project_files}")
+
+            validated_files = self.extract_file_paths(search_text, project_files)
+            logger.debug(f"Validated files: {validated_files}")            # If extraction failed, try extracting directly from user query as fallback
+            if not validated_files:
+                logger.debug(f"Fallback: extracting from user query: {user_query}")
+                validated_files = self.extract_file_paths(user_query, project_files)
+                logger.debug(f"Fallback validated files: {validated_files}")
 
             # Build parameters
             parameters: dict[str, Any] = {}
