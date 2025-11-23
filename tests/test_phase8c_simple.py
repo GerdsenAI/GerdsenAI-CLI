@@ -11,7 +11,7 @@ from gerdsenai_cli.core.context_manager import ProjectContext
 from gerdsenai_cli.core.llm_client import LLMClient
 
 
-def test_context_window_detection():
+def test_context_window_detection() -> None:
     """Test context window auto-detection for various models."""
     print("\n🧪 Testing context window detection...")
 
@@ -35,7 +35,7 @@ def test_context_window_detection():
     print("✅ Context window detection tests passed!")
 
 
-def test_settings_validation():
+def test_settings_validation() -> None:
     """Test Phase 8c settings validation."""
     print("\n🧪 Testing settings validation...")
 
@@ -57,7 +57,7 @@ def test_settings_validation():
     print("✅ Settings validation tests passed!")
 
 
-def test_token_estimation():
+def test_token_estimation() -> None:
     """Test token estimation."""
     print("\n🧪 Testing token estimation...")
 
@@ -75,7 +75,7 @@ def test_token_estimation():
     print("✅ Token estimation tests passed!")
 
 
-async def test_dynamic_context():
+async def test_dynamic_context() -> None:
     """Test dynamic context building."""
     print("\n🧪 Testing dynamic context building...")
 
@@ -125,7 +125,7 @@ async def test_dynamic_context():
     print("✅ Dynamic context tests passed!")
 
 
-def test_component_presence():
+def test_component_presence() -> None:
     """Verify all Phase 8c components are present."""
     print("\n🧪 Testing component presence...")
 
@@ -153,7 +153,7 @@ def test_component_presence():
     print("✅ Component presence tests passed!")
 
 
-async def main():
+async def main() -> int:
     """Run all tests."""
     print("=" * 60)
     print("Phase 8c Implementation Validation")
