@@ -1,6 +1,7 @@
 """Security tests for prompt injection defense."""
 
 import pytest
+
 from gerdsenai_cli.core.input_validator import (
     InputValidator,
     create_defensive_system_prompt,

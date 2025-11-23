@@ -122,7 +122,7 @@ class ConfigManager:
         settings_dict = self.get_settings().model_dump()
 
         current: Any = settings_dict
-        for segment in dotted_key.split('.'):
+        for segment in dotted_key.split("."):
             if isinstance(current, dict) and segment in current:
                 current = current[segment]
             else:
@@ -135,7 +135,7 @@ class ConfigManager:
         settings = self.get_settings()
         data = settings.model_dump()
 
-        segments = dotted_key.split('.')
+        segments = dotted_key.split(".")
         current: Any = data
 
         for segment in segments[:-1]:
@@ -151,9 +151,7 @@ class ConfigManager:
         if isinstance(current, dict):
             current[final_key] = value
         else:
-            show_warning(
-                f"Cannot set '{dotted_key}': parent container is not mutable"
-            )
+            show_warning(f"Cannot set '{dotted_key}': parent container is not mutable")
             return False
 
         try:

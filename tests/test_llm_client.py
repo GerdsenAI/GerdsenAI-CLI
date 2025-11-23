@@ -19,16 +19,21 @@ class TestLLMClient:
 
     def setup_method(self):
         """Set up test client instance."""
+        import asyncio
         # Create a mock settings object
         mock_settings = MagicMock(spec=Settings)
         mock_settings.llm_server_url = "http://localhost:11434"
         mock_settings.current_model = "llama2:7b"
         self.client = LLMClient(mock_settings)
 
+        # Initialize the client by entering the async context manager
+        asyncio.run(self.client.__aenter__())
+
     def teardown_method(self):
         """Clean up after tests."""
         import asyncio
-        asyncio.run(self.client.close())
+        # Exit the async context manager (this calls close() internally)
+        asyncio.run(self.client.__aexit__(None, None, None))
 
     @pytest.mark.asyncio
     async def test_initialization(self):

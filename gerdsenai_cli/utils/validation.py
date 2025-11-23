@@ -7,10 +7,10 @@ configurations, and edge case handling.
 
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
-from ..core.errors import ConfigurationError, GerdsenAIError, ErrorCategory
+from ..core.errors import ConfigurationError, ErrorCategory, GerdsenAIError
 
 
 class InputValidator:
@@ -27,7 +27,6 @@ class InputValidator:
         r";\s*rm\s+-rf",  # Shell injection with rm
         r"&&\s*rm\s+-rf",
         r"\|\s*rm\s+-rf",
-
         # Command execution
         r"\|\s*sh",  # Pipe to shell
         r"\|\s*bash",
@@ -35,31 +34,25 @@ class InputValidator:
         r";\s*sh\s",
         r"exec\s*\(",  # Direct execution
         r"eval\s*\(",  # Eval injection
-
         # File redirection attacks
         r">\s*/dev/",  # Writing to devices
         r">\s*/etc/",  # Writing to system config
         r"2>&1",  # stderr redirect (often in attacks)
-
         # Command substitution
         r"`[^`]+`",  # Backtick command substitution
         r"\$\([^\)]+\)",  # Dollar-paren substitution
         r"\$\{[^\}]+\}",  # Variable expansion
-
         # Network attacks
         r"\|\s*curl",  # Pipe to curl (data exfiltration)
         r"\|\s*wget",
         r"\|\s*nc\s",  # Netcat
-
         # Process manipulation
         r"kill\s+-9",  # Force kill processes
         r"pkill",
         r"killall",
-
         # Privilege escalation
         r"sudo\s+",  # Sudo usage
         r"su\s+",  # Switch user
-
         # File system traversal in commands
         r"\.\./",  # Directory traversal
         r"/etc/passwd",  # Common attack target
@@ -73,7 +66,9 @@ class InputValidator:
     MAX_URL_LENGTH = 2048
 
     @classmethod
-    def validate_user_input(cls, user_input: str, max_length: Optional[int] = None) -> str:
+    def validate_user_input(
+        cls, user_input: str, max_length: int | None = None
+    ) -> str:
         """
         Validate and sanitize user input.
 
@@ -115,8 +110,8 @@ class InputValidator:
 
         # Normalize whitespace CAREFULLY - preserve newlines and structure
         # Only collapse excessive whitespace within lines and limit consecutive newlines
-        sanitized = re.sub(r'[ \t]+', ' ', user_input)  # Normalize spaces/tabs only
-        sanitized = re.sub(r'\n{3,}', '\n\n', sanitized)  # Max 2 consecutive newlines
+        sanitized = re.sub(r"[ \t]+", " ", user_input)  # Normalize spaces/tabs only
+        sanitized = re.sub(r"\n{3,}", "\n\n", sanitized)  # Max 2 consecutive newlines
         sanitized = sanitized.strip()  # Trim leading/trailing whitespace
 
         return sanitized
@@ -158,7 +153,7 @@ class InputValidator:
                 message=f"Invalid file path: {file_path}",
                 category=ErrorCategory.FILE_NOT_FOUND,
                 original_exception=e,
-            )
+            ) from e
 
         # Check length
         if len(str(path)) > cls.MAX_FILE_PATH_LENGTH:
@@ -190,9 +185,9 @@ class InputValidator:
                         context={
                             "attempted_path": str(resolved),
                             "project_root": str(cwd),
-                            "allow_absolute": allow_absolute_only
-                        }
-                    )
+                            "allow_absolute": allow_absolute_only,
+                        },
+                    ) from None
 
         except GerdsenAIError:
             # Re-raise our own errors
@@ -202,7 +197,7 @@ class InputValidator:
                 message=f"Cannot resolve path: {file_path}",
                 category=ErrorCategory.FILE_NOT_FOUND,
                 original_exception=e,
-            )
+            ) from e
 
         # Check existence
         if must_exist and not resolved.exists():
@@ -249,7 +244,7 @@ class InputValidator:
             )
 
         # Allow alphanumeric, dash, underscore, colon, dot
-        if not re.match(r'^[\w\-:.]+$', model_name):
+        if not re.match(r"^[\w\-:.]+$", model_name):
             raise GerdsenAIError(
                 message=f"Invalid model name format: {model_name}",
                 category=ErrorCategory.MODEL_NOT_FOUND,
@@ -289,7 +284,7 @@ class InputValidator:
             parsed = urlparse(url)
 
             # Check scheme
-            if require_http and parsed.scheme not in ('http', 'https'):
+            if require_http and parsed.scheme not in ("http", "https"):
                 raise ConfigurationError(
                     message=f"Invalid URL scheme: {parsed.scheme}",
                     config_key="llm_server_url",
@@ -304,7 +299,7 @@ class InputValidator:
                 )
 
             # Block dangerous hostnames
-            dangerous_hosts = ['0.0.0.0', '::']
+            dangerous_hosts = ["0.0.0.0", "::"]
             if parsed.hostname in dangerous_hosts:
                 raise ConfigurationError(
                     message=f"Dangerous hostname: {parsed.hostname}",
@@ -337,11 +332,11 @@ class InputValidator:
         """
         try:
             port_int = int(port)
-        except ValueError:
+        except ValueError as e:
             raise ConfigurationError(
                 message=f"Port must be a number: {port}",
                 config_key="llm_port",
-            )
+            ) from e
 
         if port_int < 1 or port_int > 65535:
             raise ConfigurationError(
@@ -373,11 +368,11 @@ class InputValidator:
         """
         try:
             temp = float(temperature)
-        except ValueError:
+        except ValueError as e:
             raise GerdsenAIError(
                 message=f"Temperature must be a number: {temperature}",
                 category=ErrorCategory.INVALID_REQUEST,
-            )
+            ) from e
 
         if temp < 0.0 or temp > 2.0:
             raise GerdsenAIError(
@@ -407,57 +402,65 @@ class InputValidator:
         text = str(data)
 
         # Remove Bearer tokens (e.g., "Bearer sk-1234..." or "Bearer eyJ...")
-        text = re.sub(r'Bearer\s+[\w\-\.]+', 'Bearer [REDACTED]', text, flags=re.IGNORECASE)
+        text = re.sub(
+            r"Bearer\s+[\w\-\.]+", "Bearer [REDACTED]", text, flags=re.IGNORECASE
+        )
 
         # Remove Authorization headers
-        text = re.sub(r'Authorization:\s*[^\s,]+', 'Authorization: [REDACTED]', text, flags=re.IGNORECASE)
+        text = re.sub(
+            r"Authorization:\s*[^\s,]+",
+            "Authorization: [REDACTED]",
+            text,
+            flags=re.IGNORECASE,
+        )
 
         # Remove API keys, tokens, passwords, secrets (key-value patterns)
         sensitive_keys = [
-            r'api[_-]?key',
-            r'token',
-            r'password',
-            r'passwd',
-            r'secret',
-            r'auth',
-            r'credential',
+            r"api[_-]?key",
+            r"token",
+            r"password",
+            r"passwd",
+            r"secret",
+            r"auth",
+            r"credential",
         ]
         for key_pattern in sensitive_keys:
             # Matches: api_key: "value", apiKey="value", api-key=value, etc.
             text = re.sub(
                 rf'{key_pattern}["\']?\s*[:=]\s*["\']?([\w\-\.]+)',
-                rf'{key_pattern}: [REDACTED]',
+                rf"{key_pattern}: [REDACTED]",
                 text,
-                flags=re.IGNORECASE
+                flags=re.IGNORECASE,
             )
 
         # Remove database connection strings
         # postgres://user:password@host/db, mysql://user:password@host/db
         text = re.sub(
-            r'(postgres|mysql|mongodb|redis)://[\w\-\.]+:[\w\-\.]+@',
-            r'\1://user:[REDACTED]@',
+            r"(postgres|mysql|mongodb|redis)://[\w\-\.]+:[\w\-\.]+@",
+            r"\1://user:[REDACTED]@",
             text,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
         # Remove private keys (PEM format)
         text = re.sub(
-            r'-----BEGIN\s+\w+\s+KEY-----[\s\S]+?-----END\s+\w+\s+KEY-----',
-            '[PRIVATE KEY REDACTED]',
+            r"-----BEGIN\s+\w+\s+KEY-----[\s\S]+?-----END\s+\w+\s+KEY-----",
+            "[PRIVATE KEY REDACTED]",
             text,
-            flags=re.IGNORECASE
+            flags=re.IGNORECASE,
         )
 
         # Remove JWT tokens (three base64 parts separated by dots)
-        text = re.sub(
-            r'\beyJ[\w\-]+\.[\w\-]+\.[\w\-]+',
-            '[JWT_TOKEN_REDACTED]',
-            text
-        )
+        text = re.sub(r"\beyJ[\w\-]+\.[\w\-]+\.[\w\-]+", "[JWT_TOKEN_REDACTED]", text)
 
         # Remove potential API keys (long alphanumeric strings 20+ chars)
         # But be less aggressive - only if it looks like a key pattern
-        text = re.sub(r'\b(sk|pk|key|token)[\-_][\w\-]{20,}\b', '[API_KEY_REDACTED]', text, flags=re.IGNORECASE)
+        text = re.sub(
+            r"\b(sk|pk|key|token)[\-_][\w\-]{20,}\b",
+            "[API_KEY_REDACTED]",
+            text,
+            flags=re.IGNORECASE,
+        )
 
         # Truncate if too long
         if len(text) > max_length:
@@ -471,8 +474,8 @@ class InputValidator:
         key: str,
         value: Any,
         expected_type: type,
-        min_value: Optional[Any] = None,
-        max_value: Optional[Any] = None,
+        min_value: Any | None = None,
+        max_value: Any | None = None,
     ) -> Any:
         """
         Validate configuration value.
@@ -515,10 +518,7 @@ class InputValidator:
 
     @classmethod
     def validate_dict_structure(
-        cls,
-        data: dict,
-        required_keys: list[str],
-        config_name: str = "configuration"
+        cls, data: dict, required_keys: list[str], config_name: str = "configuration"
     ) -> dict:
         """
         Validate dictionary structure.

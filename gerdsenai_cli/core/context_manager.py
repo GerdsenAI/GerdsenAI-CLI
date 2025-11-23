@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 from ..utils.display import show_error
+from .token_counter import count_tokens
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -539,15 +540,11 @@ class ProjectContext:
             return None
         except FileNotFoundError as e:
             logger.error(f"File not found {file_path}: {e}")
-            console.print(
-                f"[red]Error: File not found: {file_path.name}[/red]"
-            )
+            console.print(f"[red]Error: File not found: {file_path.name}[/red]")
             return None
         except Exception as e:
             logger.error(f"Failed to read file {file_path}: {e}")
-            console.print(
-                f"[red]Error reading {file_path.name}: {str(e)[:50]}[/red]"
-            )
+            console.print(f"[red]Error reading {file_path.name}: {str(e)[:50]}[/red]")
             return None
 
     async def _read_file_async(self, file_path: Path) -> str | None:
@@ -861,7 +858,8 @@ class ProjectContext:
         """
         Estimate token count for text.
 
-        Uses the rule of thumb: ~4 characters per token.
+        Uses tiktoken for accurate token counting when available,
+        falls back to heuristic (~4 chars per token) if not.
 
         Args:
             text: Text to estimate tokens for
@@ -869,7 +867,8 @@ class ProjectContext:
         Returns:
             Estimated token count
         """
-        return len(text) // 4
+        # Use accurate tiktoken-based counting
+        return count_tokens(text)
 
     def _prioritize_files(
         self,
@@ -1052,8 +1051,10 @@ class ProjectContext:
                 files_included += 1
             else:
                 # Try to summarize/truncate
-                remaining_tokens = token_limit - current_tokens - self._estimate_tokens(
-                    header + footer
+                remaining_tokens = (
+                    token_limit
+                    - current_tokens
+                    - self._estimate_tokens(header + footer)
                 )
                 if remaining_tokens > 100:  # Minimum useful content
                     summarized = await self._summarize_file(content, remaining_tokens)
@@ -1228,7 +1229,9 @@ class ProjectContext:
 
         # Strategy 2: Simple truncation
         truncated = content[:max_chars]
-        return f"{truncated}\n\n... [truncated, {len(content) - max_chars} chars omitted]"
+        return (
+            f"{truncated}\n\n... [truncated, {len(content) - max_chars} chars omitted]"
+        )
 
     async def build_dynamic_context(
         self,

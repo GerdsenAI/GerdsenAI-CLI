@@ -560,7 +560,7 @@ if __name__ == "__main__":
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{filename.replace('.html', '').title()}</title>
+    <title>{filename.replace(".html", "").title()}</title>
 </head>
 <body>
     <h1>Welcome</h1>
@@ -568,7 +568,7 @@ if __name__ == "__main__":
 </body>
 </html>
 """,
-            "markdown": f"""# {filename.replace('.md', '').replace('_', ' ').title()}
+            "markdown": f"""# {filename.replace(".md", "").replace("_", " ").title()}
 
 ## Overview
 

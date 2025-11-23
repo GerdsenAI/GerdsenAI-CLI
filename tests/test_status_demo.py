@@ -17,7 +17,7 @@ def demo_status_messages():
     print("\n" + "="*80)
     print("SOPHISTICATED STATUS MESSAGES DEMO")
     print("="*80 + "\n")
-    
+
     # Demo: Cycle through operations
     operations = [
         OperationType.THINKING,
@@ -32,9 +32,9 @@ def demo_status_messages():
         OperationType.SEARCHING,
         OperationType.STREAMING,
     ]
-    
+
     print("Demonstrating sophisticated vocabulary for each operation type:\n")
-    
+
     for operation in operations:
         # Show 5 examples for each operation
         print(f"\n{operation.value.upper()}:")
@@ -42,7 +42,7 @@ def demo_status_messages():
         for i in range(5):
             message = get_status_message(operation)
             print(f"  {i+1}. {message}")
-    
+
     print("\n" + "="*80)
     print("✓ DEMO COMPLETE")
     print("="*80)

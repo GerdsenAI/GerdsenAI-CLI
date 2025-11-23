@@ -369,13 +369,15 @@ Respond with JSON only:
         # Generate appropriate question based on uncertainty type
         if uncertainty_type == UncertaintyType.AMBIGUOUS_SCOPE:
             question = (
-                f"Your request mentions a broad scope. "
-                f"Which interpretation matches your intent?"
+                "Your request mentions a broad scope. "
+                "Which interpretation matches your intent?"
             )
         elif uncertainty_type == UncertaintyType.UNCLEAR_ACTION:
             question = "I want to help, but I'm not sure exactly what action to take. Which of these would you like?"
         elif uncertainty_type == UncertaintyType.MULTIPLE_INTERPRETATIONS:
-            question = "I see multiple ways to interpret your request. Which one did you mean?"
+            question = (
+                "I see multiple ways to interpret your request. Which one did you mean?"
+            )
         else:
             question = "Could you clarify what you'd like me to do?"
 
@@ -599,7 +601,9 @@ Respond with JSON only:
             type_name = record.question.uncertainty_type.value
             type_counts[type_name] = type_counts.get(type_name, 0) + 1
 
-        most_common = max(type_counts.items(), key=lambda x: x[1])[0] if type_counts else None
+        most_common = (
+            max(type_counts.items(), key=lambda x: x[1])[0] if type_counts else None
+        )
 
         return {
             "total_clarifications": len(self.history),

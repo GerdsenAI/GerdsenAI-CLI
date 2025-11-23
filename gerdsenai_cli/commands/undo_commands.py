@@ -63,7 +63,9 @@ class UndoCommand(BaseCommand):
         snapshots = confirmation_engine.list_undo_snapshots()
 
         if not snapshots:
-            return "No operations to undo.\n\nUse /undo list to see available snapshots."
+            return (
+                "No operations to undo.\n\nUse /undo list to see available snapshots."
+            )
 
         # Get most recent snapshot
         latest = snapshots[0]

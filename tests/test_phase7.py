@@ -96,7 +96,7 @@ async def test_main_integration():
         print("✅ Main application imports successfully")
 
         # Create instance (won't initialize fully due to missing LLM server)
-        app = GerdsenAICLI(debug=True)
+        GerdsenAICLI(debug=True)
         print("✅ GerdsenAICLI can be instantiated")
 
         return True

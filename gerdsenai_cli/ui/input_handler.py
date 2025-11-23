@@ -6,7 +6,6 @@ history management, and proper input/output separation.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
@@ -23,7 +22,7 @@ from ..commands.parser import CommandParser
 class CommandCompleter(Completer):
     """Autocompletion for GerdsenAI commands and file paths."""
 
-    def __init__(self, command_parser: Optional[CommandParser] = None):
+    def __init__(self, command_parser: CommandParser | None = None):
         """Initialize the completer with command parser for command completion."""
         self.command_parser = command_parser
         self.console = Console()
@@ -78,8 +77,8 @@ class EnhancedInputHandler:
 
     def __init__(
         self,
-        command_parser: Optional[CommandParser] = None,
-        history_file: Optional[Path] = None,
+        command_parser: CommandParser | None = None,
+        history_file: Path | None = None,
     ):
         """
         Initialize the enhanced input handler.

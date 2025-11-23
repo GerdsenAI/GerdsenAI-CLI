@@ -5,7 +5,8 @@ Supports HF's high-performance inference engine.
 """
 
 import logging
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 
@@ -73,7 +74,7 @@ class HuggingFaceProvider(LLMProvider):
                         "max_total_tokens": data.get("max_total_tokens"),
                         "max_batch_size": data.get("max_batch_total_tokens"),
                     },
-                    is_loaded=True
+                    is_loaded=True,
                 )
 
                 return [model_info]
@@ -89,7 +90,7 @@ class HuggingFaceProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate completion using HF TGI.
@@ -107,7 +108,7 @@ class HuggingFaceProvider(LLMProvider):
                     "parameters": {
                         "temperature": temperature,
                         "do_sample": temperature > 0,
-                    }
+                    },
                 }
 
                 if max_tokens:
@@ -121,8 +122,7 @@ class HuggingFaceProvider(LLMProvider):
                     request_data["parameters"].update(kwargs)
 
                 response = await client.post(
-                    f"{self.base_url}/generate",
-                    json=request_data
+                    f"{self.base_url}/generate", json=request_data
                 )
                 response.raise_for_status()
 
@@ -140,7 +140,7 @@ class HuggingFaceProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream completion from HF TGI.
@@ -156,7 +156,7 @@ class HuggingFaceProvider(LLMProvider):
                     "parameters": {
                         "temperature": temperature,
                         "do_sample": temperature > 0,
-                    }
+                    },
                 }
 
                 if max_tokens:
@@ -169,9 +169,7 @@ class HuggingFaceProvider(LLMProvider):
                     request_data["parameters"].update(kwargs)
 
                 async with client.stream(
-                    "POST",
-                    f"{self.base_url}/generate_stream",
-                    json=request_data
+                    "POST", f"{self.base_url}/generate_stream", json=request_data
                 ) as response:
                     response.raise_for_status()
 
@@ -181,6 +179,7 @@ class HuggingFaceProvider(LLMProvider):
 
                             try:
                                 import json
+
                                 data = json.loads(data_str)
 
                                 # TGI returns token info
@@ -221,7 +220,7 @@ class HuggingFaceProvider(LLMProvider):
                 "watermarking": True,
                 "flash_attention": True,
                 "paged_attention": True,
-            }
+            },
         )
 
     def _messages_to_prompt(self, messages: list[dict[str, str]]) -> str:

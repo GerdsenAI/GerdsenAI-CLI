@@ -15,11 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 def test_status_messages_standalone():
     """Test just the status message generation without agent."""
     from gerdsenai_cli.utils.status_messages import OperationType, get_status_message
-    
+
     print("\n" + "="*80)
     print("STANDALONE STATUS MESSAGE TEST")
     print("="*80 + "\n")
-    
+
     operations = [
         OperationType.THINKING,
         OperationType.ANALYZING,
@@ -28,12 +28,12 @@ def test_status_messages_standalone():
         OperationType.STREAMING,
         OperationType.SYNTHESIZING,
     ]
-    
+
     print("Testing message generation for typical operation sequence:\n")
     for i, op_type in enumerate(operations, 1):
         message = get_status_message(op_type)
         print(f"{i}. {op_type.value.upper()}: {message}")
-    
+
     print("\n" + "="*80)
     print("✓ Status message generation working perfectly!")
     print("="*80 + "\n")
@@ -44,29 +44,32 @@ def test_integration_check():
     print("\n" + "="*80)
     print("STATUS MESSAGE INTEGRATION VERIFICATION")
     print("="*80 + "\n")
-    
+
     print("Checking integration points...\n")
-    
+
     # Check 1: Status messages module
     try:
-        from gerdsenai_cli.utils.status_messages import OperationType, get_status_message
+        from gerdsenai_cli.utils.status_messages import (
+            OperationType,
+            get_status_message,
+        )
         print("✓ Status messages module imported successfully")
         print(f"  - Found {len(OperationType)} operation types")
     except ImportError as e:
         print(f"✗ Failed to import status messages: {e}")
         return False
-    
+
     # Check 2: Console integration
     try:
         # Just check the file exists and has the right method
-        with open("gerdsenai_cli/ui/console.py", "r") as f:
+        with open("gerdsenai_cli/ui/console.py") as f:
             content = f.read()
             if "set_operation" in content:
                 print("✓ EnhancedConsole.set_operation() method found")
             else:
                 print("✗ set_operation() method not found in console.py")
                 return False
-            
+
             if "from ..utils.status_messages import" in content:
                 print("✓ Status messages imported in console.py")
             else:
@@ -75,17 +78,17 @@ def test_integration_check():
     except Exception as e:
         print(f"✗ Failed to check console.py: {e}")
         return False
-    
+
     # Check 3: Agent integration
     try:
-        with open("gerdsenai_cli/core/agent.py", "r") as f:
+        with open("gerdsenai_cli/core/agent.py") as f:
             content = f.read()
             if "status_callback" in content:
                 print("✓ Agent has status_callback parameter")
             else:
                 print("✗ status_callback not found in agent.py")
                 return False
-            
+
             if 'status_callback("' in content or "status_callback('" in content:
                 print("✓ Agent calls status_callback")
             else:
@@ -94,17 +97,17 @@ def test_integration_check():
     except Exception as e:
         print(f"✗ Failed to check agent.py: {e}")
         return False
-    
+
     # Check 4: Main loop integration
     try:
-        with open("gerdsenai_cli/main.py", "r") as f:
+        with open("gerdsenai_cli/main.py") as f:
             content = f.read()
             if "set_operation" in content:
                 print("✓ Main loop calls set_operation()")
             else:
                 print("✗ set_operation() not called in main.py")
                 return False
-            
+
             if "status_callback" in content:
                 print("✓ Main loop passes status_callback to agent")
             else:
@@ -113,7 +116,7 @@ def test_integration_check():
     except Exception as e:
         print(f"✗ Failed to check main.py: {e}")
         return False
-    
+
     print("\n" + "="*80)
     print("✓ ALL INTEGRATION CHECKS PASSED")
     print("="*80)
@@ -122,17 +125,17 @@ def test_integration_check():
 
 if __name__ == "__main__":
     print("\n🎯 Testing Status Message System Integration\n")
-    
+
     # Test 1: Standalone message generation
     print("Test 1: Message Generation")
     print("-" * 80)
     test_status_messages_standalone()
-    
+
     # Test 2: Integration verification
     print("\n\nTest 2: Integration Verification")
     print("-" * 80)
     success = test_integration_check()
-    
+
     if success:
         print("\n\n" + "="*80)
         print("🎉 STATUS MESSAGE SYSTEM FULLY INTEGRATED")

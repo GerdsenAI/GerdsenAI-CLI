@@ -86,7 +86,7 @@ class BarkPlugin:
                 "use_small_models": use_small_models,
                 "device": device,
                 "sample_rate": 24000,  # Bark's native sample rate
-            }
+            },
         )
         self._initialized = False
         self._bark_module = None
@@ -119,11 +119,16 @@ class BarkPlugin:
             # Set device
             if self.device != "auto":
                 import os
+
                 if self.device == "cpu":
-                    os.environ["SUNO_USE_SMALL_MODELS"] = "1" if self.use_small_models else "0"
+                    os.environ["SUNO_USE_SMALL_MODELS"] = (
+                        "1" if self.use_small_models else "0"
+                    )
                     os.environ["SUNO_OFFLOAD_CPU"] = "1"
                 elif self.device == "cuda":
-                    os.environ["SUNO_USE_SMALL_MODELS"] = "1" if self.use_small_models else "0"
+                    os.environ["SUNO_USE_SMALL_MODELS"] = (
+                        "1" if self.use_small_models else "0"
+                    )
 
             # Preload models (optional, can be slow)
             # logger.info("Preloading Bark models...")
@@ -167,7 +172,7 @@ class BarkPlugin:
             return {
                 "status": "unhealthy",
                 "message": "Plugin not initialized",
-                "details": {}
+                "details": {},
             }
 
         return {
@@ -179,7 +184,7 @@ class BarkPlugin:
                 "device": self.device,
                 "sample_rate": self.metadata.configuration["sample_rate"],
                 "capabilities": self.metadata.capabilities,
-            }
+            },
         }
 
     async def synthesize(
@@ -233,6 +238,7 @@ class BarkPlugin:
         try:
             # Set generation parameters
             import os
+
             os.environ["SUNO_ENABLE_MPS"] = "0"  # Disable MPS for stability
 
             # Generate audio
@@ -263,6 +269,7 @@ class BarkPlugin:
 
                 # Write WAV file
                 from scipy.io.wavfile import write as write_wav
+
                 write_wav(str(output_path), sample_rate, audio_array)
 
                 saved_path = str(output_path)
@@ -363,6 +370,7 @@ class BarkPlugin:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         from scipy.io.wavfile import write as write_wav
+
         sample_rate = self._bark_module["SAMPLE_RATE"]
         write_wav(str(output_path), sample_rate, full_audio)
 

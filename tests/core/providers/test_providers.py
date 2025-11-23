@@ -5,22 +5,14 @@ Tests provider detection, model listing, chat completion, streaming,
 error handling, and edge cases.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
-from gerdsenai_cli.core.errors import (
-    ErrorCategory,
-    ModelNotFoundError,
-    NetworkError,
-    ProviderError,
-)
 from gerdsenai_cli.core.providers import (
     HuggingFaceProvider,
     LMStudioProvider,
-    ModelInfo,
     OllamaProvider,
     ProviderDetector,
     ProviderType,
@@ -37,7 +29,7 @@ class TestOllamaProvider:
         provider = OllamaProvider("http://localhost:11434")
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"models": []}
 
@@ -82,7 +74,7 @@ class TestOllamaProvider:
         }
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_http_response = AsyncMock()
+            mock_http_response = MagicMock()
             mock_http_response.status_code = 200
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = MagicMock()
@@ -110,7 +102,7 @@ class TestOllamaProvider:
         mock_response = {"message": {"content": "Hi there!"}}
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_http_response = AsyncMock()
+            mock_http_response = MagicMock()
             mock_http_response.status_code = 200
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = MagicMock()
@@ -137,10 +129,14 @@ class TestOllamaProvider:
         ]
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_stream = AsyncMock()
-            mock_stream.aiter_lines = AsyncMock(
-                return_value=iter([line.decode() for line in mock_lines])
-            )
+            mock_stream = MagicMock()
+
+            # Make aiter_lines an async generator
+            async def mock_aiter_lines():
+                for line in mock_lines:
+                    yield line.decode()
+
+            mock_stream.aiter_lines = mock_aiter_lines
             mock_stream.raise_for_status = MagicMock()
             mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
             mock_stream.__aexit__ = AsyncMock(return_value=None)
@@ -184,7 +180,7 @@ class TestVLLMProvider:
         provider = VLLMProvider("http://localhost:8000")
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"data": []}
 
@@ -210,8 +206,14 @@ class TestVLLMProvider:
         ]
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_stream = AsyncMock()
-            mock_stream.aiter_lines = AsyncMock(return_value=iter(mock_lines))
+            mock_stream = MagicMock()
+
+            # Make aiter_lines an async generator
+            async def mock_aiter_lines():
+                for line in mock_lines:
+                    yield line
+
+            mock_stream.aiter_lines = mock_aiter_lines
             mock_stream.raise_for_status = MagicMock()
             mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
             mock_stream.__aexit__ = AsyncMock(return_value=None)
@@ -257,7 +259,7 @@ class TestLMStudioProvider:
         }
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_http_response = AsyncMock()
+            mock_http_response = MagicMock()
             mock_http_response.status_code = 200
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = MagicMock()
@@ -291,7 +293,7 @@ class TestHuggingFaceProvider:
         provider = HuggingFaceProvider("http://localhost:8080")
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "model_id": "meta-llama/Llama-2-7b-chat-hf",
@@ -336,7 +338,7 @@ class TestProviderDetector:
 
         with patch("httpx.AsyncClient") as mock_client:
             # Ollama detection succeeds
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"models": []}
 
@@ -411,7 +413,7 @@ class TestEdgeCases:
         provider = OllamaProvider()
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"models": []}
             mock_response.raise_for_status = MagicMock()
@@ -429,7 +431,7 @@ class TestEdgeCases:
         provider = OllamaProvider()
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.side_effect = ValueError("Invalid JSON")
             mock_response.raise_for_status = MagicMock()
@@ -475,7 +477,7 @@ class TestEdgeCases:
         provider = OllamaProvider()
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 404
             mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
                 "Not found", request=None, response=mock_response
@@ -498,13 +500,13 @@ class TestEdgeCases:
         messages = [{"role": "user", "content": "Hello!"}]
 
         # Mock partial stream then disconnect
-        async def mock_iter():
+        async def mock_aiter_lines():
             yield '{"message": {"content": "Hi "}}'
             raise httpx.NetworkError("Connection lost")
 
         with patch("httpx.AsyncClient") as mock_client:
-            mock_stream = AsyncMock()
-            mock_stream.aiter_lines = mock_iter
+            mock_stream = MagicMock()
+            mock_stream.aiter_lines = mock_aiter_lines
             mock_stream.raise_for_status = MagicMock()
             mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
             mock_stream.__aexit__ = AsyncMock(return_value=None)
@@ -535,7 +537,7 @@ class TestIntegration:
         with patch("httpx.AsyncClient") as mock_client:
 
             def mock_get(url, **kwargs):
-                response = AsyncMock()
+                response = MagicMock()
                 if "/api/tags" in url:  # Ollama
                     response.status_code = 200
                     response.json.return_value = {"models": []}

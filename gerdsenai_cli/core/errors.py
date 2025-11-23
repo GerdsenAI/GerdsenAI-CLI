@@ -7,7 +7,7 @@ Defines error types, classification, and recovery strategies.
 import asyncio
 import json
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ErrorCategory(Enum):
@@ -49,9 +49,9 @@ class GerdsenAIError(Exception):
         category: ErrorCategory,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         recoverable: bool = True,
-        suggestion: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None,
-        original_exception: Optional[Exception] = None
+        suggestion: str | None = None,
+        context: dict[str, Any] | None = None,
+        original_exception: Exception | None = None,
     ):
         """
         Initialize error with comprehensive context.
@@ -88,7 +88,9 @@ class GerdsenAIError(Exception):
             "recoverable": self.recoverable,
             "suggestion": self.suggestion,
             "context": self.context,
-            "original_error": str(self.original_exception) if self.original_exception else None
+            "original_error": str(self.original_exception)
+            if self.original_exception
+            else None,
         }
 
     def __str__(self) -> str:
@@ -106,15 +108,16 @@ class GerdsenAIError(Exception):
 
 # Specific error classes
 
+
 class NetworkError(GerdsenAIError):
     """Network-related error."""
 
     def __init__(
         self,
         message: str,
-        suggestion: Optional[str] = None,
-        context: Optional[dict] = None,
-        original_exception: Optional[Exception] = None
+        suggestion: str | None = None,
+        context: dict | None = None,
+        original_exception: Exception | None = None,
     ):
         super().__init__(
             message=message,
@@ -123,7 +126,7 @@ class NetworkError(GerdsenAIError):
             recoverable=True,
             suggestion=suggestion or "Check your network connection and try again",
             context=context,
-            original_exception=original_exception
+            original_exception=original_exception,
         )
 
 
@@ -134,16 +137,17 @@ class TimeoutError(GerdsenAIError):
         self,
         message: str,
         timeout_seconds: float,
-        suggestion: Optional[str] = None,
-        context: Optional[dict] = None
+        suggestion: str | None = None,
+        context: dict | None = None,
     ):
         super().__init__(
             message=message,
             category=ErrorCategory.TIMEOUT,
             severity=ErrorSeverity.MEDIUM,
             recoverable=True,
-            suggestion=suggestion or f"Request timed out after {timeout_seconds}s. Try increasing timeout or using a faster model.",
-            context=context or {"timeout_seconds": timeout_seconds}
+            suggestion=suggestion
+            or f"Request timed out after {timeout_seconds}s. Try increasing timeout or using a faster model.",
+            context=context or {"timeout_seconds": timeout_seconds},
         )
 
 
@@ -153,8 +157,8 @@ class ModelNotFoundError(GerdsenAIError):
     def __init__(
         self,
         model_name: str,
-        available_models: Optional[list[str]] = None,
-        suggestion: Optional[str] = None
+        available_models: list[str] | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=f"Model '{model_name}' not found",
@@ -162,11 +166,11 @@ class ModelNotFoundError(GerdsenAIError):
             severity=ErrorSeverity.HIGH,
             recoverable=True,
             suggestion=suggestion or self._generate_suggestion(available_models),
-            context={"model_name": model_name, "available_models": available_models}
+            context={"model_name": model_name, "available_models": available_models},
         )
 
     @staticmethod
-    def _generate_suggestion(available_models: Optional[list[str]]) -> str:
+    def _generate_suggestion(available_models: list[str] | None) -> str:
         """Generate helpful suggestion based on available models."""
         if available_models:
             return f"Available models: {', '.join(available_models[:5])}. Use /models to list all models."
@@ -177,18 +181,16 @@ class ContextLengthError(GerdsenAIError):
     """Context window exceeded error."""
 
     def __init__(
-        self,
-        current_tokens: int,
-        max_tokens: int,
-        suggestion: Optional[str] = None
+        self, current_tokens: int, max_tokens: int, suggestion: str | None = None
     ):
         super().__init__(
             message=f"Context length {current_tokens} exceeds maximum {max_tokens}",
             category=ErrorCategory.CONTEXT_LENGTH,
             severity=ErrorSeverity.HIGH,
             recoverable=True,
-            suggestion=suggestion or "Try reducing context or using a model with larger context window",
-            context={"current_tokens": current_tokens, "max_tokens": max_tokens}
+            suggestion=suggestion
+            or "Try reducing context or using a model with larger context window",
+            context={"current_tokens": current_tokens, "max_tokens": max_tokens},
         )
 
 
@@ -200,8 +202,8 @@ class ProviderError(GerdsenAIError):
         provider_name: str,
         message: str,
         can_fallback: bool = False,
-        suggestion: Optional[str] = None,
-        original_exception: Optional[Exception] = None
+        suggestion: str | None = None,
+        original_exception: Exception | None = None,
     ):
         super().__init__(
             message=f"{provider_name}: {message}",
@@ -210,7 +212,7 @@ class ProviderError(GerdsenAIError):
             recoverable=can_fallback,
             suggestion=suggestion,
             context={"provider": provider_name, "can_fallback": can_fallback},
-            original_exception=original_exception
+            original_exception=original_exception,
         )
         self.can_fallback = can_fallback
 
@@ -221,16 +223,17 @@ class ConfigurationError(GerdsenAIError):
     def __init__(
         self,
         message: str,
-        config_key: Optional[str] = None,
-        suggestion: Optional[str] = None
+        config_key: str | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=message,
             category=ErrorCategory.CONFIGURATION,
             severity=ErrorSeverity.HIGH,
             recoverable=False,
-            suggestion=suggestion or "Check your configuration file or use /config to update settings",
-            context={"config_key": config_key} if config_key else {}
+            suggestion=suggestion
+            or "Check your configuration file or use /config to update settings",
+            context={"config_key": config_key} if config_key else {},
         )
 
 
@@ -240,16 +243,17 @@ class ParseError(GerdsenAIError):
     def __init__(
         self,
         message: str,
-        raw_response: Optional[str] = None,
-        suggestion: Optional[str] = None
+        raw_response: str | None = None,
+        suggestion: str | None = None,
     ):
         super().__init__(
             message=message,
             category=ErrorCategory.PARSE_ERROR,
             severity=ErrorSeverity.MEDIUM,
             recoverable=True,
-            suggestion=suggestion or "The response format was unexpected. Trying alternative parsing.",
-            context={"raw_response": raw_response[:500] if raw_response else None}
+            suggestion=suggestion
+            or "The response format was unexpected. Trying alternative parsing.",
+            context={"raw_response": raw_response[:500] if raw_response else None},
         )
 
 
@@ -265,22 +269,18 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
     """
     import httpx
 
-    exception_type = type(exception).__name__
     error_message = str(exception).lower()
 
     # Network errors
     if isinstance(exception, (httpx.ConnectError, httpx.NetworkError, ConnectionError)):
         return (
             ErrorCategory.NETWORK,
-            "Check that the LLM server is running and accessible"
+            "Check that the LLM server is running and accessible",
         )
 
     # Timeout errors
     if isinstance(exception, (httpx.TimeoutException, asyncio.TimeoutError)):
-        return (
-            ErrorCategory.TIMEOUT,
-            "Increase timeout or use a faster model"
-        )
+        return (ErrorCategory.TIMEOUT, "Increase timeout or use a faster model")
 
     # HTTP errors
     if isinstance(exception, httpx.HTTPStatusError):
@@ -291,15 +291,23 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
         elif status_code == 404:
             return (ErrorCategory.MODEL_NOT_FOUND, "Model not found, check model name")
         elif status_code == 429:
-            return (ErrorCategory.RATE_LIMIT, "Rate limit exceeded, wait before retrying")
+            return (
+                ErrorCategory.RATE_LIMIT,
+                "Rate limit exceeded, wait before retrying",
+            )
         elif 500 <= status_code < 600:
-            return (ErrorCategory.PROVIDER_ERROR, "Provider server error, try again later")
+            return (
+                ErrorCategory.PROVIDER_ERROR,
+                "Provider server error, try again later",
+            )
 
     # Context length errors
-    if "context" in error_message and ("length" in error_message or "limit" in error_message):
+    if "context" in error_message and (
+        "length" in error_message or "limit" in error_message
+    ):
         return (
             ErrorCategory.CONTEXT_LENGTH,
-            "Reduce context size or use a model with larger context window"
+            "Reduce context size or use a model with larger context window",
         )
 
     # File errors
@@ -308,7 +316,10 @@ def classify_exception(exception: Exception) -> tuple[ErrorCategory, str]:
 
     # Parse errors
     if isinstance(exception, (ValueError, json.JSONDecodeError, KeyError)):
-        return (ErrorCategory.PARSE_ERROR, "Response parsing failed, retrying with different format")
+        return (
+            ErrorCategory.PARSE_ERROR,
+            "Response parsing failed, retrying with different format",
+        )
 
     # Unknown
     return (ErrorCategory.UNKNOWN, "An unexpected error occurred")

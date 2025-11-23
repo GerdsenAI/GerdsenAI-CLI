@@ -47,7 +47,7 @@ class ClarifyCommand(BaseCommand):
 
     async def _show_stats(self) -> str:
         """Show clarification statistics."""
-        if not hasattr(self.agent, 'clarification'):
+        if not hasattr(self.agent, "clarification"):
             return "Clarification system not available"
 
         stats = self.agent.clarification.get_stats()
@@ -63,9 +63,9 @@ class ClarifyCommand(BaseCommand):
         output += f"Helpful rate: {stats['helpful_rate'] * 100:.1f}%\n"
         output += f"Most common type: {stats.get('most_common_type', 'N/A')}\n"
 
-        if stats.get('type_breakdown'):
+        if stats.get("type_breakdown"):
             output += "\nType Breakdown:\n"
-            for type_name, count in stats['type_breakdown'].items():
+            for type_name, count in stats["type_breakdown"].items():
                 output += f"  {type_name}: {count}\n"
 
         return output
@@ -79,10 +79,12 @@ class ClarifyCommand(BaseCommand):
                 return "Error: Threshold must be between 0.0 and 1.0"
 
             # Update in settings
-            self.agent.settings.set_preference("clarification_confidence_threshold", threshold)
+            self.agent.settings.set_preference(
+                "clarification_confidence_threshold", threshold
+            )
 
             # Update in clarification engine
-            if hasattr(self.agent, 'clarification'):
+            if hasattr(self.agent, "clarification"):
                 self.agent.clarification.confidence_threshold = threshold
 
             return (
@@ -95,7 +97,7 @@ class ClarifyCommand(BaseCommand):
 
     async def _reset_history(self) -> str:
         """Reset clarification history."""
-        if not hasattr(self.agent, 'clarification'):
+        if not hasattr(self.agent, "clarification"):
             return "Clarification system not available"
 
         from rich.prompt import Confirm
@@ -104,10 +106,10 @@ class ClarifyCommand(BaseCommand):
         if self.console:
             confirmed = Confirm.ask(
                 "[yellow]Are you sure you want to reset clarification history?[/yellow]",
-                default=False
+                default=False,
             )
         else:
-            confirmed = input("Reset clarification history? (y/N): ").lower() == 'y'
+            confirmed = input("Reset clarification history? (y/N): ").lower() == "y"
 
         if not confirmed:
             return "Reset cancelled"

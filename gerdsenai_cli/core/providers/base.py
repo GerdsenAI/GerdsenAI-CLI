@@ -5,9 +5,10 @@ Defines the interface that all LLM providers must implement.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncGenerator
+from typing import Any
 
 
 class ProviderType(Enum):
@@ -103,7 +104,7 @@ class LLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         """
         Generate a chat completion (non-streaming).
@@ -129,7 +130,7 @@ class LLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stop: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a chat completion.

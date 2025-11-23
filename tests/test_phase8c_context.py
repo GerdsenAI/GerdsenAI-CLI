@@ -25,7 +25,7 @@ class TestContextWindowDetection:
         """Test GPT-4 Turbo context window detection."""
         settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
         client = LLMClient(settings=settings)
-        
+
         assert client.get_model_context_window("gpt-4-turbo") == 128000
         assert client.get_model_context_window("gpt-4-turbo-preview") == 128000
         assert client.get_model_context_window("gpt-4-1106-preview") == 128000
@@ -34,7 +34,7 @@ class TestContextWindowDetection:
         """Test Gemini Pro context window detection."""
         settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
         client = LLMClient(settings=settings)
-        
+
         assert client.get_model_context_window("gemini-pro") == 1000000
         assert client.get_model_context_window("gemini-1.5-pro") == 1000000
 
@@ -42,7 +42,7 @@ class TestContextWindowDetection:
         """Test Claude 3 context window detection."""
         settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
         client = LLMClient(settings=settings)
-        
+
         assert client.get_model_context_window("claude-3-opus") == 200000
         assert client.get_model_context_window("claude-3-sonnet") == 200000
 
@@ -50,7 +50,7 @@ class TestContextWindowDetection:
         """Test Llama 3 context window detection."""
         settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
         client = LLMClient(settings=settings)
-        
+
         assert client.get_model_context_window("llama3") == 8192
         assert client.get_model_context_window("llama-3-8b") == 8192
 
@@ -58,7 +58,7 @@ class TestContextWindowDetection:
         """Test fallback to 4K for unknown models."""
         settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
         client = LLMClient(settings=settings)
-        
+
         assert client.get_model_context_window("unknown-model-xyz") == 4096
 
 
@@ -102,7 +102,8 @@ class TestTokenEstimation:
         # Rule: ~4 characters per token
         text = "a" * 400  # 400 chars = ~100 tokens
         estimated = ProjectContext._estimate_tokens(text)
-        assert estimated == 100
+        # Allow small variance due to tiktoken encoding
+        assert 95 <= estimated <= 105
 
     def test_estimate_tokens_empty(self):
         """Test token estimation with empty string."""
@@ -117,17 +118,17 @@ class TestDynamicContextBuilding:
     async def test_smart_strategy_integration(self):
         """Test smart context building strategy."""
         context_manager = ProjectContext(project_root=Path.cwd())
-        
+
         # Scan current project
         await context_manager.scan_directory(max_depth=2)
-        
+
         # Build context with smart strategy
         context = await context_manager.build_dynamic_context(
             query="test",
             max_tokens=1000,
             strategy="smart"
         )
-        
+
         assert context is not None
         assert isinstance(context, str)
         assert len(context) > 0
@@ -135,27 +136,27 @@ class TestDynamicContextBuilding:
     async def test_off_strategy_returns_empty(self):
         """Test 'off' strategy returns empty context."""
         context_manager = ProjectContext(project_root=Path.cwd())
-        
+
         context = await context_manager.build_dynamic_context(
             query="test",
             max_tokens=1000,
             strategy="off"
         )
-        
+
         assert context == ""
 
     async def test_file_prioritization(self):
         """Test file prioritization logic."""
         context_manager = ProjectContext(project_root=Path.cwd())
         await context_manager.scan_directory(max_depth=2)
-        
+
         # Prioritize files with mentioned file
         mentioned_files = [Path("README.md")]
         prioritized = context_manager._prioritize_files(
             query="readme",
             mentioned_files=mentioned_files
         )
-        
+
         # Mentioned files should be first
         assert len(prioritized) > 0
         # README.md should be highly prioritized
@@ -165,13 +166,13 @@ class TestDynamicContextBuilding:
     async def test_summarization_strategy(self):
         """Test file summarization strategy."""
         context_manager = ProjectContext(project_root=Path.cwd())
-        
+
         # Create long content
         long_content = "line\n" * 1000  # 1000 lines
-        
+
         # Summarize to fit 200 tokens
         summarized = await context_manager._summarize_file(long_content, max_tokens=200)
-        
+
         assert len(summarized) < len(long_content)
         assert "lines omitted" in summarized or "truncated" in summarized
 
@@ -180,7 +181,7 @@ def test_phase8c_summary():
     """Summary test to verify Phase 8c components are present."""
     # Verify LLMClient has context window detection
     assert hasattr(LLMClient, "get_model_context_window")
-    
+
     # Verify Settings has Phase 8c fields
     settings = Settings(llm_server_url="http://localhost:11434", current_model="test")
     assert hasattr(settings, "model_context_window")
@@ -188,21 +189,21 @@ def test_phase8c_summary():
     assert hasattr(settings, "auto_read_strategy")
     assert hasattr(settings, "enable_file_summarization")
     assert hasattr(settings, "max_iterative_reads")
-    
+
     # Verify ProjectContext has dynamic context methods
     assert hasattr(ProjectContext, "build_dynamic_context")
     assert hasattr(ProjectContext, "_smart_context_building")
     assert hasattr(ProjectContext, "_prioritize_files")
     assert hasattr(ProjectContext, "_estimate_tokens")
     assert hasattr(ProjectContext, "_summarize_file")
-    
+
     print("✅ Phase 8c implementation verified!")
 
 
 if __name__ == "__main__":
     # Run summary test
     test_phase8c_summary()
-    
+
     # Run async tests
     async def run_async_tests():
         test = TestDynamicContextBuilding()
@@ -211,5 +212,5 @@ if __name__ == "__main__":
         await test.test_file_prioritization()
         await test.test_summarization_strategy()
         print("✅ All async tests passed!")
-    
+
     asyncio.run(run_async_tests())

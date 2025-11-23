@@ -6,21 +6,14 @@ and recovery options.
 """
 
 import logging
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 
 from ..core.errors import (
-    ContextLengthError,
     ErrorCategory,
     ErrorSeverity,
     GerdsenAIError,
-    ModelNotFoundError,
-    NetworkError,
-    ProviderError,
-    TimeoutError,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,10 +53,7 @@ class ErrorDisplay:
 
     @classmethod
     def display_error(
-        cls,
-        error: Exception,
-        show_details: bool = False,
-        tui_mode: bool = True
+        cls, error: Exception, show_details: bool = False, tui_mode: bool = True
     ) -> str:
         """
         Display an error with rich formatting.
@@ -83,10 +73,7 @@ class ErrorDisplay:
 
     @classmethod
     def _display_gerdsenai_error(
-        cls,
-        error: GerdsenAIError,
-        show_details: bool,
-        tui_mode: bool
+        cls, error: GerdsenAIError, show_details: bool, tui_mode: bool
     ) -> str:
         """Display a GerdsenAI error with rich context."""
         icon = cls.CATEGORY_ICONS.get(error.category, "⚠️")
@@ -108,7 +95,9 @@ class ErrorDisplay:
 
         # Recovery hint
         if error.recoverable:
-            parts.append("\n[green]✓ This error is recoverable - retrying automatically[/]")
+            parts.append(
+                "\n[green]✓ This error is recoverable - retrying automatically[/]"
+            )
         else:
             parts.append("\n[red]✗ This error requires manual intervention[/]")
 
@@ -127,13 +116,14 @@ class ErrorDisplay:
         # Wrap in panel for TUI mode - but return as string
         if tui_mode:
             from io import StringIO
+
             from rich.console import Console as RichConsole
 
             panel = Panel(
                 message,
                 title=f"[{color}]Error Details[/]",
                 border_style=color,
-                expand=False
+                expand=False,
             )
 
             # Convert Panel to string representation
@@ -146,10 +136,7 @@ class ErrorDisplay:
 
     @classmethod
     def _display_generic_error(
-        cls,
-        error: Exception,
-        show_details: bool,
-        tui_mode: bool
+        cls, error: Exception, show_details: bool, tui_mode: bool
     ) -> str:
         """Display a generic error."""
         error_type = type(error).__name__
@@ -167,10 +154,7 @@ class ErrorDisplay:
 
         if tui_mode:
             return Panel(
-                formatted,
-                title="[red]Error[/]",
-                border_style="red",
-                expand=False
+                formatted, title="[red]Error[/]", border_style="red", expand=False
             )
 
         return formatted
@@ -189,52 +173,64 @@ class ErrorDisplay:
         actions = []
 
         if error.category == ErrorCategory.NETWORK:
-            actions.extend([
-                "Check that the LLM server is running",
-                "Verify network connectivity",
-                "Check firewall settings",
-                "Try a different provider (use /providers)",
-            ])
+            actions.extend(
+                [
+                    "Check that the LLM server is running",
+                    "Verify network connectivity",
+                    "Check firewall settings",
+                    "Try a different provider (use /providers)",
+                ]
+            )
 
         elif error.category == ErrorCategory.TIMEOUT:
-            actions.extend([
-                "Increase timeout in settings (/config)",
-                "Use a faster model",
-                "Reduce context length",
-                "Check server performance",
-            ])
+            actions.extend(
+                [
+                    "Increase timeout in settings (/config)",
+                    "Use a faster model",
+                    "Reduce context length",
+                    "Check server performance",
+                ]
+            )
 
         elif error.category == ErrorCategory.MODEL_NOT_FOUND:
-            actions.extend([
-                "List available models (/models)",
-                "Pull the model if using Ollama",
-                "Check model name spelling",
-                "Select a different model (/model <name>)",
-            ])
+            actions.extend(
+                [
+                    "List available models (/models)",
+                    "Pull the model if using Ollama",
+                    "Check model name spelling",
+                    "Select a different model (/model <name>)",
+                ]
+            )
 
         elif error.category == ErrorCategory.CONTEXT_LENGTH:
-            actions.extend([
-                "Reduce context with /clear",
-                "Use a model with larger context window",
-                "Enable context compression in settings",
-                "Summarize conversation (/compress)",
-            ])
+            actions.extend(
+                [
+                    "Reduce context with /clear",
+                    "Use a model with larger context window",
+                    "Enable context compression in settings",
+                    "Summarize conversation (/compress)",
+                ]
+            )
 
         elif error.category == ErrorCategory.PROVIDER_ERROR:
-            actions.extend([
-                "Check provider logs",
-                "Restart the provider",
-                "Try a different provider",
-                "Update provider software",
-            ])
+            actions.extend(
+                [
+                    "Check provider logs",
+                    "Restart the provider",
+                    "Try a different provider",
+                    "Update provider software",
+                ]
+            )
 
         elif error.category == ErrorCategory.CONFIGURATION:
-            actions.extend([
-                "Review configuration (/config)",
-                "Reset to defaults",
-                "Check configuration file syntax",
-                "Run setup wizard",
-            ])
+            actions.extend(
+                [
+                    "Review configuration (/config)",
+                    "Reset to defaults",
+                    "Check configuration file syntax",
+                    "Run setup wizard",
+                ]
+            )
 
         else:
             actions.append("Check logs for more details")
@@ -248,7 +244,7 @@ class ErrorDisplay:
         operation: str,
         progress: float,
         status: str = "",
-        show_percentage: bool = True
+        show_percentage: bool = True,
     ) -> str:
         """
         Format a progress message.
@@ -282,7 +278,7 @@ class ErrorDisplay:
         return " ".join(parts)
 
     @classmethod
-    def format_success_message(cls, message: str, details: Optional[str] = None) -> str:
+    def format_success_message(cls, message: str, details: str | None = None) -> str:
         """
         Format a success message.
 
@@ -301,7 +297,9 @@ class ErrorDisplay:
         return "\n".join(parts)
 
     @classmethod
-    def format_warning_message(cls, message: str, suggestion: Optional[str] = None) -> str:
+    def format_warning_message(
+        cls, message: str, suggestion: str | None = None
+    ) -> str:
         """
         Format a warning message.
 

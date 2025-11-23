@@ -1,5 +1,8 @@
 """Unit tests for RichToFormattedTextConverter class."""
-from gerdsenai_cli.ui.prompt_toolkit_tui import RichToFormattedTextConverter, RICH_AVAILABLE
+from gerdsenai_cli.ui.prompt_toolkit_tui import (
+    RICH_AVAILABLE,
+    RichToFormattedTextConverter,
+)
 
 
 class TestRichToFormattedTextConverter:
@@ -15,16 +18,16 @@ class TestRichToFormattedTextConverter:
         """Test converting plain text."""
         if not RICH_AVAILABLE:
             return  # Skip if Rich not available
-        
+
         converter = RichToFormattedTextConverter()
         text = "This is plain text"
-        
+
         result = converter.convert_markdown(text)
-        
+
         # Should return list of tuples
         assert isinstance(result, list)
         assert len(result) > 0
-        
+
         # Each item should be a tuple
         for item in result:
             assert isinstance(item, tuple)
@@ -34,12 +37,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with headings."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "# Heading 1\n## Heading 2"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -47,12 +50,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with bold text."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "This is **bold** text"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -60,12 +63,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with italic text."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "This is *italic* text"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -73,12 +76,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with code blocks."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "```python\ndef hello():\n    print('world')\n```"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -86,12 +89,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with inline code."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "Use the `print()` function"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -99,12 +102,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with lists."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "- Item 1\n- Item 2\n- Item 3"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -112,12 +115,12 @@ class TestRichToFormattedTextConverter:
         """Test converting markdown with tables."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "| Column 1 | Column 2 |\n|----------|----------|\n| Value 1  | Value 2  |"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -125,12 +128,12 @@ class TestRichToFormattedTextConverter:
         """Test converting empty string."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = ""
-        
+
         result = converter.convert_markdown(text)
-        
+
         # Should handle empty string gracefully
         assert isinstance(result, list)
 
@@ -138,12 +141,12 @@ class TestRichToFormattedTextConverter:
         """Test converting multiline text."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "Line 1\nLine 2\nLine 3"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -151,7 +154,7 @@ class TestRichToFormattedTextConverter:
         """Test converting complex markdown with multiple elements."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = """
 # Main Title
@@ -173,9 +176,9 @@ def greet(name):
 
 > This is a quote
 """
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -183,12 +186,12 @@ def greet(name):
         """Test converting text with unicode characters."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "Unicode: 🎉 ✨ 🚀 ⚡"
-        
+
         result = converter.convert_markdown(text)
-        
+
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -196,9 +199,9 @@ def greet(name):
         """Test that converter handles errors gracefully."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
-        
+
         # Test with potentially problematic input
         # Should not raise exception
         try:
@@ -213,12 +216,12 @@ def greet(name):
         """Test that returned tuples have correct format."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
         text = "Test text"
-        
+
         result = converter.convert_markdown(text)
-        
+
         # Each tuple should be (style_class, text_content)
         for style, text_part in result:
             assert isinstance(style, str)
@@ -228,14 +231,14 @@ def greet(name):
         """Test that converter can be used multiple times."""
         if not RICH_AVAILABLE:
             return
-        
+
         converter = RichToFormattedTextConverter()
-        
+
         # Convert multiple times
         result1 = converter.convert_markdown("Text 1")
         result2 = converter.convert_markdown("Text 2")
         result3 = converter.convert_markdown("Text 3")
-        
+
         # All should succeed
         assert isinstance(result1, list)
         assert isinstance(result2, list)

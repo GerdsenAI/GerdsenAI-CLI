@@ -6,7 +6,8 @@ Provides smart retry strategies for different error types.
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from .errors import (
     ErrorCategory,
@@ -16,7 +17,7 @@ from .errors import (
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class RetryStrategy:
@@ -53,11 +54,11 @@ class RetryStrategy:
 
     def __init__(
         self,
-        max_retries: Optional[dict[ErrorCategory, int]] = None,
-        backoff_factors: Optional[dict[ErrorCategory, float]] = None,
+        max_retries: dict[ErrorCategory, int] | None = None,
+        backoff_factors: dict[ErrorCategory, float] | None = None,
         initial_delay: float = 1.0,
         max_delay: float = 60.0,
-        jitter: bool = True
+        jitter: bool = True,
     ):
         """
         Initialize retry strategy.
@@ -79,8 +80,8 @@ class RetryStrategy:
         self,
         operation: Callable[[], Any],
         operation_name: str = "operation",
-        category: Optional[ErrorCategory] = None,
-        on_retry: Optional[Callable[[int, Exception], None]] = None
+        category: ErrorCategory | None = None,
+        on_retry: Callable[[int, Exception], None] | None = None,
     ) -> T:
         """
         Execute operation with smart retry.
@@ -97,7 +98,7 @@ class RetryStrategy:
         Raises:
             GerdsenAIError: If all retries exhausted
         """
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
         attempt = 0
 
         while True:
@@ -129,12 +130,13 @@ class RetryStrategy:
                 backoff_factor = self.backoff_factors.get(error_category, 2.0)
                 delay = min(
                     self.initial_delay * (backoff_factor ** (attempt - 1)),
-                    self.max_delay
+                    self.max_delay,
                 )
 
                 # Add jitter if enabled
                 if self.jitter:
                     import random
+
                     delay *= random.uniform(0.8, 1.2)
 
                 logger.warning(
@@ -160,7 +162,7 @@ class RetryStrategy:
         self,
         primary_operation: Callable[[], T],
         fallback_operation: Callable[[], T],
-        operation_name: str = "operation"
+        operation_name: str = "operation",
     ) -> T:
         """
         Execute primary operation with fallback.
@@ -179,8 +181,7 @@ class RetryStrategy:
 
         except Exception as primary_error:
             logger.warning(
-                f"{operation_name} primary failed: {primary_error}. "
-                "Trying fallback..."
+                f"{operation_name} primary failed: {primary_error}. Trying fallback..."
             )
 
             try:
@@ -189,24 +190,22 @@ class RetryStrategy:
                 return result
 
             except Exception as fallback_error:
-                logger.error(
-                    f"{operation_name} fallback also failed: {fallback_error}"
-                )
+                logger.error(f"{operation_name} fallback also failed: {fallback_error}")
                 raise GerdsenAIError(
                     message=f"Both primary and fallback {operation_name} failed",
                     category=ErrorCategory.UNKNOWN,
                     recoverable=False,
                     context={
                         "primary_error": str(primary_error),
-                        "fallback_error": str(fallback_error)
-                    }
-                )
+                        "fallback_error": str(fallback_error),
+                    },
+                ) from fallback_error
 
     async def execute_with_timeout(
         self,
         operation: Callable[[], T],
         timeout_seconds: float,
-        operation_name: str = "operation"
+        operation_name: str = "operation",
     ) -> T:
         """
         Execute operation with timeout.
@@ -225,19 +224,14 @@ class RetryStrategy:
         try:
             return await asyncio.wait_for(operation(), timeout=timeout_seconds)
 
-        except asyncio.TimeoutError:
+        except TimeoutError as timeout_err:
             from .errors import TimeoutError as GerdsenAITimeoutError
 
             raise GerdsenAITimeoutError(
-                message=f"{operation_name} timed out",
-                timeout_seconds=timeout_seconds
-            )
+                message=f"{operation_name} timed out", timeout_seconds=timeout_seconds
+            ) from timeout_err
 
-    def should_retry(
-        self,
-        exception: Exception,
-        attempt: int
-    ) -> tuple[bool, float]:
+    def should_retry(self, exception: Exception, attempt: int) -> tuple[bool, float]:
         """
         Determine if an exception should trigger retry.
 
@@ -264,8 +258,7 @@ class RetryStrategy:
         if should_retry:
             backoff_factor = self.backoff_factors.get(category, 2.0)
             delay = min(
-                self.initial_delay * (backoff_factor ** (attempt - 1)),
-                self.max_delay
+                self.initial_delay * (backoff_factor ** (attempt - 1)), self.max_delay
             )
         else:
             delay = 0.0
@@ -284,7 +277,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
-        expected_exception: type = Exception
+        expected_exception: type = Exception,
     ):
         """
         Initialize circuit breaker.
@@ -299,13 +292,11 @@ class CircuitBreaker:
         self.expected_exception = expected_exception
 
         self.failure_count = 0
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self.state = "closed"  # closed, open, half_open
 
     async def call(
-        self,
-        operation: Callable[[], T],
-        operation_name: str = "operation"
+        self, operation: Callable[[], T], operation_name: str = "operation"
     ) -> T:
         """
         Execute operation through circuit breaker.
@@ -326,14 +317,16 @@ class CircuitBreaker:
         if self.state == "open":
             # Check if recovery timeout has passed
             if time.time() - self.last_failure_time >= self.recovery_timeout:
-                logger.info(f"Circuit breaker: Attempting recovery for {operation_name}")
+                logger.info(
+                    f"Circuit breaker: Attempting recovery for {operation_name}"
+                )
                 self.state = "half_open"
             else:
                 raise GerdsenAIError(
                     message=f"Circuit breaker is OPEN for {operation_name}",
                     category=ErrorCategory.PROVIDER_ERROR,
                     recoverable=False,
-                    suggestion=f"Wait {self.recovery_timeout}s before retrying"
+                    suggestion=f"Wait {self.recovery_timeout}s before retrying",
                 )
 
         try:
@@ -347,7 +340,7 @@ class CircuitBreaker:
 
             return result
 
-        except self.expected_exception as e:
+        except self.expected_exception:
             self.failure_count += 1
             self.last_failure_time = time.time()
 

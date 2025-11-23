@@ -147,9 +147,7 @@ class SuggestCommand(BaseCommand):
 
             # Also check project structure
             files_dict = {str(f): None for f in python_files}
-            structure_suggestions = suggestor.analyze_project_structure(
-                files_dict, {}
-            )
+            structure_suggestions = suggestor.analyze_project_structure(files_dict, {})
             all_suggestions.extend(structure_suggestions)
 
             if not all_suggestions:
@@ -200,7 +198,7 @@ class SuggestCommand(BaseCommand):
             )
 
             if not suggestions:
-                return f"No specific suggestions for this task"
+                return "No specific suggestions for this task"
 
             # Display suggestions
             if self.console:

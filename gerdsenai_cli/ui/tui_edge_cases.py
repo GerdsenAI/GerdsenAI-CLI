@@ -13,15 +13,18 @@ Handles all edge cases, error scenarios, and polishing for the TUI:
 
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from ..core.errors import (
     ErrorCategory,
     ErrorSeverity,
     GerdsenAIError,
     NetworkError,
+)
+from ..core.errors import (
     TimeoutError as GerdsenAITimeoutError,
 )
 from ..utils.validation import InputValidator
@@ -42,7 +45,7 @@ class TUIStateGuard:
         self.is_processing = False
         self.is_waiting_approval = False
         self.operation_lock = asyncio.Lock()
-        self.last_operation_time: Optional[datetime] = None
+        self.last_operation_time: datetime | None = None
 
     def can_accept_input(self) -> tuple[bool, str]:
         """
@@ -110,7 +113,7 @@ class ConversationMemoryManager:
         self,
         max_messages: int = 1000,
         max_total_chars: int = 1_000_000,  # 1MB
-        archive_threshold: int = 800
+        archive_threshold: int = 800,
     ):
         """
         Initialize memory manager.
@@ -146,9 +149,7 @@ class ConversationMemoryManager:
         return False
 
     def archive_old_messages(
-        self,
-        messages: list,
-        keep_recent: int = 100
+        self, messages: list, keep_recent: int = 100
     ) -> tuple[list, int]:
         """
         Archive old messages, keeping recent ones.
@@ -200,9 +201,9 @@ class StreamRecoveryHandler:
             timeout_seconds: Timeout for stream operations
         """
         self.timeout_seconds = timeout_seconds
-        self.stream_start_time: Optional[datetime] = None
+        self.stream_start_time: datetime | None = None
         self.chunks_received = 0
-        self.last_chunk_time: Optional[datetime] = None
+        self.last_chunk_time: datetime | None = None
 
     def start_stream(self):
         """Mark stream start."""
@@ -215,7 +216,7 @@ class StreamRecoveryHandler:
         self.chunks_received += 1
         self.last_chunk_time = datetime.now()
 
-    def check_health(self) -> tuple[bool, Optional[str]]:
+    def check_health(self) -> tuple[bool, str | None]:
         """
         Check stream health.
 
@@ -297,8 +298,7 @@ class InputSanitizer:
         # Validate using InputValidator
         try:
             sanitized = InputValidator.validate_user_input(
-                message,
-                max_length=InputValidator.MAX_MESSAGE_LENGTH
+                message, max_length=InputValidator.MAX_MESSAGE_LENGTH
             )
         except GerdsenAIError:
             # Re-raise validation errors
@@ -318,14 +318,14 @@ class InputSanitizer:
         if len(message) > 100:
             # Look for 50+ repeated characters
             for i in range(len(message) - 50):
-                if len(set(message[i:i+50])) == 1:
+                if len(set(message[i : i + 50])) == 1:
                     warnings.append(
                         "⚠️  Detected repeated characters. Did you paste correctly?"
                     )
                     break
 
         # Check for null bytes or control characters
-        if '\x00' in message:
+        if "\x00" in message:
             raise GerdsenAIError(
                 message="Invalid characters in message",
                 category=ErrorCategory.INVALID_REQUEST,
@@ -347,7 +347,7 @@ class InputSanitizer:
             Sanitized argument
         """
         # Remove any null bytes
-        cleaned = arg.replace('\x00', '')
+        cleaned = arg.replace("\x00", "")
 
         # Limit length
         if len(cleaned) > 1000:
@@ -367,10 +367,7 @@ class InputSanitizer:
             Validated Path object
         """
         return InputValidator.validate_file_path(
-            path,
-            must_exist=False,
-            must_be_file=True,
-            allow_absolute_only=False
+            path, must_exist=False, must_be_file=True, allow_absolute_only=False
         )
 
 
@@ -383,7 +380,7 @@ class ProviderFailureHandler:
 
     def __init__(self):
         self.consecutive_failures = 0
-        self.last_failure_time: Optional[datetime] = None
+        self.last_failure_time: datetime | None = None
 
     def record_failure(self):
         """Record a provider failure."""
@@ -463,8 +460,7 @@ class TUIEdgeCaseHandler:
         self.provider_handler = ProviderFailureHandler()
 
     async def validate_and_process_input(
-        self,
-        user_input: str
+        self, user_input: str
     ) -> tuple[str, list[str]]:
         """
         Validate and process user input.
@@ -494,10 +490,8 @@ class TUIEdgeCaseHandler:
         return sanitized, warnings
 
     def manage_conversation_memory(
-        self,
-        messages: list,
-        tui_conversation: Any
-    ) -> Optional[str]:
+        self, messages: list, tui_conversation: Any
+    ) -> str | None:
         """
         Manage conversation memory to prevent issues.
 
@@ -522,10 +516,7 @@ class TUIEdgeCaseHandler:
         return None
 
     async def handle_stream_with_recovery(
-        self,
-        stream_operation: Callable,
-        tui,
-        operation_name: str = "stream"
+        self, stream_operation: Callable, tui, operation_name: str = "stream"
     ):
         """
         Execute stream operation with recovery handling.
@@ -551,7 +542,7 @@ class TUIEdgeCaseHandler:
                     logger.error(f"Stream health check failed: {error}")
                     raise GerdsenAITimeoutError(
                         message=f"Stream failed: {error}",
-                        timeout_seconds=self.stream_recovery.timeout_seconds
+                        timeout_seconds=self.stream_recovery.timeout_seconds,
                     )
 
                 # Append chunk
@@ -598,7 +589,9 @@ class TUIEdgeCaseHandler:
             "is_streaming": self.state_guard.is_streaming,
             "is_processing": self.state_guard.is_processing,
             "is_waiting_approval": self.state_guard.is_waiting_approval,
-            "last_operation": self.state_guard.last_operation_time.isoformat() if self.state_guard.last_operation_time else None,
+            "last_operation": self.state_guard.last_operation_time.isoformat()
+            if self.state_guard.last_operation_time
+            else None,
             "archived_messages": self.memory_manager.archived_count,
             "consecutive_failures": self.provider_handler.consecutive_failures,
             "stream_chunks_received": self.stream_recovery.chunks_received,

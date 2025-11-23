@@ -124,7 +124,10 @@ class StatusDisplayManager:
         )
 
         # Archive current activity to history before replacing
-        if self.current_activity and self.current_activity.activity != IntelligenceActivity.IDLE:
+        if (
+            self.current_activity
+            and self.current_activity.activity != IntelligenceActivity.IDLE
+        ):
             self.activity_history.append(self.current_activity)
 
             # Trim history
@@ -147,7 +150,10 @@ class StatusDisplayManager:
 
     def clear_activity(self) -> None:
         """Clear current activity."""
-        if self.current_activity and self.current_activity.activity != IntelligenceActivity.IDLE:
+        if (
+            self.current_activity
+            and self.current_activity.activity != IntelligenceActivity.IDLE
+        ):
             self.activity_history.append(self.current_activity)
 
             # Trim history
@@ -228,12 +234,16 @@ class StatusDisplayManager:
 
         return {
             "current_activity": (
-                self.current_activity.activity.value if self.current_activity else "idle"
+                self.current_activity.activity.value
+                if self.current_activity
+                else "idle"
             ),
             "total_activities": len(self.activity_history),
             "activity_counts": activity_counts,
             "total_time_seconds": total_time,
             "average_time_seconds": (
-                total_time / len(self.activity_history) if self.activity_history else 0.0
+                total_time / len(self.activity_history)
+                if self.activity_history
+                else 0.0
             ),
         }

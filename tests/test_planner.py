@@ -3,13 +3,14 @@ Tests for multi-step task planning system.
 """
 
 import json
-import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from gerdsenai_cli.core.planner import (
-    StepStatus,
     PlanStep,
+    StepStatus,
     TaskPlan,
     TaskPlanner,
 )

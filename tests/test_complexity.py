@@ -5,11 +5,11 @@ Tests the complexity detector, multi-factor analysis, resource estimation,
 impact assessment, risk classification, and recommendations.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from gerdsenai_cli.core.complexity import (
-    ComplexityAnalysis,
     ComplexityDetector,
     ComplexityFactors,
     ComplexityLevel,
@@ -539,7 +539,7 @@ def test_breaking_changes_likely(complexity_detector):
 def test_migration_required(complexity_detector):
     """Test detection of migration requirements."""
     user_input = "migrate database schema"
-    analysis = complexity_detector.analyze(user_input)
+    complexity_detector.analyze(user_input)
 
     # Migration keyword should trigger migration requirement
     assert "migrate" in user_input.lower()

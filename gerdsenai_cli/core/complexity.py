@@ -10,7 +10,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -65,7 +64,9 @@ class ComplexityFactors:
     testing_complexity: float = 0.0  # How hard to test changes
 
     # Risk factors
-    reversibility: float = 1.0  # How easily can changes be undone (1.0 = fully reversible)
+    reversibility: float = (
+        1.0  # How easily can changes be undone (1.0 = fully reversible)
+    )
     data_impact: float = 0.0  # Potential data loss/corruption risk
     breaking_changes: float = 0.0  # Likelihood of breaking existing functionality
 
@@ -99,7 +100,13 @@ class ComplexityFactors:
         ) * 0.20
         uncertainty_score = (self.ambiguity * 0.5 + self.unknowns * 0.5) * 0.10
 
-        return scope_score + technical_score + change_score + risk_score + uncertainty_score
+        return (
+            scope_score
+            + technical_score
+            + change_score
+            + risk_score
+            + uncertainty_score
+        )
 
 
 @dataclass
@@ -197,9 +204,7 @@ class ComplexityDetector:
         ]
 
     def analyze(
-        self,
-        user_input: str,
-        context: dict[str, Any] | None = None
+        self, user_input: str, context: dict[str, Any] | None = None
     ) -> ComplexityAnalysis:
         """
         Analyze task complexity.
@@ -296,7 +301,9 @@ class ComplexityDetector:
             factors.scope_depth = 0.2
 
         # Technical difficulty
-        if any(kw in input_lower for kw in ["architecture", "design pattern", "algorithm"]):
+        if any(
+            kw in input_lower for kw in ["architecture", "design pattern", "algorithm"]
+        ):
             factors.technical_difficulty = 0.8
         elif any(kw in input_lower for kw in ["refactor", "optimize", "performance"]):
             factors.technical_difficulty = 0.6
@@ -314,7 +321,10 @@ class ComplexityDetector:
             factors.dependency_complexity = 0.2
 
         # Cross-cutting concerns
-        if any(kw in input_lower for kw in ["logging", "error handling", "authentication", "authorization"]):
+        if any(
+            kw in input_lower
+            for kw in ["logging", "error handling", "authentication", "authorization"]
+        ):
             factors.cross_cutting_concerns = 0.8
         elif any(kw in input_lower for kw in ["validation", "caching", "monitoring"]):
             factors.cross_cutting_concerns = 0.5
@@ -358,13 +368,17 @@ class ComplexityDetector:
         # Data impact
         if any(kw in input_lower for kw in ["database", "data", "migration", "schema"]):
             factors.data_impact = 0.7
-        elif "file" in input_lower and ("delete" in input_lower or "remove" in input_lower):
+        elif "file" in input_lower and (
+            "delete" in input_lower or "remove" in input_lower
+        ):
             factors.data_impact = 0.5
         else:
             factors.data_impact = 0.1
 
         # Breaking changes likelihood
-        if any(kw in input_lower for kw in ["breaking", "incompatible", "major version"]):
+        if any(
+            kw in input_lower for kw in ["breaking", "incompatible", "major version"]
+        ):
             factors.breaking_changes = 0.9
         elif "api" in input_lower or "interface" in input_lower:
             factors.breaking_changes = 0.6
@@ -444,7 +458,7 @@ class ComplexityDetector:
         self,
         factors: ComplexityFactors,
         complexity_level: ComplexityLevel,
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> ResourceEstimate:
         """
         Estimate resources needed for task.
@@ -516,10 +530,7 @@ class ComplexityDetector:
         )
 
     def _assess_impact(
-        self,
-        user_input: str,
-        factors: ComplexityFactors,
-        context: dict[str, Any]
+        self, user_input: str, factors: ComplexityFactors, context: dict[str, Any]
     ) -> ImpactAssessment:
         """
         Assess impact on codebase.
@@ -601,7 +612,7 @@ class ComplexityDetector:
         factors: ComplexityFactors,
         complexity_level: ComplexityLevel,
         risk_level: RiskLevel,
-        user_input: str
+        user_input: str,
     ) -> str:
         """
         Generate human-readable reasoning for complexity assessment.
@@ -663,7 +674,7 @@ class ComplexityDetector:
         self,
         complexity_level: ComplexityLevel,
         risk_level: RiskLevel,
-        factors: ComplexityFactors
+        factors: ComplexityFactors,
     ) -> list[str]:
         """
         Generate recommendations for approaching the task.
@@ -680,7 +691,9 @@ class ComplexityDetector:
 
         # Planning recommendations
         if complexity_level in [ComplexityLevel.COMPLEX, ComplexityLevel.VERY_COMPLEX]:
-            recommendations.append("Use multi-step planning mode to break down the task")
+            recommendations.append(
+                "Use multi-step planning mode to break down the task"
+            )
             recommendations.append("Review the plan before execution")
 
         # Testing recommendations
@@ -711,10 +724,7 @@ class ComplexityDetector:
         return recommendations
 
     def _generate_warnings(
-        self,
-        risk_level: RiskLevel,
-        factors: ComplexityFactors,
-        user_input: str
+        self, risk_level: RiskLevel, factors: ComplexityFactors, user_input: str
     ) -> list[str]:
         """
         Generate warnings about potential issues.
@@ -731,7 +741,9 @@ class ComplexityDetector:
 
         # Critical risk warning
         if risk_level == RiskLevel.CRITICAL:
-            warnings.append("⚠️  CRITICAL: This operation may be destructive and irreversible")
+            warnings.append(
+                "⚠️  CRITICAL: This operation may be destructive and irreversible"
+            )
 
         # High risk warning
         if risk_level == RiskLevel.HIGH:
@@ -743,7 +755,9 @@ class ComplexityDetector:
 
         # Breaking changes
         if factors.breaking_changes > 0.6:
-            warnings.append("⚠️  Breaking changes likely - API consumers may be affected")
+            warnings.append(
+                "⚠️  Breaking changes likely - API consumers may be affected"
+            )
 
         # Low reversibility
         if factors.reversibility < 0.3:

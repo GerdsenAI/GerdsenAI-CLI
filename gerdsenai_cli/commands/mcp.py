@@ -147,7 +147,9 @@ class MCPCommand(BaseCommand):
             message=None,  # Already printed the table
         )
 
-    async def _add_server(self, settings, config_manager, name: str, url: str) -> CommandResult:
+    async def _add_server(
+        self, settings, config_manager, name: str, url: str
+    ) -> CommandResult:
         """Add a new MCP server."""
         if not hasattr(settings, "mcp_servers"):
             settings.mcp_servers = {}
@@ -173,7 +175,9 @@ class MCPCommand(BaseCommand):
             message=f"Added MCP server '{name}' with URL: {url}\n\nUse '/mcp connect {name}' to establish a connection.",
         )
 
-    async def _remove_server(self, settings, config_manager, name: str) -> CommandResult:
+    async def _remove_server(
+        self, settings, config_manager, name: str
+    ) -> CommandResult:
         """Remove an MCP server."""
         if not hasattr(settings, "mcp_servers") or name not in settings.mcp_servers:
             return CommandResult(
@@ -220,7 +224,8 @@ class MCPCommand(BaseCommand):
             )
 
         connected_count = sum(
-            1 for config in settings.mcp_servers.values()
+            1
+            for config in settings.mcp_servers.values()
             if config.get("status", "").startswith("Connected")
         )
         total_count = len(settings.mcp_servers)
