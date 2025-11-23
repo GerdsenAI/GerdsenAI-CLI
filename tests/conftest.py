@@ -142,7 +142,7 @@ def mock_tiktoken_download(monkeypatch: MonkeyPatch) -> None:
     from trying to download encoding files from the internet.
     """
     try:
-        import tiktoken  # pyright: ignore[reportMissingImports]
+        import tiktoken  # pyright: ignore[reportMissingImports]  # type: ignore[import-not-found]
 
         # Create a mock encoding that can encode/decode
         class MockEncoding:

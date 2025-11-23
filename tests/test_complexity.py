@@ -703,4 +703,4 @@ def test_real_world_scenarios(complexity_detector: ComplexityDetector) -> None:
 
         # Check if actual level is in expected range
         assert analysis.complexity_level in expected_levels, \
-            f"Task '{task}' expected one of {[l.value for l in expected_levels]}, got {analysis.complexity_level.value}"
+            f"Task '{task}' expected one of {[level.value for level in expected_levels]}, got {analysis.complexity_level.value}"
