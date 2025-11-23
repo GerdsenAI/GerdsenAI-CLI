@@ -91,10 +91,18 @@ def project_files() -> list[str]:
     files = []
 
     for py_file in project_root.rglob("*.py"):
+        # Skip venv and cache directories
+        if '.venv' in str(py_file) or '__pycache__' in str(py_file):
+            continue
         rel_path = py_file.relative_to(project_root)
         files.append(str(rel_path))
 
-    return files[:100]  # Limit to 100 for performance
+    # Prioritize source files over test files for better LLM context
+    source_files = [f for f in files if not f.startswith('tests/')]
+    test_files = [f for f in files if f.startswith('tests/')]
+
+    # Return source files first, then tests, limited to 150 total
+    return (source_files + test_files)[:150]
 
 
 class TestIntentDetectionLive:
