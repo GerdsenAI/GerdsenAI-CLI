@@ -4,7 +4,6 @@ Enhanced TUI layout system for GerdsenAI CLI.
 Provides a rich, bordered interface similar to modern AI coding assistants.
 """
 
-
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live

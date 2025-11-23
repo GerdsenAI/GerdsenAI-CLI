@@ -770,7 +770,9 @@ class GerdsenAICLI:
 
                 # Save conversation
                 try:
-                    assert filename is not None  # filename is always set in /save command
+                    assert (
+                        filename is not None
+                    )  # filename is always set in /save command
                     filepath = self.conversation_manager.save_conversation(
                         filename, messages, metadata
                     )
@@ -1327,9 +1329,11 @@ class GerdsenAICLI:
                                 if self.smart_router
                                 else []
                             )
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=conversation_history,
+                            context_files = (
+                                await self.proactive_context.build_smart_context(
+                                    user_query=text,
+                                    conversation_history=conversation_history,
+                                )
                             )
 
                             if context_files:
@@ -1476,9 +1480,11 @@ class GerdsenAICLI:
                                 if self.smart_router
                                 else []
                             )
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=conversation_history,
+                            context_files = (
+                                await self.proactive_context.build_smart_context(
+                                    user_query=text,
+                                    conversation_history=conversation_history,
+                                )
                             )
 
                             if context_files:
@@ -1563,9 +1569,11 @@ class GerdsenAICLI:
                                 if self.smart_router
                                 else []
                             )
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=conversation_history,
+                            context_files = (
+                                await self.proactive_context.build_smart_context(
+                                    user_query=text,
+                                    conversation_history=conversation_history,
+                                )
                             )
 
                             if context_files:
