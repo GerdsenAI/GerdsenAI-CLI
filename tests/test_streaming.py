@@ -11,7 +11,7 @@ from rich.console import Console
 from gerdsenai_cli.ui.console import EnhancedConsole
 
 
-async def simulate_streaming():
+async def simulate_streaming() -> list[str]:
     """Simulate streaming response chunks."""
     response_text = """Here's a Python example:
 
@@ -37,7 +37,7 @@ This recursive implementation calculates Fibonacci numbers efficiently."""
     return chunks
 
 
-async def test_tui_streaming():
+async def test_tui_streaming() -> None:
     """Test TUI mode streaming."""
     print("\n" + "="*60)
     print("Testing TUI Mode Streaming")
@@ -73,7 +73,7 @@ async def test_tui_streaming():
     print("\n✅ TUI streaming test complete!")
 
 
-async def test_simple_streaming():
+async def test_simple_streaming() -> None:
     """Test simple console mode streaming."""
     print("\n" + "="*60)
     print("Testing Simple Console Mode Streaming")
@@ -101,7 +101,7 @@ async def test_simple_streaming():
     print("\n✅ Simple streaming test complete!")
 
 
-async def main():
+async def main() -> None:
     """Run all streaming tests."""
     print("🚀 Enhanced Console Streaming Test")
     print("This demonstrates real-time streaming in both TUI and simple modes.")

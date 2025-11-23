@@ -5,10 +5,12 @@ Tests the intent detection system with a real local LLM (e.g., LMStudio).
 """
 
 import time
+from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Any
 
-import pytest  # type: ignore[import-not-found]
-import pytest_asyncio  # type: ignore[import-not-found]
+import pytest
+import pytest_asyncio
 
 # Import GerdsenAI CLI components
 from gerdsenai_cli.config.settings import Settings
@@ -19,15 +21,15 @@ from gerdsenai_cli.core.llm_client import LLMClient
 
 
 @pytest_asyncio.fixture
-async def llm_client():
-    """Create LLM client connected to local server (LMStudio)."""
-    # Create settings with empty model (will be set after connection)
+async def llm_client(llm_config: dict[str, Any]) -> AsyncGenerator[LLMClient, None]:
+    """Create LLM client connected to configured local server."""
+    # Create settings using llm_config from conftest.py
     settings = Settings(
-        protocol="http",
-        llm_host="10.69.7.180",
-        llm_port=1234,
-        current_model="",  # Empty string instead of None
-        api_timeout=15.0,  # Extended for local LLM
+        protocol=llm_config["protocol"],
+        llm_host=llm_config["host"],
+        llm_port=llm_config["port"],
+        current_model=llm_config["model"],  # Use specified model or empty string
+        api_timeout=llm_config["timeout"],
     )
 
     # Debug: Print the constructed URL
@@ -66,21 +68,24 @@ async def llm_client():
         if not selected_model:
             selected_model = models[0].id
 
-        # Update settings with selected model
-        settings.current_model = selected_model
-        print(f"\n[TEST] Using model: {selected_model}")
+        # Update settings with selected model (only if not already set)
+        if not settings.current_model:
+            settings.current_model = selected_model
+            print(f"\n[TEST] Auto-selected model: {selected_model}")
+        else:
+            print(f"\n[TEST] Using configured model: {settings.current_model}")
 
         yield client
 
 
 @pytest.fixture
-def intent_parser():
+def intent_parser() -> IntentParser:
     """Create intent parser instance."""
     return IntentParser()
 
 
 @pytest.fixture
-def project_files():
+def project_files() -> list[str]:
     """Get list of project files for context."""
     project_root = Path(__file__).parent.parent
     files = []
@@ -96,8 +101,8 @@ class TestIntentDetectionLive:
     """Live integration tests for intent detection with real LLM."""
 
     async def test_file_reading_intent_explicit(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'explain agent.py' should detect read_file intent."""
         query = "explain agent.py"
 
@@ -128,8 +133,8 @@ class TestIntentDetectionLive:
             print(f"[TEST] Extracted file: {intent.parameters['file_path']}")
 
     async def test_file_reading_intent_show(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'show me main.py' should detect read_file intent."""
         query = "show me main.py"
 
@@ -151,8 +156,8 @@ class TestIntentDetectionLive:
 
 
     async def test_file_reading_intent_whats_in(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'what's in llm_client.py' should detect read_file intent."""
         query = "what's in llm_client.py"
 
@@ -174,8 +179,8 @@ class TestIntentDetectionLive:
 
 
     async def test_project_analysis_intent_analyze(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'analyze this project' should detect analyze_project intent."""
         query = "analyze this project"
 
@@ -197,8 +202,8 @@ class TestIntentDetectionLive:
 
 
     async def test_project_analysis_intent_overview(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'give me an overview' should detect analyze_project intent."""
         query = "give me an overview of this codebase"
 
@@ -220,8 +225,8 @@ class TestIntentDetectionLive:
 
 
     async def test_search_intent_where(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'where is error handling' should detect search_files intent."""
         query = "where is error handling"
 
@@ -243,8 +248,8 @@ class TestIntentDetectionLive:
 
 
     async def test_search_intent_find(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'find llm_client' should detect search_files intent."""
         query = "find files with llm_client"
 
@@ -266,8 +271,8 @@ class TestIntentDetectionLive:
 
 
     async def test_chat_intent_greeting(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'hello' should detect chat intent."""
         query = "hello how are you"
 
@@ -289,8 +294,8 @@ class TestIntentDetectionLive:
 
 
     async def test_chat_intent_capabilities(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test: 'what can you do' should detect chat intent."""
         query = "what can you do"
 
@@ -312,8 +317,8 @@ class TestIntentDetectionLive:
 
 
     async def test_timeout_handling(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test that timeout handling works gracefully."""
         query = "explain agent.py"
 
@@ -331,15 +336,15 @@ class TestIntentDetectionLive:
 
             # Should get some intent (either from LLM or fallback)
             assert intent.action_type != ActionType.NONE or \
-                   "timeout" in intent.reasoning.lower()
+                   (intent.reasoning and "timeout" in intent.reasoning.lower())
 
         except Exception as e:
             pytest.fail(f"Timeout handling crashed: {e}")
 
 
     async def test_file_path_extraction(
-        self, llm_client, intent_parser, project_files
-    ):
+        self, llm_client: LLMClient, intent_parser: IntentParser, project_files: list[str]
+    ) -> None:
         """Test file path extraction and validation."""
         query = "explain gerdsenai_cli/core/agent.py"
 
@@ -359,7 +364,7 @@ class TestIntentDetectionLive:
 
 # Summary test that runs all and generates report
 
-async def test_generate_summary_report(tmp_path):
+async def test_generate_summary_report(tmp_path: Path) -> None:
     """Generate a summary report of all test results."""
     # This will be called after all tests run
     # pytest will handle the actual summary

@@ -19,13 +19,13 @@ from gerdsenai_cli.core.complexity import (
 
 
 @pytest.fixture
-def complexity_detector():
+def complexity_detector() -> ComplexityDetector:
     """Create a complexity detector for testing."""
     return ComplexityDetector()
 
 
 @pytest.fixture
-def mock_llm_client():
+def mock_llm_client() -> MagicMock:
     """Create a mock LLM client."""
     return MagicMock()
 
@@ -35,7 +35,7 @@ def mock_llm_client():
 # ============================================================================
 
 
-def test_trivial_task_factors(complexity_detector):
+def test_trivial_task_factors(complexity_detector: ComplexityDetector) -> None:
     """Test factor analysis for trivial tasks."""
     user_input = "fix typo in readme"
 
@@ -48,7 +48,7 @@ def test_trivial_task_factors(complexity_detector):
     assert analysis.factors.scope_depth < 0.3
 
 
-def test_simple_task_factors(complexity_detector):
+def test_simple_task_factors(complexity_detector: ComplexityDetector) -> None:
     """Test factor analysis for simple tasks."""
     user_input = "add a validation function to utils.py"
 
@@ -58,7 +58,7 @@ def test_simple_task_factors(complexity_detector):
     assert analysis.factors.scope_breadth < 0.5
 
 
-def test_moderate_task_factors(complexity_detector):
+def test_moderate_task_factors(complexity_detector: ComplexityDetector) -> None:
     """Test factor analysis for moderate complexity tasks."""
     user_input = "implement a new feature for user authentication"
 
@@ -68,7 +68,7 @@ def test_moderate_task_factors(complexity_detector):
     assert analysis.factors.technical_difficulty >= 0.5
 
 
-def test_complex_task_factors(complexity_detector):
+def test_complex_task_factors(complexity_detector: ComplexityDetector) -> None:
     """Test factor analysis for complex tasks."""
     user_input = "refactor all authentication logic across the project"
 
@@ -79,7 +79,7 @@ def test_complex_task_factors(complexity_detector):
     assert analysis.factors.refactoring_needed >= 0.6
 
 
-def test_very_complex_task_factors(complexity_detector):
+def test_very_complex_task_factors(complexity_detector: ComplexityDetector) -> None:
     """Test factor analysis for very complex tasks."""
     user_input = "migrate entire codebase to a new architecture"
 
@@ -92,7 +92,7 @@ def test_very_complex_task_factors(complexity_detector):
     assert analysis.complexity_score >= 0.4
 
 
-def test_high_complexity_patterns(complexity_detector):
+def test_high_complexity_patterns(complexity_detector: ComplexityDetector) -> None:
     """Test detection of high complexity patterns."""
     test_cases = [
         "update all files in the repository",
@@ -106,7 +106,7 @@ def test_high_complexity_patterns(complexity_detector):
         assert analysis.factors.scope_breadth >= 0.7, f"Failed for: {user_input}"
 
 
-def test_moderate_complexity_patterns(complexity_detector):
+def test_moderate_complexity_patterns(complexity_detector: ComplexityDetector) -> None:
     """Test detection of moderate complexity patterns."""
     test_cases = [
         "refactor multiple files",
@@ -120,7 +120,7 @@ def test_moderate_complexity_patterns(complexity_detector):
         assert 0.4 <= analysis.factors.scope_breadth <= 0.8, f"Failed for: {user_input}"
 
 
-def test_technical_difficulty_detection(complexity_detector):
+def test_technical_difficulty_detection(complexity_detector: ComplexityDetector) -> None:
     """Test technical difficulty factor detection."""
     # High technical difficulty
     high_tech = "design a new architecture pattern"
@@ -138,7 +138,7 @@ def test_technical_difficulty_detection(complexity_detector):
     assert analysis.factors.technical_difficulty < 0.5
 
 
-def test_dependency_complexity_detection(complexity_detector):
+def test_dependency_complexity_detection(complexity_detector: ComplexityDetector) -> None:
     """Test dependency complexity factor detection."""
     # High dependency complexity
     high_dep = "integrate with multiple external services"
@@ -156,7 +156,7 @@ def test_dependency_complexity_detection(complexity_detector):
     assert analysis.factors.dependency_complexity < 0.4
 
 
-def test_cross_cutting_concerns_detection(complexity_detector):
+def test_cross_cutting_concerns_detection(complexity_detector: ComplexityDetector) -> None:
     """Test cross-cutting concerns factor detection."""
     # High cross-cutting
     high_cc = "add logging to all components"
@@ -174,7 +174,7 @@ def test_cross_cutting_concerns_detection(complexity_detector):
     assert analysis.factors.cross_cutting_concerns < 0.5
 
 
-def test_modification_extent_detection(complexity_detector):
+def test_modification_extent_detection(complexity_detector: ComplexityDetector) -> None:
     """Test modification extent factor detection."""
     # Complete rewrite
     rewrite = "rewrite the entire module"
@@ -192,7 +192,7 @@ def test_modification_extent_detection(complexity_detector):
     assert analysis.factors.modification_extent >= 0.3
 
 
-def test_refactoring_needed_detection(complexity_detector):
+def test_refactoring_needed_detection(complexity_detector: ComplexityDetector) -> None:
     """Test refactoring needed factor detection."""
     # Explicit refactoring
     refactor = "refactor all API handlers"
@@ -210,7 +210,7 @@ def test_refactoring_needed_detection(complexity_detector):
     assert analysis.factors.refactoring_needed < 0.5
 
 
-def test_reversibility_detection(complexity_detector):
+def test_reversibility_detection(complexity_detector: ComplexityDetector) -> None:
     """Test reversibility factor detection."""
     # Irreversible operations
     irreversible = "delete all user data"
@@ -228,7 +228,7 @@ def test_reversibility_detection(complexity_detector):
     assert analysis.factors.reversibility >= 0.8
 
 
-def test_data_impact_detection(complexity_detector):
+def test_data_impact_detection(complexity_detector: ComplexityDetector) -> None:
     """Test data impact factor detection."""
     # High data impact
     high_impact = "migrate database schema"
@@ -246,7 +246,7 @@ def test_data_impact_detection(complexity_detector):
     assert analysis.factors.data_impact < 0.3
 
 
-def test_breaking_changes_detection(complexity_detector):
+def test_breaking_changes_detection(complexity_detector: ComplexityDetector) -> None:
     """Test breaking changes factor detection."""
     # Explicit breaking changes
     breaking = "make breaking API changes"
@@ -264,7 +264,7 @@ def test_breaking_changes_detection(complexity_detector):
     assert analysis.factors.breaking_changes < 0.5
 
 
-def test_ambiguity_detection(complexity_detector):
+def test_ambiguity_detection(complexity_detector: ComplexityDetector) -> None:
     """Test ambiguity factor detection."""
     # High ambiguity
     ambiguous = "fix this, improve that, optimize everything"
@@ -282,7 +282,7 @@ def test_ambiguity_detection(complexity_detector):
     assert analysis.factors.ambiguity < 0.4
 
 
-def test_unknowns_detection(complexity_detector):
+def test_unknowns_detection(complexity_detector: ComplexityDetector) -> None:
     """Test unknowns factor detection."""
     # High unknowns
     unknown = "how should we implement this? what approach is best? which library?"
@@ -300,7 +300,7 @@ def test_unknowns_detection(complexity_detector):
 # ============================================================================
 
 
-def test_complexity_classification_boundaries(complexity_detector):
+def test_complexity_classification_boundaries(complexity_detector: ComplexityDetector) -> None:
     """Test complexity classification at boundary values."""
     # Test TRIVIAL boundary
     factors = ComplexityFactors()
@@ -330,7 +330,7 @@ def test_complexity_classification_boundaries(complexity_detector):
 # ============================================================================
 
 
-def test_minimal_risk_assessment(complexity_detector):
+def test_minimal_risk_assessment(complexity_detector: ComplexityDetector) -> None:
     """Test minimal risk assessment."""
     user_input = "read configuration file"
     analysis = complexity_detector.analyze(user_input)
@@ -338,7 +338,7 @@ def test_minimal_risk_assessment(complexity_detector):
     assert analysis.risk_level in [RiskLevel.MINIMAL, RiskLevel.LOW]
 
 
-def test_low_risk_assessment(complexity_detector):
+def test_low_risk_assessment(complexity_detector: ComplexityDetector) -> None:
     """Test low risk assessment."""
     user_input = "add new function to utils"
     analysis = complexity_detector.analyze(user_input)
@@ -346,7 +346,7 @@ def test_low_risk_assessment(complexity_detector):
     assert analysis.risk_level in [RiskLevel.MINIMAL, RiskLevel.LOW, RiskLevel.MEDIUM]
 
 
-def test_medium_risk_assessment(complexity_detector):
+def test_medium_risk_assessment(complexity_detector: ComplexityDetector) -> None:
     """Test medium risk assessment."""
     user_input = "update API endpoints"
     analysis = complexity_detector.analyze(user_input)
@@ -355,7 +355,7 @@ def test_medium_risk_assessment(complexity_detector):
     assert analysis.risk_level in [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH]
 
 
-def test_high_risk_assessment(complexity_detector):
+def test_high_risk_assessment(complexity_detector: ComplexityDetector) -> None:
     """Test high risk assessment."""
     user_input = "migrate database to new schema"
     analysis = complexity_detector.analyze(user_input)
@@ -364,7 +364,7 @@ def test_high_risk_assessment(complexity_detector):
     assert analysis.risk_level in [RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL]
 
 
-def test_critical_risk_assessment(complexity_detector):
+def test_critical_risk_assessment(complexity_detector: ComplexityDetector) -> None:
     """Test critical risk assessment."""
     destructive_inputs = [
         "delete all user data",
@@ -379,7 +379,7 @@ def test_critical_risk_assessment(complexity_detector):
         assert analysis.risk_level == RiskLevel.CRITICAL, f"Failed for: {user_input}"
 
 
-def test_risk_factors_calculation(complexity_detector):
+def test_risk_factors_calculation(complexity_detector: ComplexityDetector) -> None:
     """Test risk score calculation."""
     # Create factors with known values
     factors = ComplexityFactors(
@@ -400,7 +400,7 @@ def test_risk_factors_calculation(complexity_detector):
 # ============================================================================
 
 
-def test_trivial_resource_estimation(complexity_detector):
+def test_trivial_resource_estimation(complexity_detector: ComplexityDetector) -> None:
     """Test resource estimation for trivial tasks."""
     user_input = "fix typo"
     analysis = complexity_detector.analyze(user_input)
@@ -410,7 +410,7 @@ def test_trivial_resource_estimation(complexity_detector):
     assert analysis.resource_estimate.file_count <= 2
 
 
-def test_simple_resource_estimation(complexity_detector):
+def test_simple_resource_estimation(complexity_detector: ComplexityDetector) -> None:
     """Test resource estimation for simple tasks."""
     user_input = "add utility function"
     analysis = complexity_detector.analyze(user_input)
@@ -419,7 +419,7 @@ def test_simple_resource_estimation(complexity_detector):
     assert analysis.resource_estimate.estimated_steps <= 3
 
 
-def test_moderate_resource_estimation(complexity_detector):
+def test_moderate_resource_estimation(complexity_detector: ComplexityDetector) -> None:
     """Test resource estimation for moderate tasks."""
     user_input = "implement new feature with validation"
     analysis = complexity_detector.analyze(user_input)
@@ -428,7 +428,7 @@ def test_moderate_resource_estimation(complexity_detector):
     assert analysis.resource_estimate.estimated_steps >= 2
 
 
-def test_complex_resource_estimation(complexity_detector):
+def test_complex_resource_estimation(complexity_detector: ComplexityDetector) -> None:
     """Test resource estimation for complex tasks."""
     user_input = "refactor all API handlers"
     analysis = complexity_detector.analyze(user_input)
@@ -437,7 +437,7 @@ def test_complex_resource_estimation(complexity_detector):
     assert analysis.resource_estimate.estimated_steps >= 2
 
 
-def test_very_complex_resource_estimation(complexity_detector):
+def test_very_complex_resource_estimation(complexity_detector: ComplexityDetector) -> None:
     """Test resource estimation for very complex tasks."""
     user_input = "migrate entire codebase to new framework"
     analysis = complexity_detector.analyze(user_input)
@@ -448,7 +448,7 @@ def test_very_complex_resource_estimation(complexity_detector):
     assert analysis.resource_estimate.file_count >= 1
 
 
-def test_test_coverage_needed(complexity_detector):
+def test_test_coverage_needed(complexity_detector: ComplexityDetector) -> None:
     """Test determination of test coverage needs."""
     # Complex tasks should need tests
     complex_task = "refactor authentication system"
@@ -461,7 +461,7 @@ def test_test_coverage_needed(complexity_detector):
     # Test coverage determination is based on complexity level
 
 
-def test_documentation_needed(complexity_detector):
+def test_documentation_needed(complexity_detector: ComplexityDetector) -> None:
     """Test determination of documentation needs."""
     # Complex tasks should need documentation
     complex_task = "add new API system"
@@ -475,7 +475,7 @@ def test_documentation_needed(complexity_detector):
 # ============================================================================
 
 
-def test_single_file_impact(complexity_detector):
+def test_single_file_impact(complexity_detector: ComplexityDetector) -> None:
     """Test impact assessment for single file changes."""
     user_input = "update utils.py"
     analysis = complexity_detector.analyze(user_input)
@@ -483,7 +483,7 @@ def test_single_file_impact(complexity_detector):
     assert analysis.impact_assessment.impact_scope == ImpactScope.SINGLE_FILE
 
 
-def test_few_files_impact(complexity_detector):
+def test_few_files_impact(complexity_detector: ComplexityDetector) -> None:
     """Test impact assessment for few files."""
     user_input = "update multiple configuration files"
     analysis = complexity_detector.analyze(user_input)
@@ -495,7 +495,7 @@ def test_few_files_impact(complexity_detector):
     ]
 
 
-def test_module_impact(complexity_detector):
+def test_module_impact(complexity_detector: ComplexityDetector) -> None:
     """Test impact assessment for module-level changes."""
     user_input = "refactor authentication module"
     analysis = complexity_detector.analyze(user_input)
@@ -507,7 +507,7 @@ def test_module_impact(complexity_detector):
     ]
 
 
-def test_whole_system_impact(complexity_detector):
+def test_whole_system_impact(complexity_detector: ComplexityDetector) -> None:
     """Test impact assessment for system-wide changes."""
     user_input = "update entire codebase architecture"
     analysis = complexity_detector.analyze(user_input)
@@ -518,7 +518,7 @@ def test_whole_system_impact(complexity_detector):
     ]
 
 
-def test_affected_components_identification(complexity_detector):
+def test_affected_components_identification(complexity_detector: ComplexityDetector) -> None:
     """Test identification of affected components."""
     user_input = "update authentication and authorization"
     analysis = complexity_detector.analyze(user_input)
@@ -528,7 +528,7 @@ def test_affected_components_identification(complexity_detector):
     assert any("auth" in c for c in components)
 
 
-def test_breaking_changes_likely(complexity_detector):
+def test_breaking_changes_likely(complexity_detector: ComplexityDetector) -> None:
     """Test detection of likely breaking changes."""
     user_input = "make breaking changes to API"
     analysis = complexity_detector.analyze(user_input)
@@ -536,7 +536,7 @@ def test_breaking_changes_likely(complexity_detector):
     assert analysis.impact_assessment.breaking_changes_likely
 
 
-def test_migration_required(complexity_detector):
+def test_migration_required(complexity_detector: ComplexityDetector) -> None:
     """Test detection of migration requirements."""
     user_input = "migrate database schema"
     complexity_detector.analyze(user_input)
@@ -550,7 +550,7 @@ def test_migration_required(complexity_detector):
 # ============================================================================
 
 
-def test_warnings_for_high_risk(complexity_detector):
+def test_warnings_for_high_risk(complexity_detector: ComplexityDetector) -> None:
     """Test warning generation for high-risk tasks."""
     user_input = "delete all configuration files"
     analysis = complexity_detector.analyze(user_input)
@@ -559,7 +559,7 @@ def test_warnings_for_high_risk(complexity_detector):
     assert len(analysis.warnings) > 0
 
 
-def test_warnings_for_critical_risk(complexity_detector):
+def test_warnings_for_critical_risk(complexity_detector: ComplexityDetector) -> None:
     """Test warning generation for critical-risk tasks."""
     user_input = "drop database tables"
     analysis = complexity_detector.analyze(user_input)
@@ -570,7 +570,7 @@ def test_warnings_for_critical_risk(complexity_detector):
     assert "irreversible" in warnings_text or "destructive" in warnings_text
 
 
-def test_recommendations_for_complex_tasks(complexity_detector):
+def test_recommendations_for_complex_tasks(complexity_detector: ComplexityDetector) -> None:
     """Test recommendation generation for complex tasks."""
     user_input = "refactor entire authentication system"
     analysis = complexity_detector.analyze(user_input)
@@ -579,7 +579,7 @@ def test_recommendations_for_complex_tasks(complexity_detector):
     assert len(analysis.recommendations) > 0
 
 
-def test_planning_required_for_complex(complexity_detector):
+def test_planning_required_for_complex(complexity_detector: ComplexityDetector) -> None:
     """Test planning requirement for complex tasks."""
     user_input = "migrate entire codebase"
     analysis = complexity_detector.analyze(user_input)
@@ -589,7 +589,7 @@ def test_planning_required_for_complex(complexity_detector):
         assert analysis.requires_planning
 
 
-def test_confirmation_required_for_high_risk(complexity_detector):
+def test_confirmation_required_for_high_risk(complexity_detector: ComplexityDetector) -> None:
     """Test confirmation requirement for high-risk tasks."""
     user_input = "delete all user data"
     analysis = complexity_detector.analyze(user_input)
@@ -604,7 +604,7 @@ def test_confirmation_required_for_high_risk(complexity_detector):
 # ============================================================================
 
 
-def test_full_analysis_structure(complexity_detector):
+def test_full_analysis_structure(complexity_detector: ComplexityDetector) -> None:
     """Test that complete analysis has all required fields."""
     user_input = "implement new authentication feature"
     analysis = complexity_detector.analyze(user_input)
@@ -625,7 +625,7 @@ def test_full_analysis_structure(complexity_detector):
     assert analysis.analyzed_at
 
 
-def test_analysis_with_context(complexity_detector):
+def test_analysis_with_context(complexity_detector: ComplexityDetector) -> None:
     """Test analysis with project context."""
     user_input = "refactor authentication"
     context = {
@@ -641,7 +641,7 @@ def test_analysis_with_context(complexity_detector):
     assert analysis.complexity_level is not None
 
 
-def test_consistency_across_similar_inputs(complexity_detector):
+def test_consistency_across_similar_inputs(complexity_detector: ComplexityDetector) -> None:
     """Test that similar inputs produce consistent results."""
     inputs = [
         "refactor authentication logic",
@@ -653,13 +653,13 @@ def test_consistency_across_similar_inputs(complexity_detector):
 
     # All should have similar complexity levels (within 1 level)
     levels = [a.complexity_level for a in analyses]
-    level_values = [list(ComplexityLevel).index(l) for l in levels]
+    level_values = [list(ComplexityLevel).index(level) for level in levels]
 
     # Max difference should be at most 1 level
     assert max(level_values) - min(level_values) <= 1
 
 
-def test_weighted_score_calculation(complexity_detector):
+def test_weighted_score_calculation(complexity_detector: ComplexityDetector) -> None:
     """Test weighted score calculation."""
     # Create factors with known values
     factors = ComplexityFactors(
@@ -687,7 +687,7 @@ def test_weighted_score_calculation(complexity_detector):
     assert 0.3 <= score <= 0.8
 
 
-def test_real_world_scenarios(complexity_detector):
+def test_real_world_scenarios(complexity_detector: ComplexityDetector) -> None:
     """Test real-world task scenarios."""
     # Define expected complexity ranges (allow more flexibility)
     scenarios = {
@@ -703,4 +703,4 @@ def test_real_world_scenarios(complexity_detector):
 
         # Check if actual level is in expected range
         assert analysis.complexity_level in expected_levels, \
-            f"Task '{task}' expected one of {[l.value for l in expected_levels]}, got {analysis.complexity_level.value}"
+            f"Task '{task}' expected one of {[level.value for level in expected_levels]}, got {analysis.complexity_level.value}"
