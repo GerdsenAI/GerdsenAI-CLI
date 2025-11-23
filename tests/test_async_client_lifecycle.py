@@ -15,7 +15,7 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_settings():
+async def test_settings() -> Settings:
     """Create test settings."""
     return Settings(
         protocol="http",
@@ -26,7 +26,7 @@ async def test_settings():
     )
 
 
-async def test_llm_client_async_context_manager(test_settings):
+async def test_llm_client_async_context_manager(test_settings: Settings) -> None:
     """Test that LLMClient properly creates httpx.AsyncClient in async context."""
     # This should NOT hang - the httpx.AsyncClient should be created in __aenter__
     async with LLMClient(test_settings) as client:
@@ -38,7 +38,7 @@ async def test_llm_client_async_context_manager(test_settings):
     # Note: client.client might still exist but should be closed
 
 
-async def test_llm_client_without_context_manager_raises(test_settings):
+async def test_llm_client_without_context_manager_raises(test_settings: Settings) -> None:
     """Test that using LLMClient without async context manager has no client."""
     client = LLMClient(test_settings)
 
@@ -50,7 +50,7 @@ async def test_llm_client_without_context_manager_raises(test_settings):
     assert result is False, "Should fail to connect without async context manager"
 
 
-async def test_llm_client_multiple_contexts(test_settings):
+async def test_llm_client_multiple_contexts(test_settings: Settings) -> None:
     """Test that LLMClient can be used in multiple async contexts sequentially."""
     # First context
     async with LLMClient(test_settings) as client1:

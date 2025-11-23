@@ -5,6 +5,7 @@ Covers connection handling, retry logic, timeout configuration,
 and response processing with proper mocking.
 """
 
+from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,7 +18,7 @@ from gerdsenai_cli.core.llm_client import ChatMessage, LLMClient, ModelInfo
 class TestLLMClient:
     """Test suite for LLM client functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client instance."""
         import asyncio
         # Create a mock settings object
@@ -29,21 +30,21 @@ class TestLLMClient:
         # Initialize the client by entering the async context manager
         asyncio.run(self.client.__aenter__())
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after tests."""
         import asyncio
         # Exit the async context manager (this calls close() internally)
         asyncio.run(self.client.__aexit__(None, None, None))
 
     @pytest.mark.asyncio
-    async def test_initialization(self):
+    async def test_initialization(self) -> None:
         """Test client initialization with default settings."""
         assert self.client.base_url == "http://localhost:11434"
         assert self.client.client is not None
         assert not self.client.is_connected
 
     @pytest.mark.asyncio
-    async def test_health_check_success(self):
+    async def test_health_check_success(self) -> None:
         """Test successful health check."""
         with patch.object(self.client.client, "get") as mock_get:
             mock_response = MagicMock()
@@ -55,7 +56,7 @@ class TestLLMClient:
             assert result is True
 
     @pytest.mark.asyncio
-    async def test_health_check_failure(self):
+    async def test_health_check_failure(self) -> None:
         """Test health check failure handling."""
         with patch.object(self.client.client, "get") as mock_get:
             mock_get.side_effect = RequestError("Connection failed")
@@ -64,7 +65,7 @@ class TestLLMClient:
             assert result is False
 
     @pytest.mark.asyncio
-    async def test_get_models_success(self):
+    async def test_get_models_success(self) -> None:
         """Test successful model listing."""
         mock_models = {
             "data": [
@@ -85,7 +86,7 @@ class TestLLMClient:
             assert models[1].id == "codellama:13b"
 
     @pytest.mark.asyncio
-    async def test_chat_completion_success(self):
+    async def test_chat_completion_success(self) -> None:
         """Test successful chat completion."""
         mock_response_data = {
             "choices": [
@@ -110,7 +111,7 @@ class TestLLMClient:
             assert response == "Hello! How can I help you today?"
 
     @pytest.mark.asyncio
-    async def test_retry_logic(self):
+    async def test_retry_logic(self) -> None:
         """Test retry logic on failures."""
         with patch.object(self.client.client, "post") as mock_post:
             # First two calls fail, third succeeds
@@ -135,7 +136,7 @@ class TestLLMClient:
             assert mock_post.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_max_retries_exceeded(self):
+    async def test_max_retries_exceeded(self) -> None:
         """Test behavior when max retries are exceeded."""
         with patch.object(self.client.client, "post") as mock_post:
             mock_post.side_effect = RequestError("Persistent failure")
@@ -147,7 +148,7 @@ class TestLLMClient:
             assert result is None
 
     @pytest.mark.asyncio
-    async def test_streaming_response(self):
+    async def test_streaming_response(self) -> None:
         """Test streaming chat completion."""
         mock_lines = [
             'data: {"choices": [{"delta": {"content": "Hello"}}]}',
@@ -156,7 +157,7 @@ class TestLLMClient:
             "data: [DONE]",
         ]
 
-        async def async_lines():
+        async def async_lines() -> AsyncGenerator[str, None]:
             for line in mock_lines:
                 yield line
 
@@ -178,7 +179,7 @@ class TestLLMClient:
             assert "".join(content_parts) == "Hello there!"
 
     @pytest.mark.asyncio
-    async def test_timeout_configuration(self):
+    async def test_timeout_configuration(self) -> None:
         """Test that timeouts are properly configured."""
         # Test that timeout is applied in requests
         with patch.object(self.client.client, "get") as mock_get:
@@ -187,7 +188,7 @@ class TestLLMClient:
             result = await self.client.connect()
             assert result is False
 
-    def test_model_info_validation(self):
+    def test_model_info_validation(self) -> None:
         """Test ModelInfo validation."""
         # Valid model info
         model = ModelInfo(id="llama2:7b", object="model")
