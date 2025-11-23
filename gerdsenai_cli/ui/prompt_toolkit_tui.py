@@ -564,12 +564,8 @@ class PromptToolkitTUI:
         self.status_text = "Ready. Type your message and press Enter."
         self.running = False
         self.message_callback: Callable[[str], Awaitable[None]] | None = None
-        self.command_callback: Callable[[str, list[str]], Awaitable[str]] | None = (
-            None
-        )
-        self.conversation_window: Window | None = (
-            None  # Store reference for scrolling
-        )
+        self.command_callback: Callable[[str, list[str]], Awaitable[str]] | None = None
+        self.conversation_window: Window | None = None  # Store reference for scrolling
         self.input_window: Window | None = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
 
@@ -1100,9 +1096,7 @@ class PromptToolkitTUI:
 
         return Layout(root_container)
 
-    def set_message_callback(
-        self, callback: Callable[[str], Awaitable[None]]
-    ) -> None:
+    def set_message_callback(self, callback: Callable[[str], Awaitable[None]]) -> None:
         """Set callback function called when user submits a message.
 
         Args:
