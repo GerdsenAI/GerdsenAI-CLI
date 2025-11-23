@@ -3,6 +3,7 @@ Pytest configuration for GerdsenAI CLI tests.
 
 Configures pytest-asyncio and other test settings.
 """
+# cspell:ignore argparsing addinivalue addoption ollama lmstudio vllm huggingface autouse tiktoken
 
 import os
 from typing import Any
@@ -141,8 +142,7 @@ def mock_tiktoken_download(monkeypatch: MonkeyPatch) -> None:
     from trying to download encoding files from the internet.
     """
     try:
-        import tiktoken
-        from tiktoken import Encoding
+        import tiktoken  # pyright: ignore[reportMissingImports]
 
         # Create a mock encoding that can encode/decode
         class MockEncoding:
@@ -160,8 +160,6 @@ def mock_tiktoken_download(monkeypatch: MonkeyPatch) -> None:
                 return "test" * len(tokens)
 
         # Mock get_encoding to return our mock encoding
-        original_get_encoding = tiktoken.get_encoding
-
         def mock_get_encoding(encoding_name: str) -> MockEncoding:
             """Return mock encoding instead of downloading."""
             return MockEncoding()

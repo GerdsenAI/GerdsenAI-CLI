@@ -4,6 +4,7 @@ Minimal reproducer test for httpx.AsyncClient lifecycle in pytest-asyncio.
 This test verifies that the LLMClient properly creates httpx.AsyncClient
 within the async event loop context, preventing the 100% CPU hang issue.
 """
+# cspell:ignore pytestmark
 
 import pytest
 import pytest_asyncio
