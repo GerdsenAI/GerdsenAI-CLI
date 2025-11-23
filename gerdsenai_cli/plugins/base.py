@@ -284,9 +284,7 @@ class VisionPlugin(Plugin, Protocol):
         """
         ...
 
-    async def ocr(
-        self, image: str | Path | bytes, languages: list[str] = None
-    ) -> str:
+    async def ocr(self, image: str | Path | bytes, languages: list[str] = None) -> str:
         """
         Extract text from image using OCR.
 
