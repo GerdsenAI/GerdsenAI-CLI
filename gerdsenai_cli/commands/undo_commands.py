@@ -5,6 +5,7 @@ Provides /undo command for reverting recent operations.
 """
 
 import logging
+from typing import Any
 
 from .base import BaseCommand, CommandCategory
 
@@ -18,6 +19,10 @@ class UndoCommand(BaseCommand):
     description = "Undo the last operation (restores from snapshot)"
     category = CommandCategory.AGENT
     usage = "/undo [list|clear|help]"
+
+    # Instance attributes set by caller
+    agent: Any = None
+    console: Any = None
 
     async def execute(self, args: list[str]) -> str:
         """

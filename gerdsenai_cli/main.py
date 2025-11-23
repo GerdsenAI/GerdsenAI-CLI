@@ -8,7 +8,10 @@ import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .ui.prompt_toolkit_tui import PromptToolkitTUI
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -703,7 +706,9 @@ class GerdsenAICLI:
                 # Properly exit async context manager
                 await self.llm_client.__aexit__(None, None, None)
 
-    async def _handle_tui_command(self, command: str, args: list[str], tui=None) -> str:
+    async def _handle_tui_command(
+        self, command: str, args: list[str], tui: "PromptToolkitTUI | None" = None
+    ) -> str:
         """Handle TUI commands like /model, /save, /load, /export.
 
         Args:
@@ -765,6 +770,7 @@ class GerdsenAICLI:
 
                 # Save conversation
                 try:
+                    assert filename is not None  # filename is always set in /save command
                     filepath = self.conversation_manager.save_conversation(
                         filename, messages, metadata
                     )
@@ -830,7 +836,7 @@ class GerdsenAICLI:
                 if not tui:
                     return "Error: TUI not available for resume operation"
 
-                filename = args[0] if args else None
+                filename = args[0] if args else None  # type: ignore[assignment]
 
                 # If no filename provided, resume most recent conversation
                 if not filename:
@@ -841,6 +847,9 @@ class GerdsenAICLI:
                     # Get most recent conversation (conversations are sorted by modification time)
                     filename = conversations[0].stem
                     logger.info(f"Resuming most recent conversation: {filename}")
+
+                # Ensure filename is set
+                assert filename is not None, "filename must be set"
 
                 # Load conversation
                 try:
@@ -936,7 +945,7 @@ class GerdsenAICLI:
                 if not messages:
                     return "No messages to export. Start a conversation first."
 
-                filename = args[0] if args else None
+                filename = args[0] if args else None  # type: ignore[assignment]
 
                 # Prepare metadata
                 metadata = {
@@ -978,7 +987,7 @@ class GerdsenAICLI:
 
         # Set up logging handler to capture warnings and route to system footer
         class TUILogHandler(logging.Handler):
-            def emit(self, record):
+            def emit(self, record: logging.LogRecord) -> None:
                 try:
                     msg = self.format(record)
                     # Only show warnings and errors in footer
@@ -1072,12 +1081,20 @@ class GerdsenAICLI:
 
                 # Phase 8d: SmartRouter Integration
                 # Use SmartRouter for intelligent routing if enabled
-                if self.smart_router and self.settings.enable_smart_routing:
+                if (
+                    self.smart_router
+                    and self.settings
+                    and self.settings.enable_smart_routing
+                ):
                     from .core.smart_router import RouteType
 
                     # Get project files for context
                     project_files = []
-                    if self.agent and hasattr(self.agent, "context_manager"):
+                    if (
+                        self.agent
+                        and hasattr(self.agent, "context_manager")
+                        and self.agent.context_manager
+                    ):
                         project_files = [
                             str(f.relative_path)
                             for f in self.agent.context_manager.files.values()
@@ -1295,20 +1312,24 @@ class GerdsenAICLI:
                     context_summary = ""
                     if (
                         self.proactive_context
+                        and self.settings
                         and self.settings.enable_proactive_context
                     ):
                         try:
                             # Build smart context from mentioned files
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=[
+                            conversation_history = (
+                                [
                                     msg.content
                                     for msg in self.smart_router.conversation_history[
                                         -10:
                                     ]
                                 ]
                                 if self.smart_router
-                                else [],
+                                else []
+                            )
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=conversation_history,
                             )
 
                             if context_files:
@@ -1440,20 +1461,24 @@ class GerdsenAICLI:
                     context_summary = ""
                     if (
                         self.proactive_context
+                        and self.settings
                         and self.settings.enable_proactive_context
                     ):
                         try:
                             tui.show_animation("Loading context", "reading")
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=[
+                            conversation_history = (
+                                [
                                     msg.content
                                     for msg in self.smart_router.conversation_history[
                                         -10:
                                     ]
                                 ]
                                 if self.smart_router
-                                else [],
+                                else []
+                            )
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=conversation_history,
                             )
 
                             if context_files:
@@ -1523,20 +1548,24 @@ class GerdsenAICLI:
                     context_summary = ""
                     if (
                         self.proactive_context
+                        and self.settings
                         and self.settings.enable_proactive_context
                     ):
                         try:
                             tui.show_animation("Loading context", "reading")
-                            context_files = await self.proactive_context.build_smart_context(
-                                user_query=text,
-                                conversation_history=[
+                            conversation_history = (
+                                [
                                     msg.content
                                     for msg in self.smart_router.conversation_history[
                                         -10:
                                     ]
                                 ]
                                 if self.smart_router
-                                else [],
+                                else []
+                            )
+                            context_files = await self.proactive_context.build_smart_context(
+                                user_query=text,
+                                conversation_history=conversation_history,
                             )
 
                             if context_files:
@@ -1590,7 +1619,7 @@ class GerdsenAICLI:
 
                     except TimeoutError:
                         timeout_value = (
-                            self.settings.request_timeout if self.settings else 120
+                            self.settings.api_timeout if self.settings else 120
                         )
                         timeout_msg = (
                             f"⏱️  Response Timeout ({timeout_value}s exceeded)\n\n"
@@ -1599,7 +1628,7 @@ class GerdsenAICLI:
                             "**How to fix:**\n"
                             "• Try a shorter message or reduce context\n"
                             "• Check if your LLM provider is overloaded\n"
-                            "• Increase timeout: `/config` → set request_timeout\n"
+                            "• Increase timeout: `/config` → set api_timeout\n"
                             "• Switch to faster model: `/model`\n"
                             "• Reduce context window usage in settings"
                         )

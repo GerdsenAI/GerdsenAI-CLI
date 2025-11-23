@@ -6,6 +6,7 @@ Provides /suggest command for proactive code improvement suggestions.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from .base import BaseCommand, CommandCategory
 
@@ -19,6 +20,10 @@ class SuggestCommand(BaseCommand):
     description = "Generate proactive suggestions for code improvements"
     category = CommandCategory.AGENT
     usage = "/suggest [file|project|task <description>]"
+
+    # Instance attributes set by caller
+    agent: Any = None
+    console: Any = None
 
     async def execute(self, args: list[str]) -> str:
         """

@@ -53,7 +53,8 @@ class ConfigManager:
             if not raw.strip():
                 return {}
 
-            return json.loads(raw)
+            data: dict[str, Any] = json.loads(raw)
+            return data
         except json.JSONDecodeError as e:
             show_warning(f"Config file contains invalid JSON: {e}")
             return {}

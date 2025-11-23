@@ -4,7 +4,9 @@ Complexity analysis commands for GerdsenAI CLI.
 Provides commands to analyze task complexity and view recommendations.
 """
 
-from .base import BaseCommand
+from typing import Any
+
+from .base import BaseCommand, CommandCategory
 
 
 class ComplexityCommand(BaseCommand):
@@ -13,6 +15,11 @@ class ComplexityCommand(BaseCommand):
     name = "complexity"
     description = "Analyze task complexity and get recommendations"
     usage = "/complexity <task_description>"
+    category = CommandCategory.AGENT
+
+    # Instance attributes set by caller
+    agent: Any = None
+    console: Any = None
 
     async def execute(self, args: list[str]) -> str:
         """

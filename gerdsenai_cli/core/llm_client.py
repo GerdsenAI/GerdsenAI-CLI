@@ -98,7 +98,7 @@ class LLMClient:
     rely on module constant if settings value matches default).
     """
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         """
         Initialize the LLM client.
 
@@ -135,7 +135,7 @@ class LLMClient:
         self._retry_count = 0
         self._total_request_time = 0.0
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "LLMClient":
         """Async context manager entry - create httpx.AsyncClient in async context."""
         # Create httpx.AsyncClient in the async event loop context
         self.client = httpx.AsyncClient(
@@ -149,7 +149,7 @@ class LLMClient:
         )
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -192,7 +192,7 @@ class LLMClient:
             Timeout in seconds
         """
         # Map operation names to setting attribute names
-        timeout_map = {
+        timeout_map: dict[str, str] = {
             "health": "health_check_timeout",
             "models": "model_list_timeout",
             "chat": "chat_timeout",
@@ -205,7 +205,8 @@ class LLMClient:
             if hasattr(self.settings, setting_attr):
                 timeout_val = getattr(self.settings, setting_attr, None)
                 if timeout_val and timeout_val > 0:
-                    return timeout_val
+                    result: float = timeout_val
+                    return result
 
         # Fallback to generic api_timeout
         if hasattr(self.settings, "api_timeout") and self.settings.api_timeout:
@@ -217,10 +218,10 @@ class LLMClient:
     async def _execute_with_retry(
         self,
         operation_name: str,
-        operation_func,
-        *args,
+        operation_func: Any,
+        *args: Any,
         max_retries: int | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         """
         Execute an operation with retry logic and exponential backoff.
@@ -291,7 +292,7 @@ class LLMClient:
         if last_exception:
             raise last_exception
 
-    @measure_performance("health")
+    @measure_performance("health")  # type: ignore[misc]
     async def connect(self) -> bool:
         """
         Test connection to the LLM server.
@@ -385,7 +386,8 @@ class LLMClient:
 
         try:
             logger.debug(f"Starting connection test to {self.base_url}")
-            return await self._execute_with_retry("Connection test", _connect_impl)
+            result: bool = await self._execute_with_retry("Connection test", _connect_impl)
+            return result
         except Exception as e:
             logger.debug(f"Connection test failed completely: {e}")
             logger.error(f"Connection test failed after retries: {e}")
@@ -394,7 +396,7 @@ class LLMClient:
             )
             return False
 
-    @measure_performance("model_loading")
+    @measure_performance("model_loading")  # type: ignore[misc]
     async def list_models(self) -> list[ModelInfo]:
         """
         Get list of available models from the server.
@@ -446,7 +448,7 @@ class LLMClient:
                     raise
 
         try:
-            models = await self._execute_with_retry("List models", _list_models_impl)
+            models: list[ModelInfo] = await self._execute_with_retry("List models", _list_models_impl)
             self._available_models = models
             logger.info(f"Found {len(models)} available models")
             return models
@@ -455,18 +457,19 @@ class LLMClient:
             show_error(f"Failed to list models: {e}")
             return []
 
-    def _parse_models_response(self, data: dict[str, Any]) -> list[ModelInfo]:
+    def _parse_models_response(self, data: dict[str, Any] | list[Any]) -> list[ModelInfo]:
         """Parse models response data into ModelInfo objects."""
         # Handle different response formats
-        if "data" in data:
-            models_data = data["data"]
-        elif "models" in data:
-            models_data = data["models"]
-        elif isinstance(data, list):
+        if isinstance(data, dict):
+            if "data" in data:
+                models_data = data["data"]
+            elif "models" in data:
+                models_data = data["models"]
+            else:
+                # Fallback for non-standard responses
+                models_data = [{"id": "default", "object": "model"}]
+        else:  # isinstance(data, list)
             models_data = data
-        else:
-            # Fallback for non-standard responses
-            models_data = [{"id": "default", "object": "model"}]
 
         models = []
         for model_data in models_data:
@@ -495,7 +498,7 @@ class LLMClient:
 
         return models
 
-    @measure_performance("chat")
+    @measure_performance("chat")  # type: ignore[misc]
     async def chat(
         self,
         messages: list[ChatMessage],
@@ -569,16 +572,19 @@ class LLMClient:
 
                     # Handle different response formats
                     if "response" in data:
-                        return data["response"]
+                        response_text: str = data["response"]
+                        return response_text
                     elif "message" in data:
-                        return data["message"]
+                        message_text: str = data["message"]
+                        return message_text
 
                     return self._parse_chat_response(data)
                 else:
                     raise
 
         try:
-            return await self._execute_with_retry("Chat completion", _chat_impl)
+            result: str | None = await self._execute_with_retry("Chat completion", _chat_impl)
+            return result
         except Exception as e:
             logger.error(f"Chat request failed after retries: {e}")
             show_error(f"Chat request failed: {e}")
@@ -590,9 +596,11 @@ class LLMClient:
         if "choices" in data and len(data["choices"]) > 0:
             choice = data["choices"][0]
             if "message" in choice:
-                return choice["message"].get("content", "")
+                content: str = choice["message"].get("content", "")
+                return content
             elif "text" in choice:
-                return choice["text"]
+                text: str = choice["text"]
+                return text
 
         logger.warning("Invalid response format from LLM server")
         return None
@@ -634,7 +642,7 @@ class LLMClient:
 
             # Prepare request
             request_data = ChatCompletionRequest(
-                model=current_model,
+                model=current_model if current_model is not None else "",
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -684,7 +692,7 @@ class LLMClient:
         """Get cached list of available models."""
         return self._available_models.copy()
 
-    @measure_performance("health")
+    @measure_performance("health")  # type: ignore[misc]
     async def health_check(self) -> dict[str, Any]:
         """
         Perform a health check on the LLM server.

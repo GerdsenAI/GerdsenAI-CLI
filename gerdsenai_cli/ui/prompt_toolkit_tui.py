@@ -33,7 +33,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
@@ -44,6 +44,7 @@ from prompt_toolkit.formatted_text import (
     to_formatted_text,
 )
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.layout.containers import (
     HSplit,
     ScrollOffsets,
@@ -56,6 +57,7 @@ from prompt_toolkit.layout.processors import (
     HighlightSelectionProcessor,
     Processor,
     Transformation,
+    TransformationInput,
 )
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame
@@ -256,7 +258,9 @@ class ConversationProcessor(Processor):
     in a BufferControl, which provides native scrolling and text selection support.
     """
 
-    def apply_transformation(self, transformation_input):
+    def apply_transformation(
+        self, transformation_input: TransformationInput
+    ) -> Transformation:
         """Apply formatting to a single line of text.
 
         Args:
@@ -290,7 +294,7 @@ class FormattedBufferControl(BufferControl):
 
     formatted_lines: list[list[tuple[str, str]]]
 
-    def __init__(self, formatted_text, **kwargs):
+    def __init__(self, formatted_text: FormattedText, **kwargs: Any) -> None:
         """Initialize with formatted text.
 
         Args:
@@ -300,7 +304,9 @@ class FormattedBufferControl(BufferControl):
         self.formatted_lines = self._parse_formatted_text(formatted_text)
         super().__init__(**kwargs)
 
-    def _parse_formatted_text(self, formatted_text):
+    def _parse_formatted_text(
+        self, formatted_text: FormattedText
+    ) -> list[list[tuple[str, str]]]:
         """Transform formatted text with newlines into a list of lines.
 
         Each element in the returned list represents one line of text
@@ -350,7 +356,7 @@ class FormattedBufferControl(BufferControl):
 class ConversationControl:
     """Manages conversation messages for display with BufferControl backend."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.messages: list[
             tuple[str, str, datetime]
         ] = []  # (role, content, timestamp)
@@ -360,6 +366,7 @@ class ConversationControl:
         self.debug_mode: bool = False  # Debug mode flag for enhanced logging
 
         # Initialize Rich converter if available
+        self.converter: RichToFormattedTextConverter | None
         if RICH_AVAILABLE:
             self.converter = RichToFormattedTextConverter()
         else:
@@ -380,7 +387,7 @@ class ConversationControl:
         # Initialize buffer content
         self._update_buffer()
 
-    def add_message(self, role: str, content: str):
+    def add_message(self, role: str, content: str) -> None:
         """Add a complete message to conversation history."""
         if role == "system":
             # System messages go to system_info, not conversation
@@ -389,7 +396,7 @@ class ConversationControl:
             self.messages.append((role, content, datetime.now()))
             self._update_buffer(move_to_end=True)  # Move cursor to end for new messages
 
-    def clear_messages(self):
+    def clear_messages(self) -> None:
         """Clear all conversation messages."""
         count = len(self.messages)
         self.messages.clear()
@@ -398,18 +405,18 @@ class ConversationControl:
         logger.info(f"Cleared {count} messages from conversation")
         self._update_buffer()
 
-    def start_streaming(self, role: str):
+    def start_streaming(self, role: str) -> None:
         """Start a new streaming message."""
         self.streaming_role = role
         self.streaming_message = ""
 
-    def append_streaming(self, chunk: str):
+    def append_streaming(self, chunk: str) -> None:
         """Append content to the currently streaming message."""
         if self.streaming_message is not None:
             self.streaming_message += chunk
             self._update_buffer()
 
-    def finish_streaming(self):
+    def finish_streaming(self) -> None:
         """Finish streaming and add message to conversation history."""
         if self.streaming_message is not None and self.streaming_role is not None:
             self.add_message(self.streaming_role, self.streaming_message)
@@ -503,7 +510,7 @@ class ConversationControl:
         result.append(("", "\n"))
         return FormattedText(result)
 
-    def _update_buffer(self, move_to_end: bool = False):
+    def _update_buffer(self, move_to_end: bool = False) -> None:
         """Update buffer content and formatted lines when conversation changes.
 
         Args:
@@ -551,7 +558,7 @@ class PromptToolkitTUI:
     - Conversation uses Claude CLI-style sticky-bottom scrolling
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.conversation = ConversationControl()
         self.input_buffer = Buffer(multiline=True)  # Support multiline input
         self.status_text = "Ready. Type your message and press Enter."
@@ -572,7 +579,7 @@ class PromptToolkitTUI:
 
         # Animation and approval state
         self.current_animation: StatusAnimation | None = None
-        self.pending_plan: dict | None = None
+        self.pending_plan: dict[str, Any] | None = None
         self.approval_mode = False
 
         # Thinking mode - shows/hides AI reasoning
@@ -597,7 +604,7 @@ class PromptToolkitTUI:
         self.layout = self._create_layout()
 
         # Create application with mode-specific style
-        self.app = Application(
+        self.app: Application[None] = Application(
             layout=self.layout,
             key_bindings=self.kb,
             style=get_mode_style(self.mode_manager.get_mode()),
@@ -605,7 +612,7 @@ class PromptToolkitTUI:
             mouse_support=True,
         )
 
-    def _load_ascii_art(self):
+    def _load_ascii_art(self) -> None:
         """Load and display ASCII art from file at startup."""
         try:
             # Get path to ASCII art file (now in examples/)
@@ -653,11 +660,11 @@ class PromptToolkitTUI:
         kb = KeyBindings()
 
         @kb.add("c-c")
-        def exit_app(event):
+        def exit_app(event: KeyPressEvent) -> None:
             """Exit application on Ctrl+C."""
 
         @kb.add("enter")
-        def submit_message(event):
+        def submit_message(event: KeyPressEvent) -> None:
             """Submit message on Enter key."""
             buffer = event.current_buffer
             text = buffer.text.strip()
@@ -839,7 +846,7 @@ class PromptToolkitTUI:
                         callback = self.command_callback
                         if callback:
 
-                            async def handle_command():
+                            async def handle_command() -> None:
                                 try:
                                     response = await callback(command, args)
                                     self.conversation.add_message("command", response)
@@ -876,12 +883,12 @@ class PromptToolkitTUI:
                 event.app.invalidate()
 
         @kb.add("escape")
-        def clear_input(event):
+        def clear_input(event: KeyPressEvent) -> None:
             """Clear input field on Escape."""
             event.current_buffer.reset()
 
         @kb.add("pageup")
-        def scroll_up(event):
+        def scroll_up(event: KeyPressEvent) -> None:
             """Scroll conversation up on Page Up.
 
             With BufferControl, we manipulate the cursor position to scroll.
@@ -909,7 +916,7 @@ class PromptToolkitTUI:
                 event.app.invalidate()
 
         @kb.add("pagedown")
-        def scroll_down(event):
+        def scroll_down(event: KeyPressEvent) -> None:
             """Scroll conversation down on Page Down.
 
             With BufferControl, we manipulate the cursor position to scroll.
@@ -939,7 +946,7 @@ class PromptToolkitTUI:
                 event.app.invalidate()
 
         @kb.add("c-s")
-        def suspend_for_text_selection(event):
+        def suspend_for_text_selection(event: KeyPressEvent) -> None:
             """Suspend TUI to allow text selection/copying (Ctrl+S)."""
             # Exit the application temporarily
             # This allows the user to select and copy text from the terminal
@@ -947,7 +954,7 @@ class PromptToolkitTUI:
             event.app.exit()
 
         @kb.add("c-y")
-        def copy_conversation(event):
+        def copy_conversation(event: KeyPressEvent) -> None:
             """Copy conversation to clipboard (Ctrl+Y)."""
             success, message = self.copy_conversation_to_clipboard()
             if success:
@@ -957,7 +964,7 @@ class PromptToolkitTUI:
             event.app.invalidate()
 
         @kb.add("s-tab")  # Shift+Tab
-        def toggle_mode(event):
+        def toggle_mode(event: KeyPressEvent) -> None:
             """Cycle through execution modes."""
             new_mode = self.mode_manager.toggle_mode()
             mode_name = new_mode.value.upper()
@@ -1093,7 +1100,9 @@ class PromptToolkitTUI:
 
         return Layout(root_container)
 
-    def set_message_callback(self, callback: Callable[[str], Awaitable[None]]):
+    def set_message_callback(
+        self, callback: Callable[[str], Awaitable[None]]
+    ) -> None:
         """Set callback function called when user submits a message.
 
         Args:
@@ -1103,7 +1112,7 @@ class PromptToolkitTUI:
 
     def set_command_callback(
         self, callback: Callable[[str, list[str]], Awaitable[str]]
-    ):
+    ) -> None:
         """Set callback function called when user submits a command.
 
         Args:
@@ -1111,7 +1120,7 @@ class PromptToolkitTUI:
         """
         self.command_callback = callback
 
-    def set_system_footer(self, text: str):
+    def set_system_footer(self, text: str) -> None:
         """DEPRECATED: Use update_info_bar() instead.
 
         Legacy method for compatibility. Maps to info bar activity field.
@@ -1121,7 +1130,7 @@ class PromptToolkitTUI:
         """
         self.update_info_bar(activity=text if text else "Ready")
 
-    def clear_system_footer(self):
+    def clear_system_footer(self) -> None:
         """DEPRECATED: Use update_info_bar() instead.
 
         Legacy method for compatibility.
@@ -1136,7 +1145,7 @@ class PromptToolkitTUI:
         """
         return self.mode_manager.get_mode()
 
-    def update_mode_style(self):
+    def update_mode_style(self) -> None:
         """Update application style to match current mode."""
         new_style = get_mode_style(self.mode_manager.get_mode())
         self.app.style = new_style
@@ -1147,7 +1156,7 @@ class PromptToolkitTUI:
         tokens: int | None = None,
         context: float | None = None,
         activity: str | None = None,
-    ):
+    ) -> None:
         """Update info bar display with operational status.
 
         Args:
@@ -1250,7 +1259,7 @@ class PromptToolkitTUI:
             )
             logger.info(f"Streaming speed set to: {speed}")
 
-    def show_animation(self, message: str, animation_type: str = "spinner"):
+    def show_animation(self, message: str, animation_type: str = "spinner") -> None:
         """Show animated status message.
 
         Args:
@@ -1277,7 +1286,7 @@ class PromptToolkitTUI:
         self.current_animation.start()
         logger.debug(f"Started {animation_type} animation: {message}")
 
-    def hide_animation(self):
+    def hide_animation(self) -> None:
         """Stop and hide current animation."""
         if self.current_animation:
             self.current_animation.stop()
@@ -1289,7 +1298,7 @@ class PromptToolkitTUI:
             self.app.invalidate()
             logger.debug("Animation hidden")
 
-    def show_plan_for_approval(self, plan: dict):
+    def show_plan_for_approval(self, plan: dict[str, Any]) -> None:
         """Show plan summary and enter approval mode.
 
         Args:
@@ -1355,7 +1364,7 @@ class PromptToolkitTUI:
             )
             return False
 
-    def _auto_scroll_to_bottom(self):
+    def _auto_scroll_to_bottom(self) -> None:
         """Scroll conversation buffer to bottom if auto-scroll is enabled.
 
         This moves the buffer cursor to the end of the text, which causes
@@ -1366,7 +1375,7 @@ class PromptToolkitTUI:
             text_length = len(self.conversation.buffer.text)
             self.conversation.buffer.cursor_position = text_length
 
-    def start_streaming_response(self):
+    def start_streaming_response(self) -> None:
         """Begin streaming an AI response.
 
         Call this before streaming chunks to initialize the streaming message.
@@ -1377,7 +1386,7 @@ class PromptToolkitTUI:
         self._auto_scroll_to_bottom()
         self.app.invalidate()
 
-    def append_streaming_chunk(self, chunk: str):
+    def append_streaming_chunk(self, chunk: str) -> None:
         """Append a chunk to the streaming AI response.
 
         Args:
@@ -1387,7 +1396,7 @@ class PromptToolkitTUI:
         self._auto_scroll_to_bottom()
         self.app.invalidate()
 
-    def finish_streaming_response(self):
+    def finish_streaming_response(self) -> None:
         """Complete the streaming AI response.
 
         Converts streaming message to a complete message in conversation history.
@@ -1397,7 +1406,7 @@ class PromptToolkitTUI:
         self._auto_scroll_to_bottom()
         self.app.invalidate()
 
-    async def run(self):
+    async def run(self) -> None:
         """Run the TUI application.
 
         This blocks until the user exits (Ctrl+C or programmatic exit).
@@ -1408,7 +1417,7 @@ class PromptToolkitTUI:
         finally:
             self.running = False
 
-    def exit(self):
+    def exit(self) -> None:
         """Exit the application programmatically."""
         if self.running:
             self.app.exit()
