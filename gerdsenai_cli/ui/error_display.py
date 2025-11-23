@@ -297,9 +297,7 @@ class ErrorDisplay:
         return "\n".join(parts)
 
     @classmethod
-    def format_warning_message(
-        cls, message: str, suggestion: str | None = None
-    ) -> str:
+    def format_warning_message(cls, message: str, suggestion: str | None = None) -> str:
         """
         Format a warning message.
 
