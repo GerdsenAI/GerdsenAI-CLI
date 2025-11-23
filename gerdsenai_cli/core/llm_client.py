@@ -127,7 +127,9 @@ class LLMClient:
         # Use explicit None check to allow max_retries=0
         max_retries_from_settings = getattr(settings, "max_retries", None)
         self._max_retries = (
-            MAX_RETRIES if max_retries_from_settings is None else max_retries_from_settings
+            MAX_RETRIES
+            if max_retries_from_settings is None
+            else max_retries_from_settings
         )
 
         # Performance tracking
@@ -386,7 +388,9 @@ class LLMClient:
 
         try:
             logger.debug(f"Starting connection test to {self.base_url}")
-            result: bool = await self._execute_with_retry("Connection test", _connect_impl)
+            result: bool = await self._execute_with_retry(
+                "Connection test", _connect_impl
+            )
             return result
         except Exception as e:
             logger.debug(f"Connection test failed completely: {e}")
@@ -448,7 +452,9 @@ class LLMClient:
                     raise
 
         try:
-            models: list[ModelInfo] = await self._execute_with_retry("List models", _list_models_impl)
+            models: list[ModelInfo] = await self._execute_with_retry(
+                "List models", _list_models_impl
+            )
             self._available_models = models
             logger.info(f"Found {len(models)} available models")
             return models
@@ -457,7 +463,9 @@ class LLMClient:
             show_error(f"Failed to list models: {e}")
             return []
 
-    def _parse_models_response(self, data: dict[str, Any] | list[Any]) -> list[ModelInfo]:
+    def _parse_models_response(
+        self, data: dict[str, Any] | list[Any]
+    ) -> list[ModelInfo]:
         """Parse models response data into ModelInfo objects."""
         # Handle different response formats
         if isinstance(data, dict):
@@ -583,7 +591,9 @@ class LLMClient:
                     raise
 
         try:
-            result: str | None = await self._execute_with_retry("Chat completion", _chat_impl)
+            result: str | None = await self._execute_with_retry(
+                "Chat completion", _chat_impl
+            )
             return result
         except Exception as e:
             logger.error(f"Chat request failed after retries: {e}")
