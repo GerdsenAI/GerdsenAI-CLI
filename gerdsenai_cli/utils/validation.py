@@ -66,9 +66,7 @@ class InputValidator:
     MAX_URL_LENGTH = 2048
 
     @classmethod
-    def validate_user_input(
-        cls, user_input: str, max_length: int | None = None
-    ) -> str:
+    def validate_user_input(cls, user_input: str, max_length: int | None = None) -> str:
         """
         Validate and sanitize user input.
 
