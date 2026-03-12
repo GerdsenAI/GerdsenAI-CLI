@@ -133,34 +133,13 @@ class TestAnimations:
         assert animations is not None
 
 
-class TestConsole:
-    """Console tests."""
+class TestPromptToolkitTUI:
+    """PromptToolkitTUI tests."""
 
-    def test_enhanced_console_exists(self):
-        """Test enhanced console exists."""
-        from gerdsenai_cli.ui.console import EnhancedConsole
-        assert EnhancedConsole is not None
-
-    def test_console_configuration(self):
-        """Test console can be configured."""
-        from gerdsenai_cli.ui.console import EnhancedConsole
-        console = EnhancedConsole()
-        assert console is not None
-
-
-class TestInputHandler:
-    """Input handler tests."""
-
-    def test_input_handler_exists(self):
-        """Test input handler exists."""
-        from gerdsenai_cli.ui.input_handler import EnhancedInputHandler
-        assert EnhancedInputHandler is not None
-
-    def test_input_handler_can_be_created(self):
-        """Test input handler can be created."""
-        from gerdsenai_cli.ui.input_handler import EnhancedInputHandler
-        handler = EnhancedInputHandler()
-        assert handler is not None
+    def test_prompt_toolkit_tui_exists(self):
+        """Test PromptToolkitTUI can be imported."""
+        from gerdsenai_cli.ui.prompt_toolkit_tui import PromptToolkitTUI
+        assert PromptToolkitTUI is not None
 
 
 class TestDisplay:
@@ -267,30 +246,10 @@ class TestUIModuleExistence:
         from gerdsenai_cli.ui import animations
         assert animations is not None
 
-    def test_console_module(self):
-        """Test console module."""
-        from gerdsenai_cli.ui import console
-        assert console is not None
-
     def test_error_display_module(self):
         """Test error display module."""
         from gerdsenai_cli.ui import error_display
         assert error_display is not None
-
-    def test_input_handler_module(self):
-        """Test input handler module."""
-        from gerdsenai_cli.ui import input_handler
-        assert input_handler is not None
-
-    def test_layout_module(self):
-        """Test layout module."""
-        from gerdsenai_cli.ui import layout
-        assert layout is not None
-
-    def test_persistent_tui_module(self):
-        """Test persistent TUI module."""
-        from gerdsenai_cli.ui import persistent_tui
-        assert persistent_tui is not None
 
     def test_prompt_toolkit_tui_module(self):
         """Test prompt toolkit TUI module."""
@@ -301,11 +260,6 @@ class TestUIModuleExistence:
         """Test TUI edge cases module."""
         from gerdsenai_cli.ui import tui_edge_cases
         assert tui_edge_cases is not None
-
-    def test_status_display_module(self):
-        """Test status display module."""
-        from gerdsenai_cli.ui import status_display
-        assert status_display is not None
 
 
 class TestUtilsModuleExistence:
@@ -493,11 +447,6 @@ class TestCommandsModuleExistence:
         """Test terminal commands."""
         from gerdsenai_cli.commands import terminal
         assert terminal is not None
-
-    def test_intelligence_commands(self):
-        """Test intelligence commands."""
-        from gerdsenai_cli.commands import intelligence
-        assert intelligence is not None
 
     def test_memory_commands(self):
         """Test memory commands."""

@@ -106,10 +106,9 @@ class InputValidator:
                     suggestion="Remove shell commands or dangerous patterns",
                 )
 
-        # Normalize whitespace CAREFULLY - preserve newlines and structure
-        # Only collapse excessive whitespace within lines and limit consecutive newlines
-        sanitized = re.sub(r"[ \t]+", " ", user_input)  # Normalize spaces/tabs only
-        sanitized = re.sub(r"\n{3,}", "\n\n", sanitized)  # Max 2 consecutive newlines
+        # Normalize whitespace CAREFULLY - preserve newlines and indentation
+        # Only limit excessive consecutive newlines; preserve spaces/tabs for code
+        sanitized = re.sub(r"\n{3,}", "\n\n", user_input)  # Max 2 consecutive newlines
         sanitized = sanitized.strip()  # Trim leading/trailing whitespace
 
         return sanitized

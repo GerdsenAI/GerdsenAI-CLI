@@ -518,47 +518,5 @@ def hello():
         assert "not initialized" in result.lower()
 
 
-class TestSuggestionUIIntegration:
-    """Test UI display integration."""
-
-    def test_priority_color_mapping(self):
-        """Test that priorities map to correct colors."""
-        from gerdsenai_cli.ui.console import EnhancedConsole
-
-        console = EnhancedConsole()
-
-        # Create suggestions with different priorities
-        suggestions = [
-            Suggestion(
-                suggestion_type=SuggestionType.SECURITY,
-                priority=SuggestionPriority.CRITICAL,
-                title="Critical",
-                description="Critical issue",
-            ),
-            Suggestion(
-                suggestion_type=SuggestionType.TESTING,
-                priority=SuggestionPriority.HIGH,
-                title="High",
-                description="High priority",
-            ),
-            Suggestion(
-                suggestion_type=SuggestionType.DOCUMENTATION,
-                priority=SuggestionPriority.MEDIUM,
-                title="Medium",
-                description="Medium priority",
-            ),
-            Suggestion(
-                suggestion_type=SuggestionType.REFACTORING,
-                priority=SuggestionPriority.LOW,
-                title="Low",
-                description="Low priority",
-            ),
-        ]
-
-        # Should not raise errors
-        console.show_suggestions(suggestions)
-        console.show_suggestion_details(suggestions)
-
-
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
