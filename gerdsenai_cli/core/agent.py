@@ -20,7 +20,6 @@ from rich.console import Console
 
 from ..config.settings import Settings
 from ..constants import LLMDefaults
-from ..ui.status_display import IntelligenceActivity
 from ..utils.display import show_error, show_info, show_success, show_warning
 from .context_manager import ProjectContext
 from .file_editor import EditOperation, FileEditor
@@ -32,6 +31,7 @@ from .llm_client import ChatMessage, LLMClient
 from .memory import ProjectMemory
 from .planner import TaskPlanner
 from .suggestions import ProactiveSuggestor
+from .types import IntelligenceActivity
 
 logger = logging.getLogger(__name__)
 console = Console()

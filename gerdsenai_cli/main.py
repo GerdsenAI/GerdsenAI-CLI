@@ -40,7 +40,6 @@ from .commands.files import (
     SearchFilesCommand,
     SessionCommand,
 )
-from .commands.intelligence import IntelligenceCommand
 from .commands.mcp import MCPCommand
 from .commands.model import (
     ListModelsCommand,
@@ -82,8 +81,6 @@ from .core.agent import Agent
 from .core.errors import GerdsenAIError
 from .core.llm_client import LLMClient
 from .plugins.registry import plugin_registry
-from .ui.console import EnhancedConsole
-from .ui.input_handler import EnhancedInputHandler
 from .utils.conversation_io import ConversationManager
 from .utils.display import (
     show_error,
@@ -116,8 +113,6 @@ class GerdsenAICLI:
         self.llm_client: LLMClient | None = None
         self.agent: Agent | None = None
         self.command_parser: CommandParser | None = None
-        self.input_handler: EnhancedInputHandler | None = None
-        self.enhanced_console: EnhancedConsole | None = None
         self.conversation_manager = ConversationManager()
 
         # Smart routing components (Phase 8d)
@@ -171,13 +166,8 @@ class GerdsenAICLI:
                     await self.config_manager.save_settings(self.settings)
                     show_info(f"Set default model to: {models[0].id}")
 
-            # Initialize enhanced console with TUI first
-            self.enhanced_console = EnhancedConsole(console)
-
-            # Initialize AI agent with agentic capabilities (pass console for intelligence display)
-            self.agent = Agent(
-                self.llm_client, self.settings, console=self.enhanced_console
-            )
+            # Initialize AI agent with agentic capabilities
+            self.agent = Agent(self.llm_client, self.settings)
             agent_ready = await self.agent.initialize()
 
             if not agent_ready:
@@ -235,23 +225,6 @@ class GerdsenAICLI:
             else:
                 logger.info("SmartRouter disabled via configuration")
 
-            # Initialize enhanced input handler
-            self.input_handler = EnhancedInputHandler(
-                command_parser=self.command_parser
-            )
-
-            # Update status bar with initial info
-            context_files = (
-                len(self.agent.context_manager.files)
-                if self.agent and hasattr(self.agent, "context_manager")
-                else 0
-            )
-            self.enhanced_console.update_status(
-                model=self.settings.current_model,
-                context_files=context_files,
-                token_count=0,
-            )
-
             show_success("GerdsenAI CLI initialized successfully!")
             return True
 
@@ -302,9 +275,6 @@ class GerdsenAICLI:
         self.command_parser.register_command(ResetCommand())
         self.command_parser.register_command(AgentConfigCommand())
         if self.agent:
-            self.command_parser.register_command(
-                IntelligenceCommand(self.agent, self.enhanced_console)
-            )
             # Register Phase 8d intelligence features
             from .commands.memory import MemoryCommand
             from .commands.planning import PlanCommand
@@ -563,6 +533,8 @@ class GerdsenAICLI:
         """
         Handle chat messages (non-command input).
 
+        This is a fallback path used outside the main TUI loop.
+
         Args:
             message: The chat message
 
@@ -574,12 +546,6 @@ class GerdsenAICLI:
             return True
 
         try:
-            # Check if TUI mode and streaming are enabled in preferences
-            tui_mode = (
-                self.settings.user_preferences.get("tui_mode", True)
-                if self.settings
-                else True
-            )
             streaming_enabled = (
                 self.settings.user_preferences.get("streaming", True)
                 if self.settings
@@ -587,68 +553,23 @@ class GerdsenAICLI:
             )
 
             if streaming_enabled:
-                # Use streaming for real-time response
-                if tui_mode and self.enhanced_console:
-                    # Start streaming with enhanced console
-                    self.enhanced_console.start_streaming(message)
+                console.print(f"\n[bold green]You:[/bold green] {message}")
+                console.print("[bold cyan]GerdsenAI:[/bold cyan]", end=" ")
 
-                    # Set initial status: thinking
-                    self.enhanced_console.set_operation("thinking")
+                async for (
+                    chunk,
+                    _full_response,
+                ) in self.agent.process_user_input_stream(message):
+                    console.print(chunk, end="", style="white")
 
-                    # Create status callback for agent
-                    def update_operation(operation: str) -> None:
-                        if self.enhanced_console:
-                            self.enhanced_console.set_operation(operation)
-
-                    accumulated_response = ""
-                    chunk_count = 0
-                    async for (
-                        chunk,
-                        full_response,
-                    ) in self.agent.process_user_input_stream(
-                        message, status_callback=update_operation
-                    ):
-                        accumulated_response = full_response
-                        chunk_count += 1
-
-                        # Update operation status based on progress
-                        if chunk_count == 1:
-                            # First chunk arrived - we're now streaming
-                            self.enhanced_console.set_operation("streaming")
-
-                        self.enhanced_console.stream_chunk(chunk, accumulated_response)
-
-                    # Mark as complete
-                    self.enhanced_console.set_operation("synthesizing")
-                    self.enhanced_console.finish_streaming()
-                else:
-                    # Fallback to simple streaming
-                    console.print(f"\n[bold green]You:[/bold green] {message}")
-                    console.print("[bold cyan]GerdsenAI:[/bold cyan]", end=" ")
-
-                    accumulated_response = ""
-                    async for (
-                        chunk,
-                        full_response,
-                    ) in self.agent.process_user_input_stream(message):
-                        accumulated_response = full_response
-                        console.print(chunk, end="", style="white")
-
-                    console.print()  # Final newline
+                console.print()  # Final newline
             else:
-                # Non-streaming mode
                 response = await self.agent.process_user_input(message)
 
                 if response:
-                    # Use enhanced console for rich formatting and syntax highlighting
-                    if tui_mode and self.enhanced_console:
-                        self.enhanced_console.print_message(
-                            user_input=message, ai_response=response
-                        )
-                    else:
-                        console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
-                        console.print(response)
-                        console.print()
+                    console.print("\n[AI] [bold cyan]GerdsenAI[/bold cyan]:")
+                    console.print(response)
+                    console.print()
                 else:
                     show_error("Failed to get response from AI agent")
 
@@ -670,25 +591,8 @@ class GerdsenAICLI:
 
         self.running = True
 
-        # Check if TUI mode is enabled
-        tui_mode = (
-            self.settings.user_preferences.get("tui_mode", True)
-            if self.settings
-            else True
-        )
-        persistent_mode = (
-            self.settings.user_preferences.get("persistent_tui", True)
-            if self.settings
-            else True
-        )
-
         try:
-            # Use persistent TUI mode if enabled
-            if tui_mode and persistent_mode and self.enhanced_console:
-                await self._run_persistent_tui_mode()
-            else:
-                # Fall back to original input handler mode
-                await self._run_standard_mode()
+            await self._run_persistent_tui_mode()
 
         except KeyboardInterrupt:
             console.print("\n[INFO] Goodbye!", style="bright_cyan")
@@ -700,8 +604,6 @@ class GerdsenAICLI:
             # Clean up resources
             if self.agent:
                 await self.agent.cleanup()
-            if self.input_handler:
-                await self.input_handler.cleanup()
             if self.llm_client:
                 # Properly exit async context manager
                 await self.llm_client.__aexit__(None, None, None)
@@ -1694,30 +1596,6 @@ class GerdsenAICLI:
             root_logger.removeHandler(tui_handler)
             for handler in original_handlers:
                 root_logger.addHandler(handler)
-
-    async def _run_standard_mode(self) -> None:
-        """Run in standard mode with separate prompts."""
-        while self.running:
-            try:
-                # Get user input using enhanced input handler
-                if not self.input_handler:
-                    show_error("Input handler not initialized")
-                    break
-
-                user_input = await self.input_handler.get_user_input()
-
-                # Handle the input
-                continue_running = await self._handle_user_input(user_input)
-                if not continue_running:
-                    self.running = False
-
-            except KeyboardInterrupt:
-                # User pressed Ctrl+C during input
-                continue
-            except EOFError:
-                # User pressed Ctrl+D (exit signal)
-                console.print("\n[INFO] Goodbye!", style="bright_cyan")
-                self.running = False
 
     def run(self) -> None:
         """Run the main application loop."""
