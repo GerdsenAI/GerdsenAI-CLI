@@ -89,6 +89,20 @@ logger = logging.getLogger(__name__)
 logger.info(f"TUI logging initialized - log file: {log_file}")
 
 
+def strip_emoji(text: str) -> str:
+    """Remove emoji and other non-ASCII characters from text.
+
+    Args:
+        text: Text that may contain emoji
+
+    Returns:
+        Text with emoji removed
+    """
+    # Remove emoji and other non-ASCII characters
+    # Keep only printable ASCII characters (space through tilde) plus newlines/tabs
+    return ''.join(char for char in text if ord(char) < 128 or char in '\n\t\r')
+
+
 class CommandParser:
     """Parse and handle TUI commands."""
 
@@ -393,6 +407,9 @@ class ConversationControl:
             # System messages go to system_info, not conversation
             self.system_info = content
         else:
+            # Strip emoji from assistant messages (violates no-emoji project rule)
+            if role == "assistant":
+                content = strip_emoji(content)
             self.messages.append((role, content, datetime.now()))
             self._update_buffer(move_to_end=True)  # Move cursor to end for new messages
 
@@ -413,6 +430,9 @@ class ConversationControl:
     def append_streaming(self, chunk: str) -> None:
         """Append content to the currently streaming message."""
         if self.streaming_message is not None:
+            # Strip emoji from streaming chunks (assistant messages only)
+            if self.streaming_role == "assistant":
+                chunk = strip_emoji(chunk)
             self.streaming_message += chunk
             self._update_buffer()
 
@@ -1046,7 +1066,7 @@ class PromptToolkitTUI:
         # Wrap input in a frame
         input_frame = Frame(
             body=self.input_window,
-            title="Type your message (Enter to send, Shift+Enter for newline, Esc to clear)",
+            title="Type your message (Enter to send)",
         )
 
         # Info bar - displays operational info (integrated with conversation)
