@@ -37,6 +37,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional local embedding backend for /index when Ollama embeddings are not
+# used. Qdrant itself is accessed over its REST API (no client dependency).
+embeddings = [
+    "sentence-transformers>=3.0.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",

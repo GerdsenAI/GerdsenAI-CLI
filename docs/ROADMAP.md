@@ -20,14 +20,20 @@ decisions already made, so future work can proceed without re-litigating them.
   first one as the active provider. `--no-tailscale` restricts to localhost.
 - **Follow-up:** offer discovery automatically on first-run setup.
 
-## Per-repo vector index (Qdrant)
-- Auto-detect a local Qdrant (default `:6333`); create **one collection per repo**
-  and index the working tree for retrieval into agent context.
-- **Embeddings = Ollama-first:** use an Ollama embedding model when Ollama is
-  present (no new hard dependency); offer `sentence-transformers` as an **optional
-  extra**. Degrade to a no-op when neither Qdrant nor an embedding backend exists.
-- New module: `core/vector_store.py`; indexing hook in `core/context_manager.py`;
-  retrieval folded into the agent's context assembly.
+## Per-repo vector index (Qdrant) — **implemented (indexing + search)**
+- Auto-detects a local Qdrant (default `:6333`, accessed over its REST API via
+  `httpx` — no `qdrant-client` dependency) and creates **one collection per repo**
+  (`core/vector_store.py`, `core/repo_index.py`).
+- **Embeddings = Ollama-first** (`core/embeddings.py`): uses an Ollama embedding
+  model when available (no new hard dependency); `sentence-transformers` is an
+  **optional extra** (`pip install "gerdsenai-cli[embeddings]"`). Degrades to a
+  no-op when neither Qdrant nor an embedding backend exists.
+- Surfaced via the **`/index`** command: `build`, `status`, `search <query>`,
+  `clear`. Settings: `enable_vector_index`, `qdrant_url`, `embedding_model`,
+  `vector_index_chunk_chars`.
+- **Follow-up:** fold semantic retrieval into the agent's context assembly
+  (`agent._prepare_llm_messages`) when `enable_vector_index` is on, and add
+  incremental re-indexing of changed files.
 
 ## Skill / agent-file import
 - Discover `.claude/skills/*/SKILL.md` (YAML frontmatter), `AGENTS.md`, and Codex

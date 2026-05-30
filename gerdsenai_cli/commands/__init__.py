@@ -28,6 +28,7 @@ from .files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .index import IndexCommand
 from .memory import MemoryCommand
 from .model import (
     ListModelsCommand,
@@ -77,6 +78,7 @@ __all__ = [
     "ModelInfoCommand",
     "ModelStatsCommand",
     "DiscoverCommand",
+    "IndexCommand",
     # Agent commands
     "AgentStatusCommand",
     "ChatCommand",
