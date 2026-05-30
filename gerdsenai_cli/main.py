@@ -32,6 +32,7 @@ from .commands.audio_commands import (
     SpeakCommand,
     TranscribeCommand,
 )
+from .commands.discover import DiscoverCommand
 from .commands.files import (
     CreateFileCommand,
     EditFileCommand,
@@ -267,6 +268,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(SwitchModelCommand())
         self.command_parser.register_command(ModelInfoCommand())
         self.command_parser.register_command(ModelStatsCommand())
+        self.command_parser.register_command(DiscoverCommand())
 
         # Register agent commands
         self.command_parser.register_command(AgentStatusCommand())

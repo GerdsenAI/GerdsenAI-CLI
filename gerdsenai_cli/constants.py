@@ -16,7 +16,7 @@ Categories:
 - UI/UX constants
 """
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
     pass
@@ -122,7 +122,7 @@ class ProviderDefaults:
     Use string keys to avoid circular imports with providers.base module.
     """
 
-    CONFIGURATIONS = {
+    CONFIGURATIONS: dict[str, dict[str, Any]] = {
         "ollama": {
             "protocol": "http",
             "host": "localhost",

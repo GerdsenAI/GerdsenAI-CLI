@@ -57,8 +57,8 @@ pytest                          # tests
 ```
 
 ### Common Slash Commands (in the TUI)
-`/help` `/status` `/config` `/models` `/model <name>` `/edit` `/create`
-`/search` `/mcp` `/clear` `/exit`
+`/help` `/status` `/config` `/discover` `/models` `/model <name>` `/edit`
+`/create` `/search` `/mcp` `/clear` `/exit`
 
 ---
 

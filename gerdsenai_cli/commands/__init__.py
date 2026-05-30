@@ -19,6 +19,7 @@ from .audio_commands import (
 from .base import BaseCommand
 from .clarify_commands import ClarifyCommand
 from .complexity_commands import ComplexityCommand
+from .discover import DiscoverCommand
 from .files import (
     CreateFileCommand,
     EditFileCommand,
@@ -75,6 +76,7 @@ __all__ = [
     "SwitchModelCommand",
     "ModelInfoCommand",
     "ModelStatsCommand",
+    "DiscoverCommand",
     # Agent commands
     "AgentStatusCommand",
     "ChatCommand",

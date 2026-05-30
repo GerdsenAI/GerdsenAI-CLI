@@ -9,13 +9,16 @@ decisions already made, so future work can proceed without re-litigating them.
 > its backing service (Tailscale, Qdrant, an Anthropic key, an embedding backend)
 > is unavailable.
 
-## Local model auto-discovery
-- **Today:** `core/providers/detector.py` scans hardcoded localhost ports for
-  Ollama (11434), LM Studio (1234), vLLM (8000), HF TGI (8080), and a few others.
-- **Planned:** cross-platform local detection plus **Tailscale peer discovery** —
-  enumerate peers via `tailscale status --json`, then probe provider ports on each
-  reachable peer. Surface results via a `/discover` command and offer auto-config
-  on first run. No-op when the `tailscale` CLI is absent.
+## Local model auto-discovery — **implemented**
+- `core/providers/detector.py` scans localhost ports for Ollama (11434),
+  LM Studio (1234), vLLM (8000), HF TGI (8080), and a few others.
+- **Tailscale peer discovery** (`core/providers/tailscale.py`): enumerates online
+  peers via `tailscale status --json`, then probes the provider ports on each
+  reachable peer. No-op when the `tailscale` CLI is absent or the tailnet is down.
+- Surfaced via the **`/discover`** command (aliases `/scan`, `/find-models`):
+  lists local + tailnet servers with their models, and `--configure` sets the
+  first one as the active provider. `--no-tailscale` restricts to localhost.
+- **Follow-up:** offer discovery automatically on first-run setup.
 
 ## Per-repo vector index (Qdrant)
 - Auto-detect a local Qdrant (default `:6333`); create **one collection per repo**
