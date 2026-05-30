@@ -153,3 +153,48 @@ async def test_discover_command_lists_results(monkeypatch: Any) -> None:
     result = await DiscoverCommand().execute({"--no-tailscale": True})
     assert result.success
     assert "Found 1 provider" in (result.message or "")
+
+
+# ---------------------------------------------------------------------------
+# First-run setup wiring (main.GerdsenAICLI)
+# ---------------------------------------------------------------------------
+
+
+def test_endpoint_from_provider_local() -> None:
+    from types import SimpleNamespace
+
+    from gerdsenai_cli.main import GerdsenAICLI
+
+    dp = SimpleNamespace(url="http://127.0.0.1:11434")
+    assert GerdsenAICLI._endpoint_from_provider(dp) == ("http", "127.0.0.1", 11434)
+
+
+def test_endpoint_from_provider_tailnet() -> None:
+    from types import SimpleNamespace
+
+    from gerdsenai_cli.main import GerdsenAICLI
+
+    dp = SimpleNamespace(url="https://100.64.0.5:1234")
+    assert GerdsenAICLI._endpoint_from_provider(dp) == ("https", "100.64.0.5", 1234)
+
+
+def test_endpoint_from_provider_defaults() -> None:
+    from types import SimpleNamespace
+
+    from gerdsenai_cli.main import GerdsenAICLI
+
+    dp = SimpleNamespace(url="//myhost")
+    assert GerdsenAICLI._endpoint_from_provider(dp) == ("http", "myhost", 11434)
+
+
+@pytest.mark.asyncio
+async def test_discover_servers_for_setup_noop_on_error(monkeypatch: Any) -> None:
+    """Setup discovery degrades to [] (never raises) when detection fails."""
+    from gerdsenai_cli.main import GerdsenAICLI
+
+    def boom() -> Any:
+        raise RuntimeError("no detector")
+
+    monkeypatch.setattr("gerdsenai_cli.core.providers.detector.ProviderDetector", boom)
+    app = object.__new__(GerdsenAICLI)  # bypass heavy __init__
+    assert await app._discover_servers_for_setup() == []
