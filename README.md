@@ -1,19 +1,19 @@
 # GerdsenAI CLI
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![Code Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](htmlcov/index.html)
+[![CI](https://github.com/GerdsenAI/GerdsenAI-CLI/actions/workflows/ci.yml/badge.svg)](https://github.com/GerdsenAI/GerdsenAI-CLI/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](tests/)
 
 A terminal-based agentic coding tool that connects to local AI models for intelligent code assistance.
 
 ---
 
-> **IMPORTANT: Virtual Environment Required**
->
-> **Always use the project virtual environment:** `.venv`
+> **Development setup:** a fresh clone does **not** include a virtual environment —
+> create one, then activate it before running dev commands:
 > ```bash
-> source .venv/bin/activate  # Required before ANY command
+> python3.11 -m venv .venv
+> source .venv/bin/activate        # Windows: .venv\Scripts\activate
+> pip install -e ".[dev]"
 > ```
 > See [Virtual Environment Setup](#virtual-environment-setup) for details.
 
@@ -177,7 +177,6 @@ python -m gerdsenai_cli
 2. **One venv per project**: Don't mix projects
 3. **Keep it updated**: `pip install --upgrade pip`
 4. **Never commit .venv**: Already in `.gitignore`
-5. **Document venv location**: `.venv/README.md` has setup instructions
 
 ### VS Code Integration
 
@@ -355,7 +354,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - **[Documentation Hub](docs/README.md)** - Central documentation index
 - **[Contributing Guide](docs/development/CONTRIBUTING.md)** - How to contribute
 - **[Testing Guide](docs/development/TESTING_GUIDE.md)** - Running and writing tests
-- **[Feature Documentation](docs/features/)** - Detailed feature documentation
+- **[Roadmap](docs/ROADMAP.md)** - Planned capabilities and design decisions
 - **[Example Configs](examples/)** - Sample configuration files
 
 ### Configuration Examples
@@ -386,7 +385,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/C
 7. Update documentation as needed
 8. Submit a pull request
 
-**Important:** All development must be done in the project's virtual environment. See [.venv/README.md](.venv/README.md) for details.
+**Important:** All development must be done in the project's virtual environment (`.venv`). Create it with `python3.11 -m venv .venv` and activate it before running any dev commands.
 
 ## License
 

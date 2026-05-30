@@ -161,9 +161,9 @@ class ProactiveSuggestor:
             ],
             "documentation": [
                 {
-                    "trigger": lambda code: "def " in code
-                    and '"""' not in code
-                    and "'''" not in code,
+                    "trigger": lambda code: (
+                        "def " in code and '"""' not in code and "'''" not in code
+                    ),
                     "priority": SuggestionPriority.MEDIUM,
                     "title": "Add docstrings",
                     "description": "Functions are missing docstrings. Add documentation for better maintainability.",
@@ -174,9 +174,9 @@ class ProactiveSuggestor:
                     ],
                 },
                 {
-                    "trigger": lambda code: "class " in code
-                    and '"""' not in code
-                    and "'''" not in code,
+                    "trigger": lambda code: (
+                        "class " in code and '"""' not in code and "'''" not in code
+                    ),
                     "priority": SuggestionPriority.MEDIUM,
                     "title": "Add class documentation",
                     "description": "Classes should have docstrings explaining their purpose and usage.",
@@ -211,8 +211,9 @@ class ProactiveSuggestor:
                     ],
                 },
                 {
-                    "trigger": lambda code: ("requests." in code or "httpx." in code)
-                    and "try:" not in code,
+                    "trigger": lambda code: (
+                        ("requests." in code or "httpx." in code) and "try:" not in code
+                    ),
                     "priority": SuggestionPriority.HIGH,
                     "title": "Add error handling for network requests",
                     "description": "Network requests should handle exceptions for robustness.",
@@ -282,8 +283,9 @@ class ProactiveSuggestor:
                     ],
                 },
                 {
-                    "trigger": lambda code: "shell=True" in code
-                    and "subprocess" in code,
+                    "trigger": lambda code: (
+                        "shell=True" in code and "subprocess" in code
+                    ),
                     "priority": SuggestionPriority.CRITICAL,
                     "title": "Avoid shell=True in subprocess",
                     "description": "Using shell=True with subprocess is a security risk for command injection.",
