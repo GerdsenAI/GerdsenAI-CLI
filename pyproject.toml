@@ -63,7 +63,7 @@ Documentation = "https://github.com/GerdsenAI/GerdsenAI-CLI#readme"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gerdsenai_cli"]
-include = ["gerdsenai_cli/py.typed"]
+include = ["gerdsenai_cli/py.typed", "gerdsenai_cli/assets/*.txt"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -609,27 +609,19 @@ class PromptToolkitTUI:
         )
 
     def _load_ascii_art(self) -> None:
-        """Load and display ASCII art from file at startup."""
+        """Load and display the packaged ASCII logo at startup."""
         try:
-            # Get path to ASCII art file (now in examples/)
-            ascii_art_path = (
-                Path(__file__).parent.parent.parent
-                / "examples"
-                / "gerdsenai-ascii-art.txt"
-            )
+            from ..utils.display import get_logo_text
 
-            if ascii_art_path.exists():
-                with open(ascii_art_path, encoding="utf-8") as f:
-                    ascii_art = f.read()
-
-                # Add ASCII art as first message with timestamp
+            ascii_art = get_logo_text()
+            if ascii_art:
+                # Store directly in messages with a special "ascii" role that
+                # is styled dim; this is the canonical startup logo.
                 timestamp = datetime.now()
-                # Store directly in messages with a special "ascii" role that will be styled dim
                 self.conversation.messages.append(("ascii", ascii_art, timestamp))
                 self.conversation._update_buffer()
-                logger.info(f"Loaded ASCII art from {ascii_art_path}")
             else:
-                logger.warning(f"ASCII art file not found at {ascii_art_path}")
+                logger.warning("ASCII logo asset could not be loaded")
         except Exception as e:
             logger.error(f"Failed to load ASCII art: {e}", exc_info=True)
 
