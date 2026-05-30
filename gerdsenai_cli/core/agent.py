@@ -1285,7 +1285,7 @@ class Agent:
             if streaming_enabled:
                 try:
                     console.print("[bold cyan]\nGerdsenAI:[/bold cyan]", end=" ")
-                    async for chunk in self.llm_client.stream_chat(llm_messages):
+                    async for chunk in self._stream_response(llm_messages):
                         if chunk:
                             llm_response += chunk
                             # Print chunk without newline for live feeling
@@ -1300,7 +1300,7 @@ class Agent:
             if not streaming_enabled:
                 # Non-streaming path with status spinner
                 with console.status("[bold green]Thinking...", spinner="dots"):
-                    llm_response = await self.llm_client.chat(llm_messages) or ""
+                    llm_response = await self._complete_response(llm_messages)
 
             if not llm_response.strip():
                 return "I apologize, but I'm having trouble connecting to the AI model. Please try again."
@@ -1425,7 +1425,7 @@ class Agent:
 
             # Stream the response
             llm_response = ""
-            async for chunk in self.llm_client.stream_chat(llm_messages):
+            async for chunk in self._stream_response(llm_messages):
                 if chunk:
                     llm_response += chunk
                     yield (chunk, llm_response)
@@ -1534,6 +1534,16 @@ class Agent:
                 recent_files=recent_files,
             )
 
+            # Augment with semantic retrieval from the per-repo vector index,
+            # when enabled and available (no-op otherwise).
+            semantic = await self._retrieve_semantic_context(user_query)
+            if semantic:
+                context = (
+                    f"{context}\n\n# Semantic Search Results\n{semantic}"
+                    if context
+                    else semantic
+                )
+
             return context
 
         except Exception as e:
@@ -1548,6 +1558,86 @@ class Agent:
             except Exception as fallback_err:
                 logger.error(f"Fallback context building also failed: {fallback_err}")
                 return ""
+
+    async def _retrieve_semantic_context(self, query: str, limit: int = 5) -> str:
+        """Return relevant code snippets from the per-repo vector index.
+
+        No-op (empty string) unless ``enable_vector_index`` is set and both
+        Qdrant and an embedding backend are available.
+        """
+        if not query or not getattr(self.settings, "enable_vector_index", False):
+            return ""
+        try:
+            from .repo_index import build_indexer
+
+            indexer = await build_indexer(self.settings, Path.cwd())
+            if indexer is None:
+                return ""
+            hits = await indexer.search(query, limit=limit)
+        except Exception as e:
+            logger.debug(f"Semantic retrieval skipped: {e}")
+            return ""
+
+        blocks = []
+        for hit in hits:
+            payload = hit.payload
+            loc = f"{payload.get('path', '?')}:{payload.get('start_line', '?')}"
+            snippet = str(payload.get("text", "")).strip()
+            if snippet:
+                blocks.append(f"## {loc}\n{snippet}")
+        return "\n\n".join(blocks)
+
+    def _route_provider(self) -> Any | None:
+        """Return an AnthropicProvider when the active persona routes to it.
+
+        Returns None for the default case (no persona, or a local provider), so
+        the agent keeps using its configured ``llm_client`` unchanged.
+        """
+        name = getattr(self.settings, "active_agent_profile", "") or ""
+        if not name:
+            return None
+        data = (getattr(self.settings, "agent_profiles", {}) or {}).get(name, {})
+        if str(data.get("provider", "")).lower() != "anthropic":
+            return None
+        try:
+            from .providers.anthropic import AnthropicProvider
+        except Exception:
+            return None
+        return AnthropicProvider(
+            model=self.settings.current_model or str(data.get("model", ""))
+        )
+
+    @staticmethod
+    def _to_dict_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:
+        return [{"role": m.role, "content": m.content} for m in messages]
+
+    async def _complete_response(self, llm_messages: list[ChatMessage]) -> str:
+        """Non-streaming completion, routed to the active persona's provider."""
+        provider = self._route_provider()
+        if provider is not None and await provider.detect():
+            return (
+                await provider.chat_completion(
+                    self._to_dict_messages(llm_messages),
+                    model=self.settings.current_model or "",
+                )
+                or ""
+            )
+        return await self.llm_client.chat(llm_messages) or ""
+
+    async def _stream_response(
+        self, llm_messages: list[ChatMessage]
+    ) -> AsyncGenerator[str, None]:
+        """Streaming completion, routed to the active persona's provider."""
+        provider = self._route_provider()
+        if provider is not None and await provider.detect():
+            async for chunk in provider.stream_completion(
+                self._to_dict_messages(llm_messages),
+                model=self.settings.current_model or "",
+            ):
+                yield chunk
+        else:
+            async for chunk in self.llm_client.stream_chat(llm_messages):
+                yield chunk
 
     def _prepare_llm_messages(
         self, user_input: str, context_prompt: str = ""
