@@ -6,16 +6,28 @@ Automatically detects which LLM provider is running at a given URL.
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from ...constants import ProviderDefaults
 from .base import LLMProvider, ProviderType
 from .huggingface import HuggingFaceProvider
 from .lm_studio import LMStudioProvider
 from .ollama import OllamaProvider
+from .tailscale import get_tailscale_peers, tailscale_available
 from .vllm import VLLMProvider
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DiscoveredProvider:
+    """A provider found during discovery, with where it was found."""
+
+    url: str
+    provider: LLMProvider
+    source: str  # "local" or "tailscale:<hostname>"
 
 
 class ProviderDetector:
@@ -40,6 +52,12 @@ class ProviderDetector:
         ("http://localhost:5000", "text-generation-webui"),
         ("http://localhost:5001", "KoboldAI"),
         ("http://localhost:8001", "Custom provider"),
+    ]
+
+    # Ports probed on remote hosts (e.g. Tailscale peers). Derived from the
+    # canonical provider defaults so there is a single source of truth.
+    PROVIDER_PORTS: list[int] = [
+        int(cfg["port"]) for cfg in ProviderDefaults.CONFIGURATIONS.values()
     ]
 
     async def detect_provider(
@@ -84,7 +102,7 @@ class ProviderDetector:
         """
         logger.info("Scanning common ports for LLM providers...")
 
-        found_providers = []
+        found_providers: list[tuple[str, LLMProvider]] = []
 
         # Create detection tasks for all common configs
         tasks = []
@@ -96,8 +114,10 @@ class ProviderDetector:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
-            if isinstance(result, tuple) and result[1] is not None:
-                found_providers.append(result)
+            if isinstance(result, tuple):
+                url, provider = result
+                if provider is not None:
+                    found_providers.append((url, provider))
 
         if found_providers:
             logger.info(f"Found {len(found_providers)} provider(s)")
@@ -107,6 +127,98 @@ class ProviderDetector:
             logger.warning("No providers found on common ports")
 
         return found_providers
+
+    async def scan_hosts(
+        self,
+        hosts: list[str],
+        ports: list[int] | None = None,
+        timeout: float = 2.0,
+    ) -> list[tuple[str, LLMProvider]]:
+        """Probe a set of hosts on the provider ports for running servers.
+
+        Args:
+            hosts: Hostnames or IPs to probe.
+            ports: Ports to try on each host (defaults to PROVIDER_PORTS).
+            timeout: Per-URL timeout in seconds.
+
+        Returns:
+            List of (url, provider) tuples for providers that responded.
+        """
+        ports = ports or self.PROVIDER_PORTS
+        tasks = [
+            self._check_url(f"http://{host}:{port}", host, timeout)
+            for host in hosts
+            for port in ports
+        ]
+        if not tasks:
+            return []
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        found: list[tuple[str, LLMProvider]] = []
+        for r in results:
+            if isinstance(r, tuple):
+                url, prov = r
+                if prov is not None:
+                    found.append((url, prov))
+        return found
+
+    async def discover_tailscale(
+        self, timeout: float = 2.0
+    ) -> list[DiscoveredProvider]:
+        """Discover providers running on reachable Tailscale peers.
+
+        No-op (returns ``[]``) when the tailscale CLI is unavailable or the
+        tailnet is down.
+        """
+        peers = await get_tailscale_peers()
+        if not peers:
+            return []
+
+        ip_to_host = {peer.ip: peer.hostname for peer in peers}
+        found = await self.scan_hosts(list(ip_to_host), timeout=timeout)
+
+        discovered: list[DiscoveredProvider] = []
+        for url, provider in found:
+            # Map the URL's host back to the peer hostname for display.
+            host = urlparse(url).hostname or ""
+            label = ip_to_host.get(host, host)
+            discovered.append(
+                DiscoveredProvider(
+                    url=url, provider=provider, source=f"tailscale:{label}"
+                )
+            )
+        return discovered
+
+    async def discover(
+        self, include_tailscale: bool = True, timeout: float = 2.0
+    ) -> list[DiscoveredProvider]:
+        """Discover all reachable providers: local first, then Tailscale peers.
+
+        Args:
+            include_tailscale: Also probe Tailscale peers when the CLI is present.
+            timeout: Per-URL timeout in seconds.
+
+        Returns:
+            De-duplicated list of discovered providers (local entries first).
+        """
+        local = [
+            DiscoveredProvider(url=url, provider=provider, source="local")
+            for url, provider in await self.scan_common_ports(timeout=timeout)
+        ]
+
+        remote: list[DiscoveredProvider] = []
+        if include_tailscale and tailscale_available():
+            remote = await self.discover_tailscale(timeout=timeout)
+
+        # De-duplicate by URL, keeping the first (local) occurrence.
+        seen: set[str] = set()
+        result: list[DiscoveredProvider] = []
+        for item in local + remote:
+            if item.url in seen:
+                continue
+            seen.add(item.url)
+            result.append(item)
+        return result
 
     async def _check_url(
         self, url: str, description: str, timeout: float
@@ -221,8 +333,6 @@ class ProviderDetector:
         config = self.get_recommended_config(provider_type)
 
         # Override with actual detected URL
-        from urllib.parse import urlparse
-
         parsed = urlparse(provider.base_url)
 
         config["protocol"] = parsed.scheme or "http"
@@ -244,7 +354,7 @@ class ProviderDetector:
         Returns:
             Test results dict with connection status, models, capabilities, and errors
         """
-        results = {
+        results: dict[str, Any] = {
             "connection": False,
             "models": [],
             "capabilities": None,
