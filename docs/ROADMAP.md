@@ -48,9 +48,16 @@ decisions already made, so future work can proceed without re-litigating them.
 - **Follow-up:** optional auto-application of a skill's full body into context
   when its topic is detected.
 
-## Agent ↔ provider/model binding
-- Allow binding a named agent/persona to a specific provider + model, so different
-  tasks can route to different local (or remote) models.
+## Agent ↔ provider/model binding — **implemented**
+- `core/agent_profiles.py`: named personas (`AgentProfile`) bind a system prompt
+  to a provider + model, persisted in settings (`agent_profiles`,
+  `active_agent_profile`).
+- `/persona` (alias `/profile`): `list`, `add <name> <model> [provider]`,
+  `system <name> <prompt>`, `use <name>` (also switches `current_model`),
+  `show`, `current`, `remove`. The active persona's prompt is folded into the
+  agent's system prompt (`Agent.persona_context`) at startup and on switch.
+- **Follow-up:** per-persona provider routing in the agent's send path (e.g. a
+  `claude-*` persona transparently using the Anthropic provider).
 
 ## Anthropic provider (optional, local stays default) — **implemented**
 - `ProviderType.ANTHROPIC` + `core/providers/anthropic.py` use the `anthropic`

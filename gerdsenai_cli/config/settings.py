@@ -138,6 +138,16 @@ class Settings(BaseModel):
         description="Default Claude model id for the Anthropic provider",
     )
 
+    # Agent profiles (personas bound to a provider + model). Keyed by name.
+    agent_profiles: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Named agent personas, each bound to a provider/model",
+    )
+    active_agent_profile: str = Field(
+        default="",
+        description="Name of the currently active agent profile (empty = none)",
+    )
+
     # User Preferences
     user_preferences: dict[str, Any] = Field(
         default_factory=lambda: {

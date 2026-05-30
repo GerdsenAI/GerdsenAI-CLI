@@ -38,6 +38,7 @@ from .model import (
     SwitchModelCommand,
 )
 from .parser import CommandParser
+from .persona import PersonaCommand
 from .planning import PlanCommand
 from .skills import SkillCommand, SkillsCommand
 from .suggest_commands import SuggestCommand
@@ -82,6 +83,7 @@ __all__ = [
     "DiscoverCommand",
     "IndexCommand",
     "AnthropicCommand",
+    "PersonaCommand",
     "SkillCommand",
     "SkillsCommand",
     # Agent commands
