@@ -48,7 +48,9 @@ class PersonaCommand(BaseCommand):
         config = None
         if isinstance(context, dict):
             config = context.get("config_manager")
-        return AgentProfileManager(config if isinstance(config, ConfigManager) else None)
+        return AgentProfileManager(
+            config if isinstance(config, ConfigManager) else None
+        )
 
     async def execute(self, args: dict[str, Any], context: Any = None) -> CommandResult:
         console = Console()
