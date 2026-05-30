@@ -110,6 +110,27 @@ class Settings(BaseModel):
         description="Confidence threshold for requesting clarification (medium confidence)",
     )
 
+    # Vector Indexing (per-repo semantic search via Qdrant). All optional and
+    # degrade to a no-op when Qdrant or an embedding backend is unavailable.
+    enable_vector_index: bool = Field(
+        default=False,
+        description="Enable per-repo Qdrant vector indexing and semantic search",
+    )
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        description="Base URL of the Qdrant server (REST API)",
+    )
+    embedding_model: str = Field(
+        default="nomic-embed-text",
+        description="Embedding model id (used with the Ollama embeddings backend)",
+    )
+    vector_index_chunk_chars: int = Field(
+        default=1200,
+        ge=200,
+        le=8000,
+        description="Approximate characters per indexed chunk",
+    )
+
     # User Preferences
     user_preferences: dict[str, Any] = Field(
         default_factory=lambda: {

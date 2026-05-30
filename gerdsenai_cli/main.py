@@ -41,6 +41,7 @@ from .commands.files import (
     SearchFilesCommand,
     SessionCommand,
 )
+from .commands.index import IndexCommand
 from .commands.mcp import MCPCommand
 from .commands.model import (
     ListModelsCommand,
@@ -269,6 +270,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(ModelInfoCommand())
         self.command_parser.register_command(ModelStatsCommand())
         self.command_parser.register_command(DiscoverCommand())
+        self.command_parser.register_command(IndexCommand())
 
         # Register agent commands
         self.command_parser.register_command(AgentStatusCommand())
