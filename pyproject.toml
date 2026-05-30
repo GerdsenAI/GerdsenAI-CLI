@@ -42,6 +42,11 @@ dependencies = [
 embeddings = [
     "sentence-transformers>=3.0.0",
 ]
+# Optional cloud provider: the Claude API + OS-keyring secret storage.
+anthropic = [
+    "anthropic>=0.40.0",
+    "keyring>=25.0.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -84,6 +89,19 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+# Optional dependencies (installed via extras) — don't fail type checking when
+# their stubs/implementations are absent.
+[[tool.mypy.overrides]]
+module = [
+    "anthropic",
+    "anthropic.*",
+    "keyring",
+    "keyring.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"

@@ -52,17 +52,25 @@ decisions already made, so future work can proceed without re-litigating them.
 - Allow binding a named agent/persona to a specific provider + model, so different
   tasks can route to different local (or remote) models.
 
-## Anthropic provider (optional, local stays default)
-- Add `ProviderType.ANTHROPIC` and `core/providers/anthropic.py` using the
-  `anthropic` SDK, with **prompt caching** enabled.
-- **Secrets via the OS keyring** (`keyring`: macOS Keychain / Linux Secret Service)
-  with an `ANTHROPIC_API_KEY` environment-variable fallback. Keys are **never**
-  written to `config.json`.
+## Anthropic provider (optional, local stays default) — **implemented**
+- `ProviderType.ANTHROPIC` + `core/providers/anthropic.py` use the `anthropic`
+  SDK with **prompt caching** (`cache_control` on the system prompt) and
+  streaming. Sampling params are omitted for models that reject them (Opus
+  4.7/4.8). Default model `claude-opus-4-8` (`anthropic_model` setting).
+- **Secrets via the OS keyring** (`core/secrets.py`, `keyring`) with an
+  `ANTHROPIC_API_KEY` env fallback — **never** written to `config.json`.
+- Optional install: `pip install "gerdsenai-cli[anthropic]"`. Surfaced via the
+  `/anthropic` command (alias `/claude`): `status`, `set-key`, `clear-key`,
+  `models`, `model`, `chat`. Degrades to a friendly no-op when the SDK/key are
+  absent.
+- **Follow-up:** route the main agent loop through the Anthropic provider when a
+  `claude-*` model is selected (tool use, thinking, batch).
 
 ## Security hardening
-- Revisit `core/terminal.py` shell execution (currently allow/block lists +
-  per-command confirmation); keep the confirmation gates and add the keyring-backed
-  secret storage above.
+- `core/secrets.py` provides keyring-backed secret storage (done, used by the
+  Anthropic provider). Remaining: revisit `core/terminal.py` shell execution
+  (currently allow/block lists + per-command confirmation); keep the
+  confirmation gates.
 
 ## Test coverage
 - Coverage is currently ~45% (the pytest gate was lowered from an aspirational 90%

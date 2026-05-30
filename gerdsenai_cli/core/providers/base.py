@@ -23,6 +23,7 @@ class ProviderType(Enum):
     TEXT_GEN_WEBUI = "text_gen_webui"
     KOBOLDAI = "koboldai"
     OPENAI_COMPATIBLE = "openai_compatible"  # Generic OpenAI-compatible
+    ANTHROPIC = "anthropic"  # Anthropic Claude API (cloud, optional)
 
 
 @dataclass
@@ -123,7 +124,7 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def stream_completion(
+    def stream_completion(
         self,
         messages: list[dict[str, str]],
         model: str,
@@ -134,6 +135,10 @@ class LLMProvider(ABC):
     ) -> AsyncGenerator[str, None]:
         """
         Stream a chat completion.
+
+        Implementations are async generators (``async def`` with ``yield``);
+        the abstract declaration is a plain ``def`` returning an
+        ``AsyncGenerator`` so subclass overrides type-check correctly.
 
         Args:
             messages: List of message dicts with 'role' and 'content'
@@ -146,7 +151,7 @@ class LLMProvider(ABC):
         Yields:
             Text chunks as they are generated
         """
-        pass
+        ...
 
     @abstractmethod
     def get_capabilities(self) -> ProviderCapabilities:

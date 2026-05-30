@@ -27,6 +27,7 @@ from .commands.agent import (
     RefreshContextCommand,
     ResetCommand,
 )
+from .commands.anthropic_cmd import AnthropicCommand
 from .commands.audio_commands import (
     AudioStatusCommand,
     SpeakCommand,
@@ -271,6 +272,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(ModelStatsCommand())
         self.command_parser.register_command(DiscoverCommand())
         self.command_parser.register_command(IndexCommand())
+        self.command_parser.register_command(AnthropicCommand())
 
         # Register agent commands
         self.command_parser.register_command(AgentStatusCommand())

@@ -131,6 +131,13 @@ class Settings(BaseModel):
         description="Approximate characters per indexed chunk",
     )
 
+    # Anthropic (Claude) — optional cloud provider. The API key is stored in the
+    # OS keyring / env var, never here.
+    anthropic_model: str = Field(
+        default="claude-opus-4-8",
+        description="Default Claude model id for the Anthropic provider",
+    )
+
     # User Preferences
     user_preferences: dict[str, Any] = Field(
         default_factory=lambda: {
