@@ -35,13 +35,18 @@ decisions already made, so future work can proceed without re-litigating them.
   (`agent._prepare_llm_messages`) when `enable_vector_index` is on, and add
   incremental re-indexing of changed files.
 
-## Skill / agent-file import
-- Discover `.claude/skills/*/SKILL.md` (YAML frontmatter), `AGENTS.md`, and Codex
-  configs from the working tree.
-- **Behavior:** expose each as an **invocable slash command** *and* inject relevant
-  ones into the system prompt as context. Read-only — no arbitrary execution.
-- New module: `core/skill_loader.py`, registering through the existing
-  `CommandRegistry` (`commands/parser.py`).
+## Skill / agent-file import — **implemented**
+- `core/skill_loader.py` discovers, read-only, `.claude/skills/*/SKILL.md`
+  (frontmatter parsed without a PyYAML dependency), `.claude/agents/*.md`, and
+  `AGENTS.md` from the project dir and the user's home (project wins on conflict).
+- Each becomes an **invocable slash command** (`/<skill-name>`, prints the
+  skill's instructions) registered at startup without clobbering built-ins, and
+  a compact summary is injected into the agent's system prompt
+  (`Agent.skills_context`).
+- `/skills` (alias `/agents`) lists them; `/skills show <name>` prints the full
+  text; `/skills reload` re-scans.
+- **Follow-up:** optional auto-application of a skill's full body into context
+  when its topic is detected.
 
 ## Agent ↔ provider/model binding
 - Allow binding a named agent/persona to a specific provider + model, so different

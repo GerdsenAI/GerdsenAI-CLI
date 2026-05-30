@@ -565,6 +565,9 @@ class Agent:
         self.llm_client = llm_client
         self.settings = settings
         self._console = console  # Enhanced console with status display
+        # Optional system-prompt block summarising imported skills/agent files
+        # (populated by the app via core.skill_loader). Empty = no skills.
+        self.skills_context: str = ""
 
         # Initialize core components
         self.context_manager = ProjectContext(project_root)
@@ -1611,6 +1614,10 @@ When working with files, I will:
 4. Provide rollback options if needed
 
 How can I help you with your code today?"""
+
+        # Append imported skills/agent guidance, if any were discovered.
+        if self.skills_context:
+            base_prompt += f"\n\n{self.skills_context}"
 
         # Add defensive security instructions
         return create_defensive_system_prompt(base_prompt)
