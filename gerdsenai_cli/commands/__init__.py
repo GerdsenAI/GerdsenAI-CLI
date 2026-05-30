@@ -11,6 +11,7 @@ from .agent import (
     RefreshContextCommand,
     ResetCommand,
 )
+from .anthropic_cmd import AnthropicCommand
 from .audio_commands import (
     AudioStatusCommand,
     SpeakCommand,
@@ -80,6 +81,7 @@ __all__ = [
     "ModelStatsCommand",
     "DiscoverCommand",
     "IndexCommand",
+    "AnthropicCommand",
     "SkillCommand",
     "SkillsCommand",
     # Agent commands

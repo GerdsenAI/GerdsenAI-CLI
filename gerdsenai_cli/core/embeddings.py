@@ -96,9 +96,7 @@ class SentenceTransformerBackend:
 
     def _load(self) -> object:
         if self._model is None:
-            from sentence_transformers import (  # type: ignore[import-not-found]
-                SentenceTransformer,
-            )
+            from sentence_transformers import SentenceTransformer
 
             self._model = SentenceTransformer(self.model_name)
         return self._model
