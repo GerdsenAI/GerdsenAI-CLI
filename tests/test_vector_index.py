@@ -18,7 +18,6 @@ from gerdsenai_cli.core.repo_index import (
 )
 from gerdsenai_cli.core.vector_store import QdrantVectorStore, SearchHit
 
-
 # --------------------------------------------------------------------------- #
 # Fakes
 # --------------------------------------------------------------------------- #
@@ -65,6 +64,13 @@ class FakeStore:
     async def count(self, name: str) -> int:
         return len(self.collections.get(name, []))
 
+    async def delete_by_path(self, name: str, path: str) -> None:
+        pts = self.collections.get(name)
+        if pts is not None:
+            self.collections[name] = [
+                p for p in pts if p["payload"].get("path") != path
+            ]
+
 
 # --------------------------------------------------------------------------- #
 # collection naming
@@ -85,6 +91,7 @@ def test_collection_name_stable_and_valid() -> None:
 
 
 def _make_repo(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "a.py").write_text("def foo():\n    return 1\n" * 5)
     (tmp_path / "README.md").write_text("# Title\n\nSome docs here.\n")
     (tmp_path / "image.png").write_bytes(b"\x89PNG\r\n")  # binary, skipped
@@ -126,6 +133,100 @@ async def test_build_and_search(tmp_path: Path) -> None:
     hits = await indexer.search("foo", limit=3)
     assert hits
     assert "path" in hits[0].payload
+
+
+# --------------------------------------------------------------------------- #
+# incremental re-indexing
+# --------------------------------------------------------------------------- #
+
+
+def _indexer(repo: Path, store: FakeStore, tmp_path: Path) -> RepoIndexer:
+    return RepoIndexer(
+        repo,
+        store,  # type: ignore[arg-type]
+        FakeBackend(),  # type: ignore[arg-type]
+        manifest_dir=tmp_path / "manifest",
+    )
+
+
+@pytest.mark.asyncio
+async def test_incremental_falls_back_to_full_build(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path / "repo")
+    store = FakeStore()
+    indexer = _indexer(repo, store, tmp_path)
+
+    # No manifest yet -> behaves like a full build.
+    stats = await indexer.build_incremental()
+    assert stats.files == 2
+    assert stats.chunks > 0
+    assert indexer.manifest_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_incremental_skips_unchanged(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path / "repo")
+    store = FakeStore()
+    indexer = _indexer(repo, store, tmp_path)
+
+    await indexer.build()
+    baseline = await store.count(indexer.collection)
+
+    stats = await indexer.build_incremental()
+    assert stats.files == 0  # nothing re-embedded
+    assert stats.unchanged == 2
+    assert stats.removed == 0
+    assert await store.count(indexer.collection) == baseline  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_incremental_reembeds_changed_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path / "repo")
+    store = FakeStore()
+    indexer = _indexer(repo, store, tmp_path)
+    await indexer.build()
+
+    # Modify one file; its stale chunks should be replaced, the other untouched.
+    (repo / "a.py").write_text("def changed():\n    return 99\n" * 4)
+
+    stats = await indexer.build_incremental()
+    assert stats.files == 1
+    assert stats.unchanged == 1
+    payloads = [p["payload"]["path"] for p in store.collections[indexer.collection]]
+    assert "a.py" in payloads  # re-added
+    # No duplicate stale chunks: every a.py chunk reflects the new content.
+    a_texts = [
+        p["payload"]["text"]
+        for p in store.collections[indexer.collection]
+        if p["payload"]["path"] == "a.py"
+    ]
+    assert all("changed" in t for t in a_texts)
+
+
+@pytest.mark.asyncio
+async def test_incremental_removes_deleted_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path / "repo")
+    store = FakeStore()
+    indexer = _indexer(repo, store, tmp_path)
+    await indexer.build()
+
+    (repo / "README.md").unlink()
+
+    stats = await indexer.build_incremental()
+    assert stats.removed == 1
+    paths = {p["payload"]["path"] for p in store.collections[indexer.collection]}
+    assert "README.md" not in paths
+
+
+@pytest.mark.asyncio
+async def test_clear_removes_manifest(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path / "repo")
+    store = FakeStore()
+    indexer = _indexer(repo, store, tmp_path)
+    await indexer.build()
+    assert indexer.manifest_path.exists()
+
+    await indexer.clear()
+    assert not indexer.manifest_path.exists()
 
 
 # --------------------------------------------------------------------------- #
@@ -244,6 +345,9 @@ async def test_index_command_build_and_search(monkeypatch: Any) -> None:
         async def build(self) -> IndexStats:
             return IndexStats(files=2, chunks=7)
 
+        async def build_incremental(self) -> IndexStats:
+            return IndexStats(files=1, chunks=3, unchanged=4, removed=1)
+
         async def search(self, query: str, limit: int = 5) -> list[SearchHit]:
             return [
                 SearchHit(
@@ -269,6 +373,12 @@ async def test_index_command_build_and_search(monkeypatch: Any) -> None:
 
     build = await cmd.execute({"action": "build", "query": ""})
     assert build.success and "7 chunks" in (build.message or "")
+
+    refresh = await cmd.execute({"action": "refresh", "query": ""})
+    assert refresh.success and "1 changed file" in (refresh.message or "")
+
+    update = await cmd.execute({"action": "update", "query": ""})
+    assert update.success and "1 changed file" in (update.message or "")
 
     search = await cmd.execute({"action": "search", "query": "foo"})
     assert search.success and "result" in (search.message or "")

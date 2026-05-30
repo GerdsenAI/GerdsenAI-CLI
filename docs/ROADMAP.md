@@ -36,8 +36,11 @@ decisions already made, so future work can proceed without re-litigating them.
 - **Retrieval is wired into the agent**: when `enable_vector_index` is on,
   `Agent._build_project_context` appends a "Semantic Search Results" block from
   the index (`Agent._retrieve_semantic_context`); no-op otherwise.
-- **Follow-up:** incremental re-indexing of changed files (currently a full
-  rebuild per `/index build`).
+- **Incremental re-indexing**: `/index refresh` (alias `update`) re-embeds only
+  files whose content hash changed since the last build, removes chunks for
+  deleted files, and skips unchanged ones — tracked via a per-collection
+  manifest under `~/.config/gerdsenai-cli/index/`. `/index build` still does a
+  full rebuild; `/index clear` drops the manifest too.
 
 ## Skill / agent-file import — **implemented**
 - `core/skill_loader.py` discovers, read-only, `.claude/skills/*/SKILL.md`
