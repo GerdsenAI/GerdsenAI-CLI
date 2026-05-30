@@ -568,6 +568,9 @@ class Agent:
         # Optional system-prompt block summarising imported skills/agent files
         # (populated by the app via core.skill_loader). Empty = no skills.
         self.skills_context: str = ""
+        # Optional persona prompt from the active agent profile (set by the
+        # /persona command). Empty = no active persona.
+        self.persona_context: str = ""
 
         # Initialize core components
         self.context_manager = ProjectContext(project_root)
@@ -1614,6 +1617,10 @@ When working with files, I will:
 4. Provide rollback options if needed
 
 How can I help you with your code today?"""
+
+        # Apply the active persona's instructions, if any.
+        if self.persona_context:
+            base_prompt += f"\n\n# Active Persona\n{self.persona_context}"
 
         # Append imported skills/agent guidance, if any were discovered.
         if self.skills_context:

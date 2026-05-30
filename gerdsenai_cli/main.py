@@ -53,6 +53,7 @@ from .commands.model import (
 
 # Import command system
 from .commands.parser import CommandParser
+from .commands.persona import PersonaCommand
 from .commands.system import (
     AboutCommand,
     ConfigCommand,
@@ -273,6 +274,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(DiscoverCommand())
         self.command_parser.register_command(IndexCommand())
         self.command_parser.register_command(AnthropicCommand())
+        self.command_parser.register_command(PersonaCommand())
 
         # Register agent commands
         self.command_parser.register_command(AgentStatusCommand())
@@ -317,6 +319,17 @@ class GerdsenAICLI:
         # AGENTS.md) as slash commands and fold a summary into the agent's
         # system prompt. Read-only; no-op when none are present.
         self._register_imported_skills()
+
+        # Apply the active agent profile (persona + model), if one is set.
+        self._apply_active_persona()
+
+    def _apply_active_persona(self) -> None:
+        """Fold the active agent profile's persona into the agent."""
+        from .core.agent_profiles import AgentProfileManager
+
+        profile = AgentProfileManager(self.config_manager).get_active()
+        if profile and self.agent is not None and profile.system_prompt:
+            self.agent.persona_context = profile.system_prompt
 
     def _register_imported_skills(self) -> None:
         """Discover external skill/agent files and expose them."""
