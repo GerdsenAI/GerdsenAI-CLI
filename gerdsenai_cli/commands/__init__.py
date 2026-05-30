@@ -38,6 +38,7 @@ from .model import (
 )
 from .parser import CommandParser
 from .planning import PlanCommand
+from .skills import SkillCommand, SkillsCommand
 from .suggest_commands import SuggestCommand
 from .system import (
     AboutCommand,
@@ -79,6 +80,8 @@ __all__ = [
     "ModelStatsCommand",
     "DiscoverCommand",
     "IndexCommand",
+    "SkillCommand",
+    "SkillsCommand",
     # Agent commands
     "AgentStatusCommand",
     "ChatCommand",

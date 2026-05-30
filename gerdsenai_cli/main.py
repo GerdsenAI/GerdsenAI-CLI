@@ -311,6 +311,29 @@ class GerdsenAICLI:
         self.command_parser.register_command(SpeakCommand())
         self.command_parser.register_command(AudioStatusCommand())
 
+        # Register imported skills/agent files (.claude/skills, .claude/agents,
+        # AGENTS.md) as slash commands and fold a summary into the agent's
+        # system prompt. Read-only; no-op when none are present.
+        self._register_imported_skills()
+
+    def _register_imported_skills(self) -> None:
+        """Discover external skill/agent files and expose them."""
+        from .commands.skills import SkillCommand, SkillsCommand
+        from .core.skill_loader import build_skills_context, discover_skills
+
+        if self.command_parser is None:
+            return
+
+        skills = discover_skills()
+        for skill in skills:
+            # Never clobber a built-in command of the same name.
+            if self.command_parser.registry.get_command(skill.command_name) is None:
+                self.command_parser.register_command(SkillCommand(skill))
+        self.command_parser.register_command(SkillsCommand(skills))
+
+        if self.agent is not None and skills:
+            self.agent.skills_context = build_skills_context(skills)
+
     async def _initialize_plugins(self) -> None:
         """
         Initialize the plugin system and discover plugins.
