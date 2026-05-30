@@ -31,9 +31,11 @@ decisions already made, so future work can proceed without re-litigating them.
 - Surfaced via the **`/index`** command: `build`, `status`, `search <query>`,
   `clear`. Settings: `enable_vector_index`, `qdrant_url`, `embedding_model`,
   `vector_index_chunk_chars`.
-- **Follow-up:** fold semantic retrieval into the agent's context assembly
-  (`agent._prepare_llm_messages`) when `enable_vector_index` is on, and add
-  incremental re-indexing of changed files.
+- **Retrieval is wired into the agent**: when `enable_vector_index` is on,
+  `Agent._build_project_context` appends a "Semantic Search Results" block from
+  the index (`Agent._retrieve_semantic_context`); no-op otherwise.
+- **Follow-up:** incremental re-indexing of changed files (currently a full
+  rebuild per `/index build`).
 
 ## Skill / agent-file import — **implemented**
 - `core/skill_loader.py` discovers, read-only, `.claude/skills/*/SKILL.md`
@@ -56,8 +58,10 @@ decisions already made, so future work can proceed without re-litigating them.
   `system <name> <prompt>`, `use <name>` (also switches `current_model`),
   `show`, `current`, `remove`. The active persona's prompt is folded into the
   agent's system prompt (`Agent.persona_context`) at startup and on switch.
-- **Follow-up:** per-persona provider routing in the agent's send path (e.g. a
-  `claude-*` persona transparently using the Anthropic provider).
+- **Provider routing is wired**: when the active persona's `provider` is
+  `anthropic`, the agent's send path (`_complete_response` / `_stream_response`)
+  routes through the Anthropic provider; otherwise it uses the configured local
+  `llm_client` unchanged. Falls back to local if the SDK/key are unavailable.
 
 ## Anthropic provider (optional, local stays default) — **implemented**
 - `ProviderType.ANTHROPIC` + `core/providers/anthropic.py` use the `anthropic`
