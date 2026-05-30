@@ -1588,24 +1588,35 @@ class Agent:
         return "\n\n".join(blocks)
 
     def _route_provider(self) -> Any | None:
-        """Return an AnthropicProvider when the active persona routes to it.
+        """Return an AnthropicProvider when the persona or model routes to it.
 
-        Returns None for the default case (no persona, or a local provider), so
-        the agent keeps using its configured ``llm_client`` unchanged.
+        Routes to Anthropic when either (a) the active persona's ``provider`` is
+        ``anthropic``, or (b) the currently selected model is a ``claude-*``
+        model. Returns None for the default local case, so the agent keeps using
+        its configured ``llm_client`` unchanged.
         """
+        model = self.settings.current_model or ""
+        use_anthropic = False
+
+        # (a) active persona explicitly bound to the Anthropic provider
         name = getattr(self.settings, "active_agent_profile", "") or ""
-        if not name:
-            return None
-        data = (getattr(self.settings, "agent_profiles", {}) or {}).get(name, {})
-        if str(data.get("provider", "")).lower() != "anthropic":
+        if name:
+            data = (getattr(self.settings, "agent_profiles", {}) or {}).get(name, {})
+            if str(data.get("provider", "")).lower() == "anthropic":
+                use_anthropic = True
+                model = model or str(data.get("model", ""))
+
+        # (b) a claude-* model selected directly (no persona required)
+        if model.lower().startswith("claude-"):
+            use_anthropic = True
+
+        if not use_anthropic:
             return None
         try:
             from .providers.anthropic import AnthropicProvider
         except Exception:
             return None
-        return AnthropicProvider(
-            model=self.settings.current_model or str(data.get("model", ""))
-        )
+        return AnthropicProvider(model=model or self.settings.anthropic_model)
 
     @staticmethod
     def _to_dict_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:

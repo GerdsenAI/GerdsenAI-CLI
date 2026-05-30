@@ -74,8 +74,11 @@ decisions already made, so future work can proceed without re-litigating them.
   `/anthropic` command (alias `/claude`): `status`, `set-key`, `clear-key`,
   `models`, `model`, `chat`. Degrades to a friendly no-op when the SDK/key are
   absent.
-- **Follow-up:** route the main agent loop through the Anthropic provider when a
-  `claude-*` model is selected (tool use, thinking, batch).
+- **Done:** the agent's send path routes through the Anthropic provider when a
+  `claude-*` model is selected directly (or a persona is bound to `anthropic`);
+  see `Agent._route_provider`. Falls back to local if the SDK/key are absent.
+- **Follow-up:** richer Anthropic features on that path (tool use, thinking,
+  batch).
 
 ## Security hardening
 - `core/secrets.py` provides keyring-backed secret storage (done, used by the

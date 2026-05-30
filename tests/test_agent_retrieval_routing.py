@@ -67,6 +67,20 @@ def test_route_provider_anthropic_persona(agent: Agent) -> None:
     assert provider.__class__.__name__ == "AnthropicProvider"
 
 
+def test_route_provider_claude_model_no_persona(agent: Agent) -> None:
+    # Selecting a claude-* model directly routes to Anthropic, no persona needed.
+    agent.settings.current_model = "claude-opus-4-8"
+    provider = agent._route_provider()
+    assert provider is not None
+    assert provider.__class__.__name__ == "AnthropicProvider"
+    assert provider.model == "claude-opus-4-8"
+
+
+def test_route_provider_local_model_no_persona(agent: Agent) -> None:
+    agent.settings.current_model = "qwen2.5-coder"
+    assert agent._route_provider() is None
+
+
 def test_to_dict_messages(agent: Agent) -> None:
     assert agent._to_dict_messages(_msgs()) == [
         {"role": "system", "content": "sys"},
