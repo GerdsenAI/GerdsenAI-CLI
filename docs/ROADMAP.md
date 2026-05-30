@@ -18,7 +18,9 @@ decisions already made, so future work can proceed without re-litigating them.
 - Surfaced via the **`/discover`** command (aliases `/scan`, `/find-models`):
   lists local + tailnet servers with their models, and `--configure` sets the
   first one as the active provider. `--no-tailscale` restricts to localhost.
-- **Follow-up:** offer discovery automatically on first-run setup.
+- **Done:** first-run setup (`main._first_time_setup`) auto-offers discovered
+  local + tailnet servers to pick from, falling back to manual host/port entry
+  when nothing is found or the user declines.
 
 ## Per-repo vector index (Qdrant) — **implemented (indexing + search)**
 - Auto-detects a local Qdrant (default `:6333`, accessed over its REST API via

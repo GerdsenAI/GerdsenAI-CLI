@@ -414,22 +414,48 @@ class GerdsenAICLI:
         try:
             console.print("\n[SETUP] [bold cyan]GerdsenAI CLI Setup[/bold cyan]\n")
 
-            # Gather granular server configuration
-            protocol = Prompt.ask(
-                "Protocol (http/https)",
-                choices=["http", "https"],
-                default="http",
-                console=console,
-            )
-            host = Prompt.ask(
-                "LLM server host or IP", default="127.0.0.1", console=console
-            )
-            port_str = Prompt.ask("Port", default="11434", console=console)
-            try:
-                port = int(port_str)
-            except ValueError:
-                show_warning("Invalid port provided, falling back to 11434")
-                port = 11434
+            # Try auto-discovery first (local ports + Tailscale peers); the user
+            # can always fall back to entering a server manually.
+            endpoint: tuple[str, str, int] | None = None
+            discovered = await self._discover_servers_for_setup()
+            if discovered:
+                show_success(f"Found {len(discovered)} LLM server(s) on your network:")
+                for i, dp in enumerate(discovered, 1):
+                    console.print(f"  {i}. {dp.url}  [{dp.source}]")
+                manual_choice = str(len(discovered) + 1)
+                console.print(f"  {manual_choice}. Enter a server manually")
+                choice = Prompt.ask(
+                    "Select a server",
+                    choices=[str(i) for i in range(1, len(discovered) + 2)],
+                    default="1",
+                    console=console,
+                )
+                if choice != manual_choice:
+                    endpoint = self._endpoint_from_provider(discovered[int(choice) - 1])
+                    show_info(
+                        f"Using discovered server: "
+                        f"{endpoint[0]}://{endpoint[1]}:{endpoint[2]}"
+                    )
+
+            if endpoint is not None:
+                protocol, host, port = endpoint
+            else:
+                # Manual server configuration
+                protocol = Prompt.ask(
+                    "Protocol (http/https)",
+                    choices=["http", "https"],
+                    default="http",
+                    console=console,
+                )
+                host = Prompt.ask(
+                    "LLM server host or IP", default="127.0.0.1", console=console
+                )
+                port_str = Prompt.ask("Port", default="11434", console=console)
+                try:
+                    port = int(port_str)
+                except ValueError:
+                    show_warning("Invalid port provided, falling back to 11434")
+                    port = 11434
 
             # Test connection to LLM server with timeout
             show_info("Testing connection to LLM server...")
@@ -520,6 +546,33 @@ class GerdsenAICLI:
             if self.debug:
                 console.print_exception()
             return None
+
+    async def _discover_servers_for_setup(self) -> list:
+        """Best-effort discovery of local + Tailscale LLM servers for setup.
+
+        Returns an empty list (never raises) when discovery is unavailable, so
+        first-run setup always falls back cleanly to manual entry.
+        """
+        try:
+            from .core.providers.detector import ProviderDetector
+
+            show_info("Scanning for local and Tailscale LLM servers...")
+            return await ProviderDetector().discover()
+        except Exception as e:
+            logger.debug(f"Setup discovery failed, falling back to manual: {e}")
+            return []
+
+    @staticmethod
+    def _endpoint_from_provider(dp: Any) -> tuple[str, str, int]:
+        """Map a discovered provider URL to (protocol, host, port)."""
+        from urllib.parse import urlparse
+
+        parsed = urlparse(dp.url)
+        return (
+            parsed.scheme or "http",
+            parsed.hostname or "127.0.0.1",
+            parsed.port or 11434,
+        )
 
     async def _handle_user_input(self, user_input: str) -> bool:
         """
