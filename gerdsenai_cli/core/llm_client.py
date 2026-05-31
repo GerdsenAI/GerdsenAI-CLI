@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from ..config.settings import Settings
 from ..utils.display import show_error
 from ..utils.performance import measure_performance
+from .errors import GerdsenAIError, classify_exception
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,37 @@ class LLMClient:
 
         # Final fallback to operation-specific constant
         return OPERATION_TIMEOUTS.get(operation, OPERATION_TIMEOUTS["default"])
+
+    def _handle_failure(self, operation_name: str, exc: Exception) -> None:
+        """Surface a failed operation to the user as a typed, classified error.
+
+        Classifies the raw exception (network / timeout / model-not-found / ...)
+        via the shared ``errors`` infra and renders a friendly message with a
+        suggestion, instead of leaking a raw exception string. Always logs the
+        underlying error; never raises (callers still return their safe default).
+        """
+        logger.error(f"{operation_name} failed after retries: {exc}")
+        try:
+            from ..ui.error_display import ErrorDisplay
+
+            if isinstance(exc, GerdsenAIError):
+                error: GerdsenAIError = exc
+            else:
+                category, suggestion = classify_exception(exc)
+                # This runs only after the retry loop is exhausted, so mark the
+                # error non-recoverable: the display must not claim it is
+                # "retrying automatically" when retries are already spent.
+                error = GerdsenAIError(
+                    message=f"{operation_name} failed: {exc}",
+                    category=category,
+                    suggestion=suggestion,
+                    recoverable=False,
+                    original_exception=exc,
+                )
+            show_error(ErrorDisplay.display_error(error, tui_mode=False))
+        except Exception as display_err:  # never let error display mask the error
+            logger.debug(f"Error display failed: {display_err}")
+            show_error(f"{operation_name} failed: {exc}")
 
     async def _execute_with_retry(
         self,
@@ -459,8 +491,7 @@ class LLMClient:
             logger.info(f"Found {len(models)} available models")
             return models
         except Exception as e:
-            logger.error(f"Failed to list models after retries: {e}")
-            show_error(f"Failed to list models: {e}")
+            self._handle_failure("List models", e)
             return []
 
     def _parse_models_response(
@@ -596,8 +627,7 @@ class LLMClient:
             )
             return result
         except Exception as e:
-            logger.error(f"Chat request failed after retries: {e}")
-            show_error(f"Chat request failed: {e}")
+            self._handle_failure("Chat request", e)
             return None
 
     def _parse_chat_response(self, data: dict[str, Any]) -> str | None:
@@ -689,8 +719,7 @@ class LLMClient:
                             continue
 
         except Exception as e:
-            logger.error(f"Streaming chat request failed: {e}")
-            show_error(f"Streaming chat request failed: {e}")
+            self._handle_failure("Streaming chat request", e)
 
     @property
     def is_connected(self) -> bool:

@@ -21,6 +21,7 @@ class TestLLMClient:
     def setup_method(self) -> None:
         """Set up test client instance."""
         import asyncio
+
         # Create a mock settings object
         mock_settings = MagicMock(spec=Settings)
         mock_settings.llm_server_url = "http://localhost:11434"
@@ -33,6 +34,7 @@ class TestLLMClient:
     def teardown_method(self) -> None:
         """Clean up after tests."""
         import asyncio
+
         # Exit the async context manager (this calls close() internally)
         asyncio.run(self.client.__aexit__(None, None, None))
 
@@ -201,3 +203,63 @@ class TestLLMClient:
         )
         assert model_with_info.size == 7365960935
         assert model_with_info.owned_by == "meta"
+
+
+class TestErrorSurfacing:
+    """The client surfaces classified, typed errors instead of raw strings."""
+
+    def setup_method(self) -> None:
+        import asyncio
+
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.llm_server_url = "http://localhost:11434"
+        mock_settings.current_model = "llama2:7b"
+        self.client = LLMClient(mock_settings)
+        asyncio.run(self.client.__aenter__())
+
+    def teardown_method(self) -> None:
+        import asyncio
+
+        asyncio.run(self.client.__aexit__(None, None, None))
+
+    def test_handle_failure_classifies_network_error(self) -> None:
+        """A raw connection error is rendered with the NETWORK category + suggestion."""
+        from httpx import ConnectError
+
+        with patch("gerdsenai_cli.core.llm_client.show_error") as mock_show:
+            self.client._handle_failure("Chat request", ConnectError("refused"))
+        assert mock_show.called
+        shown = mock_show.call_args[0][0].lower()
+        assert "network" in shown
+        # The friendly suggestion from classify_exception is included.
+        assert "server" in shown
+        # Retries are already exhausted here, so the message must NOT claim it
+        # is retrying automatically.
+        assert "retrying automatically" not in shown
+        assert "manual intervention" in shown
+
+    def test_handle_failure_passes_through_gerdsenai_error(self) -> None:
+        """An already-typed GerdsenAIError is displayed as-is (not re-wrapped)."""
+        from gerdsenai_cli.core.errors import ModelNotFoundError
+
+        err = ModelNotFoundError("missing-model", available_models=["a", "b"])
+        with patch("gerdsenai_cli.core.llm_client.show_error") as mock_show:
+            self.client._handle_failure("Chat request", err)
+        shown = mock_show.call_args[0][0].lower()
+        assert "model_not_found" in shown
+
+    @pytest.mark.asyncio
+    async def test_chat_failure_surfaces_classified_error(self) -> None:
+        """chat() returns None on failure AND shows a classified error."""
+        from httpx import ConnectError
+
+        with (
+            patch.object(self.client.client, "post") as mock_post,
+            patch("gerdsenai_cli.core.llm_client.show_error") as mock_show,
+        ):
+            mock_post.side_effect = ConnectError("Connection failed")
+            messages = [ChatMessage(role="user", content="hi")]
+            result = await self.client.chat(messages=messages, model="llama2:7b")
+        assert result is None  # public contract preserved
+        assert mock_show.called
+        assert "network" in mock_show.call_args[0][0].lower()

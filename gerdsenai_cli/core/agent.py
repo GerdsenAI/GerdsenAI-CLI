@@ -1575,7 +1575,9 @@ class Agent:
                 return ""
             hits = await indexer.search(query, limit=limit)
         except Exception as e:
-            logger.debug(f"Semantic retrieval skipped: {e}")
+            # build_indexer already returns None when the index is unavailable,
+            # so an exception here is a real retrieval failure worth flagging.
+            logger.warning(f"Semantic retrieval failed, continuing without it: {e}")
             return ""
 
         blocks = []
@@ -1614,7 +1616,13 @@ class Agent:
             return None
         try:
             from .providers.anthropic import AnthropicProvider
-        except Exception:
+        except Exception as e:
+            # The optional [anthropic] extra isn't installed; fall back to local
+            # but tell the user why their claude-* / anthropic persona didn't route.
+            logger.warning(
+                f"Anthropic provider requested ({model}) but unavailable, "
+                f"using local provider instead: {e}"
+            )
             return None
         return AnthropicProvider(model=model or self.settings.anthropic_model)
 
