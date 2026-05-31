@@ -233,6 +233,10 @@ class TestErrorSurfacing:
         assert "network" in shown
         # The friendly suggestion from classify_exception is included.
         assert "server" in shown
+        # Retries are already exhausted here, so the message must NOT claim it
+        # is retrying automatically.
+        assert "retrying automatically" not in shown
+        assert "manual intervention" in shown
 
     def test_handle_failure_passes_through_gerdsenai_error(self) -> None:
         """An already-typed GerdsenAIError is displayed as-is (not re-wrapped)."""

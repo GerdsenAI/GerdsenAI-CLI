@@ -234,10 +234,14 @@ class LLMClient:
                 error: GerdsenAIError = exc
             else:
                 category, suggestion = classify_exception(exc)
+                # This runs only after the retry loop is exhausted, so mark the
+                # error non-recoverable: the display must not claim it is
+                # "retrying automatically" when retries are already spent.
                 error = GerdsenAIError(
                     message=f"{operation_name} failed: {exc}",
                     category=category,
                     suggestion=suggestion,
+                    recoverable=False,
                     original_exception=exc,
                 )
             show_error(ErrorDisplay.display_error(error, tui_mode=False))
