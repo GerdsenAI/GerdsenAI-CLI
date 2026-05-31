@@ -183,15 +183,16 @@ class GerdsenAICLI:
             # This ensures ARCHITECT mode can see repository files without manual commands
             if agent_ready and self.agent.context_manager:
                 try:
-                    logger.debug("Auto-loading workspace context...")
-                    # Context is already loaded by agent.initialize() -> _analyze_project_structure()
-                    # Just show user feedback about files loaded
+                    logger.debug("Checking workspace context...")
+                    # The project scan is lazy (runs on the first turn that needs
+                    # context), so files is typically empty here -- report only
+                    # when an eager scan has already populated it.
                     context_files = len(self.agent.context_manager.files)
                     if context_files > 0:
                         show_info(f"📂 Loaded {context_files} files into context")
                     else:
                         logger.debug(
-                            "No files loaded into context (empty workspace or scan failed)"
+                            "Project context will load on first use (lazy scan)"
                         )
                 except Exception as e:
                     logger.warning(f"Failed to report workspace context: {e}")

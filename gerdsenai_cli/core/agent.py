@@ -625,12 +625,22 @@ class Agent:
         self.context_builds = 0
 
     async def initialize(self) -> bool:
-        """Initialize the agent and optionally analyze the project."""
+        """Initialize the agent.
+
+        The project filesystem scan is **lazy**: it runs on the first turn that
+        needs context (``_build_project_context`` / project-analysis paths both
+        trigger ``_analyze_project_structure`` when ``context_manager.files`` is
+        empty), so startup stays instant on large repos. Set the
+        ``eager_project_scan`` preference to restore the old scan-at-startup
+        behaviour.
+        """
         try:
             show_info("Initializing AI agent...")
 
-            # Perform initial project scan if enabled
-            if self.auto_analyze_project:
+            # Opt-in eager scan; default is lazy (scan on first context build).
+            if self.auto_analyze_project and self.settings.get_preference(
+                "eager_project_scan", False
+            ):
                 await self._analyze_project_structure()
 
             show_success("AI agent initialized and ready!")
