@@ -13,7 +13,7 @@ from ..config.settings import Settings
 from ..core.repo_index import build_indexer
 from .base import BaseCommand, CommandArgument, CommandCategory, CommandResult
 
-_ACTIONS = {"build", "refresh", "status", "search", "clear", "help"}
+_ACTIONS = {"build", "refresh", "update", "status", "search", "clear", "help"}
 _UNAVAILABLE = (
     "Vector indexing is unavailable. Ensure Qdrant is running "
     "(default http://localhost:6333) and an embedding backend exists "
@@ -46,7 +46,9 @@ class IndexCommand(BaseCommand):
         return {
             "action": CommandArgument(
                 name="action",
-                description="build | status | search <query> | clear",
+                description=(
+                    "build | refresh | update | status | search <query> | clear"
+                ),
                 required=False,
                 default="status",
                 choices=sorted(_ACTIONS),
@@ -89,7 +91,7 @@ class IndexCommand(BaseCommand):
             console.print(f"[yellow]{_UNAVAILABLE}[/yellow]")
             return CommandResult(success=True, message="Vector indexing unavailable")
 
-        if action in {"build", "refresh"}:
+        if action == "build":
             console.print(
                 f"[cyan]Indexing repository into '{indexer.collection}'...[/cyan]"
             )
@@ -101,6 +103,23 @@ class IndexCommand(BaseCommand):
             for err in stats.errors:
                 console.print(f"[red]  {err}[/red]")
             return CommandResult(success=True, message=f"Indexed {stats.chunks} chunks")
+
+        if action in {"refresh", "update"}:
+            console.print(
+                f"[cyan]Refreshing changed files in '{indexer.collection}'...[/cyan]"
+            )
+            stats = await indexer.build_incremental()
+            console.print(
+                f"[green]Re-indexed {stats.chunks} chunks from {stats.files} "
+                f"changed file(s)[/green] "
+                f"({stats.unchanged} unchanged, {stats.removed} removed)"
+            )
+            for err in stats.errors:
+                console.print(f"[red]  {err}[/red]")
+            return CommandResult(
+                success=True,
+                message=f"Refreshed {stats.files} changed file(s)",
+            )
 
         if action == "clear":
             await indexer.clear()

@@ -11,6 +11,7 @@ the higher-level command degrades to a no-op.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -96,11 +97,18 @@ _EMBED_BATCH = 64
 
 @dataclass
 class IndexStats:
-    """Outcome of a build."""
+    """Outcome of a build.
+
+    For incremental builds, ``files``/``chunks`` count what was (re)embedded this
+    run; ``removed`` counts files dropped from the index (deleted or changed),
+    and ``unchanged`` counts files skipped because their content hash matched.
+    """
 
     files: int = 0
     chunks: int = 0
     skipped: int = 0
+    removed: int = 0
+    unchanged: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -127,12 +135,38 @@ class RepoIndexer:
         store: QdrantVectorStore,
         backend: EmbeddingBackend,
         chunk_chars: int = 1200,
+        manifest_dir: Path | None = None,
     ) -> None:
         self.repo_root = repo_root.resolve()
         self.store = store
         self.backend = backend
         self.chunk_chars = chunk_chars
         self.collection = collection_name_for(self.repo_root)
+        # Manifest (path -> content hash) enables incremental re-indexing.
+        base = manifest_dir or (Path.home() / ".config" / "gerdsenai-cli" / "index")
+        self.manifest_path = base / f"{self.collection}.json"
+
+    # -- manifest -------------------------------------------------------- #
+
+    def _load_manifest(self) -> dict[str, str]:
+        try:
+            data = json.loads(self.manifest_path.read_text("utf-8"))
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): str(v) for k, v in data.items()}
+
+    def _save_manifest(self, manifest: dict[str, str]) -> None:
+        try:
+            self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            self.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        except OSError as e:
+            logger.debug(f"Could not persist index manifest: {e}")
+
+    @staticmethod
+    def _hash_text(text: str) -> str:
+        return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
     # -- file gathering -------------------------------------------------- #
 
@@ -182,29 +216,29 @@ class RepoIndexer:
 
     # -- build / query --------------------------------------------------- #
 
-    async def build(self) -> IndexStats:
-        """Rebuild the index from scratch for this repo."""
-        stats = IndexStats()
-        files = self.iter_text_files()
+    def _chunks_to_points(
+        self, batch: list[Chunk], vectors: list[list[float]]
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "id": str(uuid.uuid5(_NAMESPACE, f"{c.path}:{c.start_line}:{idx}")),
+                "vector": vec,
+                "payload": {
+                    "path": c.path,
+                    "start_line": c.start_line,
+                    "end_line": c.end_line,
+                    "text": c.text,
+                },
+            }
+            for idx, (c, vec) in enumerate(zip(batch, vectors, strict=False))
+        ]
 
-        all_chunks: list[Chunk] = []
-        for path in files:
-            file_chunks = self._chunk_file(path)
-            if file_chunks:
-                stats.files += 1
-                all_chunks.extend(file_chunks)
-            else:
-                stats.skipped += 1
-
-        if not all_chunks:
-            return stats
-
-        # Fresh collection each build keeps results consistent.
-        await self.store.delete_collection(self.collection)
-
-        dim: int | None = None
-        for start in range(0, len(all_chunks), _EMBED_BATCH):
-            batch = all_chunks[start : start + _EMBED_BATCH]
+    async def _embed_and_upsert(
+        self, chunks: list[Chunk], stats: IndexStats, dim: int | None
+    ) -> int | None:
+        """Embed chunks in batches and upsert them; returns the vector dim."""
+        for start in range(0, len(chunks), _EMBED_BATCH):
+            batch = chunks[start : start + _EMBED_BATCH]
             try:
                 vectors = await self.backend.embed([c.text for c in batch])
             except Exception as e:
@@ -215,25 +249,90 @@ class RepoIndexer:
                 dim = len(vectors[0])
                 await self.store.ensure_collection(self.collection, dim)
 
-            points = [
-                {
-                    "id": str(uuid.uuid5(_NAMESPACE, f"{c.path}:{c.start_line}:{idx}")),
-                    "vector": vec,
-                    "payload": {
-                        "path": c.path,
-                        "start_line": c.start_line,
-                        "end_line": c.end_line,
-                        "text": c.text,
-                    },
-                }
-                for idx, (c, vec) in enumerate(zip(batch, vectors, strict=False))
-            ]
+            points = self._chunks_to_points(batch, vectors)
             try:
                 await self.store.upsert(self.collection, points)
                 stats.chunks += len(points)
             except Exception as e:
                 stats.errors.append(f"upsert failed: {e}")
+        return dim
 
+    async def build(self) -> IndexStats:
+        """Rebuild the index from scratch for this repo."""
+        stats = IndexStats()
+        files = self.iter_text_files()
+
+        all_chunks: list[Chunk] = []
+        manifest: dict[str, str] = {}
+        for path in files:
+            file_chunks = self._chunk_file(path)
+            if file_chunks:
+                stats.files += 1
+                all_chunks.extend(file_chunks)
+                rel = str(path.relative_to(self.repo_root))
+                manifest[rel] = self._hash_text("".join(c.text for c in file_chunks))
+            else:
+                stats.skipped += 1
+
+        # Fresh collection each build keeps results consistent.
+        await self.store.delete_collection(self.collection)
+
+        if not all_chunks:
+            self._save_manifest({})
+            return stats
+
+        await self._embed_and_upsert(all_chunks, stats, dim=None)
+        self._save_manifest(manifest)
+        return stats
+
+    async def build_incremental(self) -> IndexStats:
+        """Re-index only files whose content changed since the last build.
+
+        Compares each file's content hash against the persisted manifest:
+        unchanged files are skipped, changed/new files are re-embedded (their
+        stale chunks deleted first), and files that disappeared are removed from
+        the index. Falls back to a full :meth:`build` when no manifest exists.
+        """
+        old_manifest = self._load_manifest()
+        if not old_manifest:
+            return await self.build()
+
+        stats = IndexStats()
+        files = self.iter_text_files()
+
+        new_manifest: dict[str, str] = {}
+        changed_chunks: list[Chunk] = []
+        seen: set[str] = set()
+        for path in files:
+            file_chunks = self._chunk_file(path)
+            if not file_chunks:
+                stats.skipped += 1
+                continue
+            rel = str(path.relative_to(self.repo_root))
+            seen.add(rel)
+            digest = self._hash_text("".join(c.text for c in file_chunks))
+            new_manifest[rel] = digest
+            if old_manifest.get(rel) == digest:
+                stats.unchanged += 1
+                continue
+            # Changed or new: drop any stale chunks, then re-embed.
+            if rel in old_manifest:
+                await self.store.delete_by_path(self.collection, rel)
+            stats.files += 1
+            changed_chunks.extend(file_chunks)
+
+        # Files that vanished from the working tree: remove their chunks.
+        for rel in old_manifest:
+            if rel not in seen:
+                await self.store.delete_by_path(self.collection, rel)
+                stats.removed += 1
+
+        if changed_chunks:
+            # _embed_and_upsert ensures the collection on first batch; passing
+            # dim=None is safe because ensure_collection is a no-op if it exists.
+            await self._embed_and_upsert(changed_chunks, stats, dim=None)
+
+        self._save_manifest(new_manifest)
         return stats
 
     async def search(self, query: str, limit: int = 5) -> list[SearchHit]:
@@ -253,6 +352,10 @@ class RepoIndexer:
 
     async def clear(self) -> None:
         await self.store.delete_collection(self.collection)
+        try:
+            self.manifest_path.unlink(missing_ok=True)
+        except OSError as e:
+            logger.debug(f"Could not remove index manifest: {e}")
 
 
 async def build_indexer(settings: Settings, repo_root: Path) -> RepoIndexer | None:
