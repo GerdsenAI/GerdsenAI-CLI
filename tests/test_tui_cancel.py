@@ -47,13 +47,14 @@ async def test_cancel_active_message_cancels_running_task(
 
     tui._active_message_task = asyncio.ensure_future(long_running())
     await started.wait()
+    task = tui._active_message_task  # capture before cancel clears the handle
 
     cancelled = tui._cancel_active_message()
     assert cancelled is True
 
     with pytest.raises(asyncio.CancelledError):
-        await tui._active_message_task
-    assert tui._active_message_task.cancelled()
+        await task
+    assert task.cancelled()
 
 
 @pytest.mark.asyncio
@@ -88,3 +89,25 @@ async def test_completed_task_is_not_cancelled(tui: PromptToolkitTUI) -> None:
     await tui._active_message_task  # let it finish
     # Nothing to cancel once done.
     assert tui._cancel_active_message() is False
+
+
+@pytest.mark.asyncio
+async def test_cancel_clears_task_reference(tui: PromptToolkitTUI) -> None:
+    """After a successful cancel the handle is cleared (no stale double-cancel)."""
+    started = asyncio.Event()
+
+    async def long_running() -> None:
+        started.set()
+        await asyncio.sleep(10)
+
+    tui._active_message_task = asyncio.ensure_future(long_running())
+    await started.wait()
+    task = tui._active_message_task
+
+    assert tui._cancel_active_message() is True
+    assert tui._active_message_task is None  # reference cleared
+    # A second cancel is a no-op (nothing stale to act on).
+    assert tui._cancel_active_message() is False
+
+    with pytest.raises(asyncio.CancelledError):
+        await task

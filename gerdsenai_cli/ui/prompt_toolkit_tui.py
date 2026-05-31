@@ -1376,13 +1376,15 @@ class PromptToolkitTUI:
     def _cancel_active_message(self) -> bool:
         """Cancel the in-flight message task, if any.
 
-        Returns True if a running task was cancelled. Partial output is kept;
-        the streaming loop's ``finally`` finalizes it and a cancellation note is
-        appended there.
+        Returns True if a running task was cancelled. The streaming loop's
+        ``CancelledError`` handler keeps the partial output, appends a cancel
+        marker, and finalizes it. The task reference is cleared so a second
+        Escape doesn't act on a stale handle.
         """
         task = self._active_message_task
         if task is not None and not task.done():
             task.cancel()
+            self._active_message_task = None
             self.status_text = "Response cancelled."
             self.app.invalidate()
             return True
