@@ -1255,6 +1255,18 @@ class GerdsenAICLI:
                                 "command", "✅ Execution complete!"
                             )
 
+                        except asyncio.CancelledError:
+                            # User pressed Escape during plan execution: keep
+                            # partial text + cancel marker, finalize, restore
+                            # mode via finally below.
+                            logger.info("Plan execution cancelled by user")
+                            tui.hide_animation()
+                            if tui.conversation.streaming_message is not None:
+                                tui.append_streaming_chunk(
+                                    "\n\n_⏹ Response cancelled._"
+                                )
+                            tui.finish_streaming_response()
+
                         except Exception as e:
                             tui.hide_animation()
                             tui.finish_streaming_response()
@@ -1410,6 +1422,17 @@ class GerdsenAICLI:
                         # Record success for provider health tracking
                         tui_edge_handler.provider_handler.record_success()
 
+                    except asyncio.CancelledError:
+                        # User pressed Escape mid-stream: mark the cancellation
+                        # inline on the partial text (the "system" channel isn't
+                        # rendered), then finalize so it lands in visible history.
+                        # Do not re-raise -- the app loop keeps accepting input.
+                        logger.info("Streaming response cancelled by user")
+                        if tui.conversation.streaming_message is not None:
+                            tui.append_streaming_chunk("\n\n_⏹ Response cancelled._")
+                        tui.finish_streaming_response()  # finally's call no-ops
+                        tui.app.invalidate()
+
                     except TimeoutError:
                         # Record provider failure
                         tui_edge_handler.provider_handler.record_failure()
@@ -1536,6 +1559,14 @@ class GerdsenAICLI:
                         plan["original_request"] = text  # Store for later execution
                         tui.show_plan_for_approval(plan)
 
+                    except asyncio.CancelledError:
+                        # User pressed Escape during planning: clean up and
+                        # return to the prompt without surfacing a fake error.
+                        logger.info("Planning cancelled by user")
+                        tui.hide_animation()
+                        tui.app.invalidate()
+                        return
+
                     except Exception as e:
                         tui.hide_animation()
                         tui.conversation.add_message(
@@ -1622,6 +1653,13 @@ class GerdsenAICLI:
                                 "system", "Warning: No response received from AI"
                             )
                             tui.app.invalidate()
+
+                    except asyncio.CancelledError:
+                        # User pressed Escape mid-execution: keep partial text +
+                        # inline cancel marker, then finalize below.
+                        logger.info("Execution response cancelled by user")
+                        if tui.conversation.streaming_message is not None:
+                            tui.append_streaming_chunk("\n\n_⏹ Response cancelled._")
 
                     except TimeoutError:
                         timeout_value = (

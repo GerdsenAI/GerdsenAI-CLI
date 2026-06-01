@@ -565,6 +565,9 @@ class PromptToolkitTUI:
         self.running = False
         self.message_callback: Callable[[str], Awaitable[None]] | None = None
         self.command_callback: Callable[[str, list[str]], Awaitable[str]] | None = None
+        # Handle to the in-flight message task so a streaming response can be
+        # cancelled (Escape) without exiting the app.
+        self._active_message_task: asyncio.Task[None] | None = None
         self.conversation_window: Window | None = None  # Store reference for scrolling
         self.input_window: Window | None = None  # Store reference for dynamic height
         self.auto_scroll_enabled = True  # Track if we should auto-scroll on updates
@@ -856,9 +859,12 @@ class PromptToolkitTUI:
                     # Regular message
                     self.conversation.add_message("user", text)
 
-                    # Trigger callback if set
+                    # Trigger callback if set; keep the task so Escape can cancel
+                    # the in-flight response.
                     if self.message_callback:
-                        asyncio.ensure_future(self.message_callback(text))
+                        self._active_message_task = asyncio.ensure_future(
+                            self.message_callback(text)
+                        )
 
                 # Re-enable auto-scroll when user submits new message
                 self.auto_scroll_enabled = True
@@ -871,8 +877,10 @@ class PromptToolkitTUI:
                 event.app.invalidate()
 
         @kb.add("escape")
-        def clear_input(event: KeyPressEvent) -> None:
-            """Clear input field on Escape."""
+        def clear_input_or_cancel(event: KeyPressEvent) -> None:
+            """Escape cancels an in-flight response, else clears the input."""
+            if self._is_streaming() and self._cancel_active_message():
+                return
             event.current_buffer.reset()
 
         @kb.add("pageup")
@@ -1360,6 +1368,27 @@ class PromptToolkitTUI:
             # Move cursor to end of buffer text
             text_length = len(self.conversation.buffer.text)
             self.conversation.buffer.cursor_position = text_length
+
+    def _is_streaming(self) -> bool:
+        """True while an AI response is actively streaming."""
+        return self.conversation.streaming_message is not None
+
+    def _cancel_active_message(self) -> bool:
+        """Cancel the in-flight message task, if any.
+
+        Returns True if a running task was cancelled. The streaming loop's
+        ``CancelledError`` handler keeps the partial output, appends a cancel
+        marker, and finalizes it. The task reference is cleared so a second
+        Escape doesn't act on a stale handle.
+        """
+        task = self._active_message_task
+        if task is not None and not task.done():
+            task.cancel()
+            self._active_message_task = None
+            self.status_text = "Response cancelled."
+            self.app.invalidate()
+            return True
+        return False
 
     def start_streaming_response(self) -> None:
         """Begin streaming an AI response.
