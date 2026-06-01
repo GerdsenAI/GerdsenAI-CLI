@@ -263,3 +263,21 @@ class TestErrorSurfacing:
         assert result is None  # public contract preserved
         assert mock_show.called
         assert "network" in mock_show.call_args[0][0].lower()
+
+    @pytest.mark.asyncio
+    async def test_connect_failure_surfaces_classified_error(self) -> None:
+        """connect() returns False on failure AND shows a classified NETWORK error."""
+        from httpx import ConnectError
+
+        with (
+            patch.object(self.client.client, "get") as mock_get,
+            patch("gerdsenai_cli.core.llm_client.show_error") as mock_show,
+        ):
+            mock_get.side_effect = ConnectError("refused")
+            result = await self.client.connect()
+        assert result is False  # public contract preserved
+        assert mock_show.called
+        shown = mock_show.call_args[0][0].lower()
+        assert "network" in shown
+        assert "server" in shown  # keeps the "is the server running?" context
+        assert "retrying automatically" not in shown
