@@ -61,10 +61,37 @@ class ModelInfo(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    """A chat message."""
+    """A chat message.
 
-    role: str  # "system", "user", "assistant"
+    ``tool_calls`` carries assistant-issued tool calls (OpenAI shape); for
+    ``role == "tool"`` messages, ``tool_call_id`` links the result back to the
+    call that produced it. Both are omitted from the wire payload when empty so
+    plain chat requests are unchanged.
+    """
+
+    role: str  # "system", "user", "assistant", "tool"
     content: str
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
+
+
+class ToolCall(BaseModel):
+    """A single tool call requested by the model (provider-agnostic shape)."""
+
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+class ChatResult(BaseModel):
+    """Result of a tool-aware completion: free-text and/or tool calls."""
+
+    content: str = ""
+    tool_calls: list[ToolCall] = []
+
+    @property
+    def has_tool_calls(self) -> bool:
+        return bool(self.tool_calls)
 
 
 class ChatCompletionRequest(BaseModel):
@@ -76,6 +103,22 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = None
     stream: bool = False
     stop: str | list[str] | None = None
+    tools: list[dict[str, Any]] | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        """Serialize for the wire, dropping null/empty optional fields.
+
+        Keeps plain (tool-less) requests byte-for-byte what they were before
+        tool support existed, so existing providers see no new keys.
+        """
+        data = self.model_dump(exclude_none=True)
+        # Strip per-message tool fields that are None so non-tool turns are clean.
+        for msg in data.get("messages", []):
+            if msg.get("tool_calls") is None:
+                msg.pop("tool_calls", None)
+            if msg.get("tool_call_id") is None:
+                msg.pop("tool_call_id", None)
+        return data
 
 
 class ChatCompletionResponse(BaseModel):
@@ -601,7 +644,7 @@ class LLMClient:
             url = self._get_endpoint("/v1/chat/completions")
             try:
                 response = await self._ensure_client().post(
-                    url, json=request_data.model_dump(), timeout=timeout
+                    url, json=request_data.to_payload(), timeout=timeout
                 )
                 response.raise_for_status()
 
@@ -613,7 +656,7 @@ class LLMClient:
                     # Try alternative endpoint
                     url = self._get_endpoint("/api/chat")
                     response = await self._ensure_client().post(
-                        url, json=request_data.model_dump(), timeout=timeout
+                        url, json=request_data.to_payload(), timeout=timeout
                     )
                     response.raise_for_status()
                     data = response.json()
@@ -653,6 +696,91 @@ class LLMClient:
 
         logger.warning("Invalid response format from LLM server")
         return None
+
+    @staticmethod
+    def _parse_tool_calls(data: dict[str, Any]) -> ChatResult:
+        """Parse an OpenAI-shape chat response into text + tool calls.
+
+        Tolerant of providers that omit ``tool_calls`` (returns text only) and
+        of arguments arriving as a JSON string (OpenAI) or already-parsed dict.
+        """
+        content = ""
+        tool_calls: list[ToolCall] = []
+        choices = data.get("choices") or []
+        if choices:
+            message = choices[0].get("message", {}) or {}
+            content = message.get("content") or ""
+            for raw in message.get("tool_calls") or []:
+                fn = raw.get("function", {}) or {}
+                args = fn.get("arguments", {})
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args) if args.strip() else {}
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            f"Tool call '{fn.get('name')}' had unparseable "
+                            f"arguments; passing empty dict"
+                        )
+                        args = {}
+                tool_calls.append(
+                    ToolCall(
+                        id=raw.get("id") or f"call_{len(tool_calls)}",
+                        name=fn.get("name", ""),
+                        arguments=args if isinstance(args, dict) else {},
+                    )
+                )
+        return ChatResult(content=content, tool_calls=tool_calls)
+
+    async def chat_with_tools(
+        self,
+        messages: list[ChatMessage],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> ChatResult:
+        """Tool-aware chat completion (OpenAI ``tools`` schema).
+
+        Sends the tool schemas and returns a :class:`ChatResult` carrying the
+        model's free-text and/or requested tool calls. Mirrors :meth:`chat`'s
+        retry/endpoint-fallback structure; on failure surfaces a classified
+        error and returns an empty result (so the agent loop can stop cleanly).
+        """
+
+        async def _impl() -> ChatResult:
+            current_model = model or self.settings.current_model
+            if not current_model:
+                available = await self.list_models()
+                if available:
+                    current_model = available[0].id
+                else:
+                    show_error("No model specified and no models available")
+                    return ChatResult()
+
+            request_data = ChatCompletionRequest(
+                model=current_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=False,
+                tools=tools or None,
+            )
+            timeout = httpx.Timeout(self._get_timeout("chat"))
+            url = self._get_endpoint("/v1/chat/completions")
+            response = await self._ensure_client().post(
+                url, json=request_data.to_payload(), timeout=timeout
+            )
+            response.raise_for_status()
+            return self._parse_tool_calls(response.json())
+
+        try:
+            result: ChatResult = await self._execute_with_retry(
+                "Tool chat completion", _impl
+            )
+            return result
+        except Exception as e:
+            self._handle_failure("Tool chat request", e)
+            return ChatResult()
 
     async def stream_chat(
         self,
@@ -702,7 +830,7 @@ class LLMClient:
             url = self._get_endpoint("/v1/chat/completions")
 
             async with self._ensure_client().stream(
-                "POST", url, json=request_data.model_dump()
+                "POST", url, json=request_data.to_payload()
             ) as response:
                 response.raise_for_status()
 
