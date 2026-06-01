@@ -109,11 +109,12 @@ decisions already made, so future work can proceed without re-litigating them.
   `ExecutionMode`. Then diff-based edits, a headless `-p` one-shot mode, and
   unifying the duplicated TUI streaming loops.
 
-## Known outstanding (process)
-- **GitHub PR creation requires a working GitHub connection.** During a recent
-  session the GitHub integration dropped; branches still push over plain git, but
-  opening PRs needs the connection restored (re-auth via the Claude
-  directory/integrations, completing the OAuth flow with the genuine
-  `localhost/callback` URL only). Some feature branches (e.g.
-  `claude/agent-tool-loop`) may be **pushed but not yet have an open PR** until
-  this is restored. Never complete GitHub auth with a non-GitHub callback URL.
+## Process notes
+- **GitHub PR creation depends on a working GitHub connection.** Branches always
+  push over plain git, but opening/merging PRs needs the GitHub integration
+  connected. If it drops mid-session, restore it via the Claude
+  directory/integrations and complete the OAuth flow using **only** the genuine
+  `localhost/callback?code=...` URL from that flow — never a callback pointing at a
+  different service. (A prior session saw the connection drop and a spurious
+  "switch to a Google Drive endpoint" message, which was correctly refused; the
+  GitHub connection later recovered on its own.)
