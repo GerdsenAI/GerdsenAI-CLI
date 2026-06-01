@@ -1203,7 +1203,12 @@ class Agent:
                             progress=0.2,
                         )
 
-                    # Get project file list for context
+                    # Get project file list for context. Trigger the lazy scan
+                    # if it hasn't run yet, so first-turn intent detection sees
+                    # the project files (no-op once the index is populated).
+                    if not self.context_manager.files:
+                        await self._analyze_project_structure()
+
                     project_files = []
                     if self.context_manager.files:
                         project_files = [

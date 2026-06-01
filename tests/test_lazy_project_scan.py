@@ -69,3 +69,40 @@ async def test_first_context_build_triggers_scan(tmp_path: Path) -> None:
     await agent._build_project_context("tell me about this project")
     # The scan ran because files was empty when context was built.
     assert len(agent.context_manager.files) > 0
+
+
+@pytest.mark.asyncio
+async def test_first_turn_intent_detection_sees_scanned_files(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Regression: first-turn LLM intent detection must receive project files.
+
+    With the lazy scan, intent detection runs before _build_project_context, so
+    process_user_input must trigger the scan first or the intent detector gets
+    an empty file list on turn 1.
+    """
+    _project(tmp_path)
+    settings = Settings()
+    settings.set_preference("enable_llm_intent_detection", True)
+    settings.set_preference("streaming", False)
+    agent = Agent(FakeLLMClient(), settings, project_root=tmp_path)
+    await agent.initialize()
+    assert len(agent.context_manager.files) == 0  # lazy: empty after init
+
+    captured: dict[str, list[str]] = {}
+
+    async def fake_detect(
+        llm_client: Any, user_query: str, project_files: list[str]
+    ) -> Any:
+        captured["project_files"] = project_files
+        from gerdsenai_cli.core.agent import ActionIntent, ActionType
+
+        return ActionIntent(action_type=ActionType.CHAT, confidence=0.9)
+
+    monkeypatch.setattr(agent.intent_parser, "detect_intent_with_llm", fake_detect)
+
+    await agent.process_user_input("what files are in this project")
+
+    # The scan ran before intent detection, so it received the project files.
+    assert captured.get("project_files"), "intent detection got an empty file list"
+    assert any("a.py" in f for f in captured["project_files"])
