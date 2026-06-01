@@ -95,3 +95,25 @@ decisions already made, so future work can proceed without re-litigating them.
 - Coverage is currently ~45% (the pytest gate was lowered from an aspirational 90%
   to match reality). Raising real coverage back toward 90% is tracked here as
   ongoing work, prioritising `core/agent.py`, `commands/`, and the providers.
+
+## Agentic tool-use loop — **in progress**
+- Turning the agent from a single-shot intent classifier into a real
+  tool→observe→tool loop. Landed: native tool-calling in the LLM client
+  (`chat_with_tools`, `ToolCall`/`ChatResult`), Anthropic `tool_use`, and a
+  prompt-based tool shim (`core/tool_shim.py`) so tool-less local models still work.
+- Landed (engine): `core/tool_registry.py` — `Tool`, `ToolRegistry`, and
+  `run_agent_loop` (bounded loop; read-only tools run freely, mutating tools gated
+  by a `confirm` callback; CHAT mode = no tools; `max_iterations` cap).
+- **Next:** wire `run_agent_loop` into `Agent.process_user_input`, expose the
+  existing file/search/terminal handlers as tools, and drive autonomy from
+  `ExecutionMode`. Then diff-based edits, a headless `-p` one-shot mode, and
+  unifying the duplicated TUI streaming loops.
+
+## Known outstanding (process)
+- **GitHub PR creation requires a working GitHub connection.** During a recent
+  session the GitHub integration dropped; branches still push over plain git, but
+  opening PRs needs the connection restored (re-auth via the Claude
+  directory/integrations, completing the OAuth flow with the genuine
+  `localhost/callback` URL only). Some feature branches (e.g.
+  `claude/agent-tool-loop`) may be **pushed but not yet have an open PR** until
+  this is restored. Never complete GitHub auth with a non-GitHub callback URL.
