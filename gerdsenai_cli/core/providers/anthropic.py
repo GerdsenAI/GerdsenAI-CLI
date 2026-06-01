@@ -23,6 +23,24 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-opus-4-8"
 
+
+def _to_anthropic_tool(tool: dict[str, Any]) -> dict[str, Any]:
+    """Convert an OpenAI-shape tool schema to Anthropic's tool format.
+
+    OpenAI: ``{"type": "function", "function": {"name", "description",
+    "parameters"}}``. Anthropic: ``{"name", "description", "input_schema"}``.
+    Already-Anthropic dicts (have ``input_schema``) pass through.
+    """
+    if "input_schema" in tool:
+        return tool
+    fn = tool.get("function", tool)
+    return {
+        "name": fn.get("name", ""),
+        "description": fn.get("description", ""),
+        "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
+    }
+
+
 # Known models and their context windows (cached; live list via the Models API
 # when reachable). Source: Anthropic models overview.
 KNOWN_MODELS: dict[str, int] = {
@@ -186,6 +204,37 @@ class AnthropicProvider(LLMProvider):
         async with client.messages.stream(**params) as stream:
             async for text in stream.text_stream:
                 yield text
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]],
+        model: str,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> Any:
+        """Tool-aware completion using Claude's native ``tool_use`` blocks.
+
+        Accepts OpenAI-shape tool schemas (the app's internal lingua franca),
+        converts them to Anthropic's format, and parses ``tool_use`` blocks back
+        into the provider-agnostic ChatResult used by the agent loop.
+        """
+        from ..llm_client import ChatResult, ToolCall
+
+        client = self._client()
+        params = self._build_kwargs(messages, model, temperature, max_tokens, None)
+        params["tools"] = [_to_anthropic_tool(t) for t in tools]
+        response = await client.messages.create(**params)
+
+        content = "".join(
+            block.text for block in response.content if block.type == "text"
+        )
+        tool_calls = [
+            ToolCall(id=block.id, name=block.name, arguments=dict(block.input))
+            for block in response.content
+            if block.type == "tool_use"
+        ]
+        return ChatResult(content=content, tool_calls=tool_calls)
 
     def get_capabilities(self) -> ProviderCapabilities:
         return ProviderCapabilities(
