@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from ..config.settings import Settings
 from ..utils.display import show_error
 from ..utils.performance import measure_performance
-from .errors import GerdsenAIError, classify_exception
+from .errors import GerdsenAIError, NetworkError, classify_exception
 
 logger = logging.getLogger(__name__)
 
@@ -425,11 +425,20 @@ class LLMClient:
             )
             return result
         except Exception as e:
-            logger.debug(f"Connection test failed completely: {e}")
-            logger.error(f"Connection test failed after retries: {e}")
-            show_error(
-                f"Unable to connect to LLM server at {self.base_url}. Is the server running?"
+            # Route through the shared classified-error display for consistency
+            # with chat/list_models/stream_chat, but keep the connection-specific
+            # context (which server, and the "is it running?" hint).
+            wrapped = NetworkError(
+                message=f"Unable to connect to LLM server at {self.base_url}",
+                suggestion="Is the server running? Check the URL and that the "
+                "LLM server is started.",
+                context={"base_url": self.base_url},
+                original_exception=e,
             )
+            # Retries are already spent here, so the display must not claim it is
+            # "retrying automatically".
+            wrapped.recoverable = False
+            self._handle_failure("Connection test", wrapped)
             return False
 
     @measure_performance("model_loading")  # type: ignore[misc]
