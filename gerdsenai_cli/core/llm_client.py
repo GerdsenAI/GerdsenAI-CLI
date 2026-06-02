@@ -84,10 +84,16 @@ class ToolCall(BaseModel):
 
 
 class ChatResult(BaseModel):
-    """Result of a tool-aware completion: free-text and/or tool calls."""
+    """Result of a tool-aware completion: free-text and/or tool calls.
+
+    ``reasoning`` holds any chain-of-thought the model emitted (stripped from
+    ``<think>`` blocks or a server ``reasoning_content`` field); it is for display
+    only and is never fed back into tool-call parsing.
+    """
 
     content: str = ""
     tool_calls: list[ToolCall] = []
+    reasoning: str = ""
 
     @property
     def has_tool_calls(self) -> bool:
@@ -701,15 +707,20 @@ class LLMClient:
     def _parse_tool_calls(data: dict[str, Any]) -> ChatResult:
         """Parse an OpenAI-shape chat response into text + tool calls.
 
-        Tolerant of providers that omit ``tool_calls`` (returns text only) and
-        of arguments arriving as a JSON string (OpenAI) or already-parsed dict.
+        Extracts the server's structured ``tool_calls`` (tolerating arguments as a
+        JSON string or dict) plus any ``reasoning_content``, then routes through
+        ``parse_model_output`` so Hermes ``<tool_call>`` tags and ``<think>`` blocks
+        in the text are also handled — covering servers whose own parser leaked
+        the tags. Tool-less responses fall through to a plain final answer.
         """
         content = ""
-        tool_calls: list[ToolCall] = []
+        reasoning_content: str | None = None
+        server_tool_calls: list[ToolCall] = []
         choices = data.get("choices") or []
         if choices:
             message = choices[0].get("message", {}) or {}
             content = message.get("content") or ""
+            reasoning_content = message.get("reasoning_content")
             for raw in message.get("tool_calls") or []:
                 fn = raw.get("function", {}) or {}
                 args = fn.get("arguments", {})
@@ -722,14 +733,21 @@ class LLMClient:
                             f"arguments; passing empty dict"
                         )
                         args = {}
-                tool_calls.append(
+                server_tool_calls.append(
                     ToolCall(
-                        id=raw.get("id") or f"call_{len(tool_calls)}",
+                        id=raw.get("id") or f"call_{len(server_tool_calls)}",
                         name=fn.get("name", ""),
                         arguments=args if isinstance(args, dict) else {},
                     )
                 )
-        return ChatResult(content=content, tool_calls=tool_calls)
+
+        from .tool_parsing import parse_model_output
+
+        return parse_model_output(
+            content,
+            server_tool_calls=server_tool_calls or None,
+            reasoning_content=reasoning_content,
+        )
 
     async def chat_with_tools(
         self,
