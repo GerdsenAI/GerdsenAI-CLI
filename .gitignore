@@ -78,6 +78,11 @@ Thumbs.db
 
 # Project specific
 .claude/
+# ...but keep the durable handoff/vision docs tracked (see .claude/DREAM.md)
+!.claude/
+.claude/*
+!.claude/DREAM.md
+!.claude/HANDOFF.md
 .gerdsenai/
 
 # Config backups
