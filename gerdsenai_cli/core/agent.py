@@ -7,6 +7,7 @@ project analysis.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import re
@@ -623,6 +624,11 @@ class Agent:
         self.actions_performed = 0
         self.files_modified = 0
         self.context_builds = 0
+
+        # Agentic tool loop: registry built lazily; confirmation_callback is set
+        # by the app (e.g. the TUI) to drive interactive approval of mutating tools.
+        self._tool_registry: Any | None = None
+        self.confirmation_callback: Any | None = None
 
     async def initialize(self) -> bool:
         """Initialize the agent.
@@ -1293,6 +1299,19 @@ class Agent:
             # Prepare messages for LLM
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
+            # Agentic tool-use loop (default ON). When enabled and the mode
+            # permits tools, the model can call tools and observe results across
+            # multiple steps in this one turn. Falls back to the single-shot path
+            # below when disabled, in CHAT mode, or if the loop is unavailable.
+            loop_response = await self._maybe_run_agent_loop(llm_messages)
+            if loop_response:
+                self.conversation.messages.append(
+                    ChatMessage(role="assistant", content=loop_response)
+                )
+                self._track_conversation_in_memory(user_input, loop_response, intent)
+                self.actions_performed += 1
+                return loop_response
+
             # Decide whether to stream
             streaming_enabled = self.settings.get_preference("streaming", True)
             llm_response = ""
@@ -1644,6 +1663,74 @@ class Agent:
     @staticmethod
     def _to_dict_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:
         return [{"role": m.role, "content": m.content} for m in messages]
+
+    def _get_tool_registry(self) -> Any:
+        """Lazily build the default tool registry bound to this agent."""
+        if getattr(self, "_tool_registry", None) is None:
+            from .agent_tools import build_default_registry
+
+            self._tool_registry = build_default_registry(self)
+        return self._tool_registry
+
+    async def _tool_confirm(self, name: str, arguments: dict[str, Any]) -> bool:
+        """Async confirm gate for mutating tools, driven by the execution mode.
+
+        - LLVL: auto-allow everything (YOLO).
+        - EXECUTE: auto-allow file edits, but ALWAYS confirm shell ``run_command``
+          (the security-audit non-negotiable).
+        - ARCHITECT / anything else: confirm every mutating tool.
+        Confirmation delegates to ``confirmation_callback`` when set (the TUI wires
+        a dialog); otherwise it follows the ``auto_confirm_edits`` setting so
+        headless/non-interactive runs are deterministic.
+        """
+        mode = str(self.settings.get_preference("agent_mode", "execute")).lower()
+        if mode == "llvl":
+            return True
+        if mode == "execute" and name != "run_command":
+            return True
+
+        callback = getattr(self, "confirmation_callback", None)
+        if callback is not None:
+            result = callback(name, arguments)
+            if inspect.isawaitable(result):
+                return bool(await result)
+            return bool(result)
+        # No interactive channel: fall back to the configured policy.
+        return bool(self.settings.get_preference("auto_confirm_edits", False))
+
+    async def _maybe_run_agent_loop(
+        self, llm_messages: list[ChatMessage]
+    ) -> str | None:
+        """Run the agentic tool loop if enabled and the mode permits tools.
+
+        Returns the final answer text, or None to signal the caller should use
+        the legacy single-shot path (loop disabled, CHAT mode, or unavailable).
+        """
+        if not self.settings.get_preference("enable_agent_loop", True):
+            return None
+        mode = str(self.settings.get_preference("agent_mode", "execute")).lower()
+        if mode == "chat":
+            return None
+        try:
+            from .tool_registry import run_agent_loop
+
+            registry = self._get_tool_registry()
+            max_iter = int(
+                self.settings.get_preference("agent_loop_max_iterations", 10)
+            )
+            result = await run_agent_loop(
+                self.llm_client,
+                llm_messages,
+                registry,
+                model=self.settings.current_model or None,
+                confirm=self._tool_confirm,
+                allow_tools=True,
+                max_iterations=max_iter,
+            )
+            return result.content or ""
+        except Exception as e:
+            logger.warning(f"Agent loop failed, falling back to single-shot: {e}")
+            return None
 
     async def _complete_response(self, llm_messages: list[ChatMessage]) -> str:
         """Non-streaming completion, routed to the active persona's provider."""

@@ -111,6 +111,26 @@ class Settings(BaseModel):
     )
 
     # Vector Indexing (per-repo semantic search via Qdrant). All optional and
+    # Agentic tool-use loop. When enabled (default), a user turn can call tools
+    # (read/edit/run) and observe results across multiple steps; disabling it
+    # restores the legacy single-shot intent path.
+    enable_agent_loop: bool = Field(
+        default=True,
+        description="Use the agentic tool-use loop instead of single-shot intent",
+    )
+    agent_loop_max_iterations: int = Field(
+        default=10,
+        description="Max tool round-trips per turn before the loop stops",
+    )
+    auto_confirm_edits: bool = Field(
+        default=False,
+        description=(
+            "When no interactive confirm channel is available, auto-approve "
+            "mutating tools (file edits) in the agent loop. run_command still "
+            "always confirms except in LLVL mode."
+        ),
+    )
+
     # degrade to a no-op when Qdrant or an embedding backend is unavailable.
     enable_vector_index: bool = Field(
         default=False,
