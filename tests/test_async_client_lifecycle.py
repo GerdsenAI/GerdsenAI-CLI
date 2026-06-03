@@ -20,8 +20,8 @@ async def test_settings() -> Settings:
     """Create test settings."""
     return Settings(
         protocol="http",
-        llm_host="10.69.7.180",
-        llm_port=1234,
+        llm_host="localhost",
+        llm_port=11434,
         current_model="test-model",
         api_timeout=5.0,
     )
@@ -33,7 +33,7 @@ async def test_llm_client_async_context_manager(test_settings: Settings) -> None
     async with LLMClient(test_settings) as client:
         # Verify client is created
         assert client.client is not None
-        assert client.base_url == "http://10.69.7.180:1234"
+        assert client.base_url == "http://localhost:11434"
 
     # Verify cleanup happened
     # Note: client.client might still exist but should be closed
