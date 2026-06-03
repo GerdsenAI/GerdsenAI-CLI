@@ -84,6 +84,7 @@ from .config.settings import Settings
 from .core.agent import Agent
 from .core.errors import GerdsenAIError
 from .core.llm_client import LLMClient
+from .core.modes import ExecutionMode
 from .plugins.registry import plugin_registry
 from .utils.conversation_io import ConversationManager
 from .utils.display import (
@@ -97,18 +98,38 @@ from .utils.display import (
 console = Console()
 
 
+def _persist_agent_mode(agent: "Agent", mode: "ExecutionMode") -> None:
+    """Mirror the TUI-selected execution mode into the Settings instance the agent
+    reads fresh on every turn, so the CHAT/ARCHITECT/EXECUTE/LLVL selector actually
+    drives the loop. The agent gates tools on settings.get_preference('agent_mode')
+    in both _maybe_run_agent_loop and _tool_confirm; this is the write that was
+    missing (the TUI updated its own ModeManager but never touched settings).
+    agent.settings is the same Settings instance held by the CLI (Agent is
+    constructed with it), so this in-memory write is seen on the next turn.
+    """
+    agent.settings.set_preference("agent_mode", mode.value)
+
+
 class GerdsenAICLI:
     """Main GerdsenAI CLI application class."""
 
-    def __init__(self, config_path: str | None = None, debug: bool = False):
+    def __init__(
+        self,
+        config_path: str | None = None,
+        debug: bool = False,
+        interactive: bool = True,
+    ):
         """
         Initialize the GerdsenAI CLI.
 
         Args:
             config_path: Optional path to configuration file
             debug: Enable debug mode
+            interactive: When False (headless one-shot mode), skip the interactive
+                first-time setup wizard and fail fast instead of blocking on stdin.
         """
         self.debug = debug
+        self.interactive = interactive
         self.config_manager = ConfigManager(config_path)
         self.settings: Settings | None = None
         self.running = False
@@ -135,6 +156,14 @@ class GerdsenAICLI:
             self.settings = await self.config_manager.load_settings()
 
             if not self.settings:
+                if not self.interactive:
+                    # Headless mode: never block on the interactive setup wizard
+                    # (Prompt.ask would hang forever reading a piped stdin).
+                    show_error(
+                        "No configuration found. Run 'gerdsenai' once interactively "
+                        "to set up, or point --config at an existing config file."
+                    )
+                    return False
                 show_info(
                     "First time setup detected. Let's configure your local AI server."
                 )
@@ -1287,7 +1316,15 @@ class GerdsenAICLI:
 
                 # Get current mode
                 current_mode = tui.get_mode()
-                from .core.modes import ExecutionMode
+
+                # Mode sync: the agent reads 'agent_mode' from settings each turn,
+                # so push the TUI's live selection into the shared Settings instance
+                # before dispatching. This single write covers every mode branch
+                # below (CHAT / ARCHITECT / EXECUTE / LLVL) since they all run after
+                # this point in the same handler. (self.agent.settings IS
+                # self.settings — Agent is constructed with it in initialize().)
+                if self.agent:
+                    _persist_agent_mode(self.agent, current_mode)
 
                 # In CHAT mode, check if user is requesting action
                 if current_mode == ExecutionMode.CHAT:
@@ -1739,3 +1776,53 @@ class GerdsenAICLI:
             show_error(f"Failed to start application: {e}")
             if self.debug:
                 console.print_exception()
+
+    async def run_headless(self, prompt: str, mode: str = "execute") -> int:
+        """Run a single agent turn non-interactively, print the answer, and exit.
+
+        Backs ``gerdsenai -p``/``--stdin``. Returns a process exit code: 0 on
+        success, 1 on failure (no config, no model selected, or an error).
+
+        Consent stays sacred: there is no interactive confirm callback here, so
+        mutating tools remain gated by ``auto_confirm_edits`` (default False) /
+        LLVL — headless runs are read-only-safe unless explicitly opted in.
+        """
+        from .utils.display import set_quiet_mode
+
+        # Keep stdout clean for piping: route every diagnostic to stderr; only
+        # the final answer is print()ed to stdout.
+        set_quiet_mode(True)
+
+        if not await self.initialize():
+            return 1
+
+        # Honor the requested mode (default 'execute' so the tool loop runs;
+        # pass --mode chat for pure Q&A). Mutations still gate on
+        # auto_confirm_edits because there is no TUI confirm callback.
+        if self.settings is not None:
+            self.settings.set_preference("agent_mode", mode)
+
+        if not self.agent or not self.settings or not self.settings.current_model:
+            show_error(
+                "No model selected. Set 'current_model' in your config file "
+                "(or run 'gerdsenai' interactively once to pick one)."
+            )
+            await self._headless_cleanup()
+            return 1
+
+        try:
+            answer = await self.agent.process_user_input(prompt)
+            print(answer)
+            return 0
+        except Exception as e:  # noqa: BLE001 - report and exit non-zero
+            show_error(str(e))
+            return 1
+        finally:
+            await self._headless_cleanup()
+
+    async def _headless_cleanup(self) -> None:
+        """Release agent + LLM client resources after a headless run."""
+        if self.agent:
+            await self.agent.cleanup()
+        if self.llm_client:
+            await self.llm_client.__aexit__(None, None, None)
