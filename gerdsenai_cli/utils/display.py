@@ -18,6 +18,18 @@ console = Console()
 ASCII_ART_FILENAME = "gerdsenai-ascii-art.txt"
 
 
+def set_quiet_mode(enabled: bool) -> None:
+    """Route diagnostic output (show_info/warning/success/error) to stderr.
+
+    Used by headless mode so that stdout carries ONLY the agent's answer and
+    stays clean for piping (``gerdsenai -p ... | jq``). All show_* helpers below
+    resolve ``console`` from this module's globals at call time, so reassigning
+    it here transparently redirects every diagnostic without touching call sites.
+    """
+    global console
+    console = Console(stderr=enabled)
+
+
 def get_ascii_art_path() -> Path:
     """Return the filesystem path to the packaged ASCII art asset.
 

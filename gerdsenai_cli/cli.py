@@ -5,6 +5,7 @@ GerdsenAI CLI - Main entry point.
 This module serves as the main entry point for the CLI application.
 """
 
+import asyncio
 import sys
 
 import typer
@@ -42,6 +43,22 @@ def main(
         "-v",
         help="Show version and exit",
     ),
+    prompt: str | None = typer.Option(
+        None,
+        "--prompt",
+        "-p",
+        help="Run a single prompt non-interactively, print the answer, and exit",
+    ),
+    stdin_input: bool = typer.Option(
+        False,
+        "--stdin",
+        help="Read the prompt from stdin (use with a pipe)",
+    ),
+    mode: str = typer.Option(
+        "execute",
+        "--mode",
+        help="Execution mode for headless -p: chat, architect, execute, or llvl",
+    ),
 ) -> None:
     """
     Start the GerdsenAI CLI interactive session.
@@ -51,6 +68,15 @@ def main(
 
         console.print(f"GerdsenAI CLI v{__version__}")
         return
+
+    # Headless one-shot mode: run a single turn and exit (no TUI).
+    if prompt is not None or stdin_input:
+        text = prompt if prompt is not None else sys.stdin.read().strip()
+        if not text:
+            show_error("No prompt provided (use -p TEXT or pipe text with --stdin).")
+            sys.exit(2)
+        cli = GerdsenAICLI(config_path=config_path, debug=debug, interactive=False)
+        sys.exit(asyncio.run(cli.run_headless(text, mode=mode)))
 
     try:
         # Initialize and run the CLI (startup sequence shown in run_async)
