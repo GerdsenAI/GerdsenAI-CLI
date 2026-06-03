@@ -5,7 +5,9 @@ This module contains the core application logic and interactive loop.
 """
 
 import asyncio
+import contextlib
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1789,36 +1791,42 @@ class GerdsenAICLI:
         """
         from .utils.display import set_quiet_mode
 
-        # Keep stdout clean for piping: route every diagnostic to stderr; only
-        # the final answer is print()ed to stdout.
+        # stdout must carry ONLY the answer (clean piping). set_quiet_mode routes
+        # the display console to stderr; redirect_stdout catches every OTHER
+        # console/print emitted during the run (init banners, the agent's project
+        # analysis + context-building progress, the interactive "GerdsenAI:" echo)
+        # so they don't pollute the pipe. The answer is printed after the block,
+        # to the restored real stdout.
         set_quiet_mode(True)
+        answer = ""
+        with contextlib.redirect_stdout(sys.stderr):
+            if not await self.initialize():
+                return 1
 
-        if not await self.initialize():
-            return 1
+            # Honor the requested mode (default 'execute' so the tool loop runs;
+            # pass --mode chat for pure Q&A). Mutations still gate on
+            # auto_confirm_edits because there is no TUI confirm callback.
+            if self.settings is not None:
+                self.settings.set_preference("agent_mode", mode)
 
-        # Honor the requested mode (default 'execute' so the tool loop runs;
-        # pass --mode chat for pure Q&A). Mutations still gate on
-        # auto_confirm_edits because there is no TUI confirm callback.
-        if self.settings is not None:
-            self.settings.set_preference("agent_mode", mode)
+            if not self.agent or not self.settings or not self.settings.current_model:
+                show_error(
+                    "No model selected. Set 'current_model' in your config file "
+                    "(or run 'gerdsenai' interactively once to pick one)."
+                )
+                await self._headless_cleanup()
+                return 1
 
-        if not self.agent or not self.settings or not self.settings.current_model:
-            show_error(
-                "No model selected. Set 'current_model' in your config file "
-                "(or run 'gerdsenai' interactively once to pick one)."
-            )
-            await self._headless_cleanup()
-            return 1
+            try:
+                answer = await self.agent.process_user_input(prompt)
+            except Exception as e:  # noqa: BLE001 - report and exit non-zero
+                show_error(str(e))
+                return 1
+            finally:
+                await self._headless_cleanup()
 
-        try:
-            answer = await self.agent.process_user_input(prompt)
-            print(answer)
-            return 0
-        except Exception as e:  # noqa: BLE001 - report and exit non-zero
-            show_error(str(e))
-            return 1
-        finally:
-            await self._headless_cleanup()
+        print(answer)
+        return 0
 
     async def _headless_cleanup(self) -> None:
         """Release agent + LLM client resources after a headless run."""
