@@ -7,6 +7,8 @@ all flags. These tests exercise the real `app` callable the script now points at
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
@@ -33,10 +35,14 @@ def test_app_reports_version():
 
 def test_app_exposes_headless_options():
     """--help lists the headless flags, proving the app parses args (not just version)"""
-    result = runner.invoke(app, ["--help"], env={"COLUMNS": "200"})
+    result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "--prompt" in result.output
-    assert "--stdin" in result.output
+    # Rich renders --help with ANSI styling and wraps at the terminal width
+    # (which CliRunner doesn't fix via COLUMNS). Strip escapes and collapse all
+    # whitespace so the assertion is robust across environments (local + CI).
+    collapsed = "".join(re.sub(r"\x1b\[[0-9;]*m", "", result.output).split())
+    assert "--prompt" in collapsed
+    assert "--stdin" in collapsed
 
 
 def test_app_headless_no_config_exits_one(monkeypatch, tmp_path):
