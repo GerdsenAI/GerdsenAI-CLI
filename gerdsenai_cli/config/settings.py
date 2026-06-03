@@ -36,6 +36,17 @@ class Settings(BaseModel):
 
     current_model: str = Field(default="", description="Currently selected model name")
 
+    api_key: str | None = Field(
+        default=None,
+        description=(
+            "Optional bearer token for an authenticated OpenAI-compatible endpoint "
+            "(a LiteLLM router, a gateway, OpenRouter, etc.). NOT recommended for "
+            "secrets: prefer the GERDSENAI_LLM_API_KEY environment variable, which "
+            "takes precedence and keeps keys out of the on-disk config file. This "
+            "field is for local, non-sensitive keys only."
+        ),
+    )
+
     # Timeout Configuration (significantly increased for local AI models)
     api_timeout: float = Field(
         default=600.0,

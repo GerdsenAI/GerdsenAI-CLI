@@ -7,6 +7,7 @@ This module handles communication with local AI models via OpenAI-compatible API
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 from collections.abc import AsyncGenerator
@@ -189,13 +190,25 @@ class LLMClient:
 
     async def __aenter__(self) -> "LLMClient":
         """Async context manager entry - create httpx.AsyncClient in async context."""
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "GerdsenAI-CLI/0.1.0",
+        }
+        # Optional bearer auth for an authenticated OpenAI-compatible endpoint
+        # (a LiteLLM router, a gateway, OpenRouter, etc.). The env var wins so
+        # secrets stay off disk; falls back to settings.api_key for local,
+        # non-sensitive keys. No key -> no header, so unauthenticated local
+        # servers (Ollama / LM Studio / vLLM) keep working unchanged.
+        api_key = os.environ.get("GERDSENAI_LLM_API_KEY") or getattr(
+            self.settings, "api_key", None
+        )
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
         # Create httpx.AsyncClient in the async event loop context
         self.client = httpx.AsyncClient(
             timeout=httpx.Timeout(self._default_timeout),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "GerdsenAI-CLI/0.1.0",
-            },
+            headers=headers,
             follow_redirects=True,
             limits=self._limits,
         )
