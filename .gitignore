@@ -110,5 +110,4 @@ conversations/
 # Test artifacts
 test_output/
 test_results/
-CLAUDE.md
 .qwen/agents/local-llm-agent-selector.md
