@@ -100,7 +100,7 @@ def strip_emoji(text: str) -> str:
     """
     # Remove emoji and other non-ASCII characters
     # Keep only printable ASCII characters (space through tilde) plus newlines/tabs
-    return ''.join(char for char in text if ord(char) < 128 or char in '\n\t\r')
+    return "".join(char for char in text if ord(char) < 128 or char in "\n\t\r")
 
 
 class CommandParser:

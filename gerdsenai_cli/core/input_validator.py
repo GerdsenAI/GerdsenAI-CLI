@@ -177,7 +177,10 @@ class InputValidator:
             "chat",
         }
         if normalized_action not in valid_actions:
-            return False, f"Invalid action type: {action} (normalized to: {normalized_action})"
+            return (
+                False,
+                f"Invalid action type: {action} (normalized to: {normalized_action})",
+            )
 
         # Update the response_data with normalized action
         response_data["action"] = normalized_action

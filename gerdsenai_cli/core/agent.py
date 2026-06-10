@@ -232,7 +232,9 @@ class IntentParser:
             # Parse JSON response
             intent_data = self._parse_intent_json(response)
             if not intent_data:
-                logger.warning(f"Intent JSON parsing failed. Raw response: {response[:200]}")
+                logger.warning(
+                    f"Intent JSON parsing failed. Raw response: {response[:200]}"
+                )
                 return ActionIntent(
                     action_type=ActionType.NONE,
                     confidence=0.0,
@@ -260,14 +262,18 @@ class IntentParser:
             # Try to extract file paths from LLM response or user query
             search_text = " ".join(detected_files) if detected_files else user_query
             logger.debug(f"Searching for files in: {search_text}")
-            logger.debug(f"Project has {len(project_files)} files. First 3: {project_files[:3]}")
+            logger.debug(
+                f"Project has {len(project_files)} files. First 3: {project_files[:3]}"
+            )
 
             # Debug: Check if target is in the list
-            target = 'gerdsenai_cli/core/agent.py'
+            target = "gerdsenai_cli/core/agent.py"
             logger.debug(f"'{target}' in project_files: {target in project_files}")
 
             validated_files = self.extract_file_paths(search_text, project_files)
-            logger.debug(f"Validated files: {validated_files}")            # If extraction failed, try extracting directly from user query as fallback
+            logger.debug(
+                f"Validated files: {validated_files}"
+            )  # If extraction failed, try extracting directly from user query as fallback
             if not validated_files:
                 logger.debug(f"Fallback: extracting from user query: {user_query}")
                 validated_files = self.extract_file_paths(user_query, project_files)
