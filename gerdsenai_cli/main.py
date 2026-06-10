@@ -7,6 +7,7 @@ This module contains the core application logic and interactive loop.
 import asyncio
 import contextlib
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -81,7 +82,7 @@ from .commands.vision_commands import (
     OCRCommand,
     VisionStatusCommand,
 )
-from .config.manager import ConfigManager
+from .config.manager import ENV_SERVER_URL, ConfigManager, apply_env_overrides
 from .config.settings import Settings
 from .core.agent import Agent
 from .core.errors import GerdsenAIError
@@ -159,20 +160,36 @@ class GerdsenAICLI:
 
             if not self.settings:
                 if not self.interactive:
-                    # Headless mode: never block on the interactive setup wizard
-                    # (Prompt.ask would hang forever reading a piped stdin).
-                    show_error(
-                        "No configuration found. Run 'gerdsenai' once interactively "
-                        "to set up, or point --config at an existing config file."
+                    if os.environ.get(ENV_SERVER_URL, "").strip():
+                        # Headless bootstrap: no config file, but the server URL
+                        # came in via the environment (Docker/CI harnesses).
+                        # Nothing is persisted to disk here.
+                        self.settings = Settings(**apply_env_overrides({}))
+                        show_info(
+                            f"No config file found — using {ENV_SERVER_URL} "
+                            "from the environment."
+                        )
+                    else:
+                        # Headless mode: never block on the interactive setup
+                        # wizard (Prompt.ask would hang forever reading a piped
+                        # stdin).
+                        show_error(
+                            "No configuration found. Run 'gerdsenai' once "
+                            "interactively to set up, point --config (or "
+                            "GERDSENAI_CONFIG) at an existing config file, or "
+                            "set GERDSENAI_LLM_SERVER_URL (and optionally "
+                            "GERDSENAI_MODEL) to run headless without a config "
+                            "file."
+                        )
+                        return False
+                else:
+                    show_info(
+                        "First time setup detected. Let's configure your local AI server."
                     )
-                    return False
-                show_info(
-                    "First time setup detected. Let's configure your local AI server."
-                )
-                self.settings = await self._first_time_setup()
-                if not self.settings:
-                    show_error("Setup cancelled or failed.")
-                    return False
+                    self.settings = await self._first_time_setup()
+                    if not self.settings:
+                        show_error("Setup cancelled or failed.")
+                        return False
 
             # Initialize LLM client with async context manager
             self.llm_client = LLMClient(self.settings)

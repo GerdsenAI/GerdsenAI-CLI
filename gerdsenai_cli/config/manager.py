@@ -6,9 +6,11 @@ This module handles loading, saving, and managing configuration files.
 
 import asyncio
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from rich.console import Console
 
@@ -16,6 +18,52 @@ from ..utils.display import show_error, show_info, show_warning
 from .settings import Settings
 
 console = Console()
+
+# Environment variable overrides (precedence: CLI flag > environment > file).
+ENV_CONFIG_PATH = "GERDSENAI_CONFIG"
+ENV_SERVER_URL = "GERDSENAI_LLM_SERVER_URL"
+ENV_MODEL = "GERDSENAI_MODEL"
+
+
+def apply_env_overrides(config_data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Overlay GERDSENAI_LLM_SERVER_URL / GERDSENAI_MODEL onto raw config data.
+
+    Mutates and returns ``config_data`` (env > file). Empty/whitespace env
+    values are treated as unset. The server URL also overwrites the granular
+    ``protocol`` / ``llm_host`` / ``llm_port`` fields so the Settings
+    ``sync_url_components`` validator can never silently prefer file-sourced
+    granular values over the environment.
+
+    Raises:
+        ValueError: when GERDSENAI_LLM_SERVER_URL is set but malformed
+            (must be http(s)://host:port with an explicit port).
+    """
+    env_url = os.environ.get(ENV_SERVER_URL, "").strip()
+    if env_url:
+        try:
+            parsed = urlparse(env_url)
+            scheme = parsed.scheme
+            host = parsed.hostname
+            port = parsed.port  # raises ValueError on a non-numeric port
+        except ValueError:
+            scheme, host, port = "", None, None
+        if scheme not in {"http", "https"} or not host or not port:
+            raise ValueError(
+                f"Invalid {ENV_SERVER_URL}={env_url!r} — must be "
+                "http(s)://host:port with an explicit port "
+                "(e.g. http://10.0.0.5:11434)"
+            )
+        config_data["llm_server_url"] = env_url.rstrip("/")
+        config_data["protocol"] = scheme
+        config_data["llm_host"] = host
+        config_data["llm_port"] = port
+
+    env_model = os.environ.get(ENV_MODEL, "").strip()
+    if env_model:
+        config_data["current_model"] = env_model
+
+    return config_data
 
 
 class ConfigManager:
@@ -28,8 +76,13 @@ class ConfigManager:
         Args:
             config_path: Optional custom path to config file
         """
+        env_config_path = os.environ.get(ENV_CONFIG_PATH, "").strip()
         if config_path:
+            # Explicit --config flag always wins.
             self.config_file = Path(config_path)
+        elif env_config_path:
+            # GERDSENAI_CONFIG environment override.
+            self.config_file = Path(env_config_path)
         else:
             # Default config location
             config_dir = Path.home() / ".config" / "gerdsenai-cli"
@@ -110,13 +163,18 @@ class ConfigManager:
         data = self._read_config_data()
         data.pop("_metadata", None)
 
+        # Env overrides (env > file). Applied OUTSIDE the defaults-fallback
+        # try below: an invalid GERDSENAI_LLM_SERVER_URL must raise loudly,
+        # never silently degrade to localhost defaults.
+        data = apply_env_overrides(data)
+
         try:
             if data:
                 return Settings(**data)
         except Exception as e:
             show_warning(f"Invalid configuration detected, using defaults: {e}")
 
-        return Settings()
+        return Settings(**apply_env_overrides({}))
 
     def get_setting(self, dotted_key: str, default: Any | None = None) -> Any | None:
         """Retrieve a specific setting using dot notation (e.g. 'agent.temperature')."""
@@ -186,15 +244,22 @@ class ConfigManager:
             # Remove metadata before passing to Settings (it's added during save but not part of the model)
             config_dict.pop("_metadata", None)
 
-            # Create Settings object with validation
-            settings = Settings(**config_dict)
-
-            return settings
-
         except json.JSONDecodeError as e:
             show_error(f"Invalid JSON in config file: {e}")
             await self._backup_corrupted_config()
             return None
+        except Exception as e:
+            show_error(f"Failed to load configuration: {e}")
+            return None
+
+        # Env overrides (env > file). Applied OUTSIDE the swallow above: an
+        # invalid GERDSENAI_LLM_SERVER_URL must propagate as a loud ValueError,
+        # never become a silent None/defaults fallback.
+        config_dict = apply_env_overrides(config_dict)
+
+        try:
+            # Create Settings object with validation
+            return Settings(**config_dict)
         except Exception as e:
             show_error(f"Failed to load configuration: {e}")
             return None
