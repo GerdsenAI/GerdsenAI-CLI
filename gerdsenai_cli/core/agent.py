@@ -1389,7 +1389,7 @@ class Agent:
 
     async def process_user_input_stream(
         self, user_input: str, status_callback: Any = None
-    ) -> AsyncGenerator[tuple[str, str], None]:
+    ) -> AsyncGenerator[tuple[str, str, str], None]:
         """Process user input and yield streaming response chunks.
 
         Args:
@@ -1397,7 +1397,10 @@ class Agent:
             status_callback: Optional callback(operation: str) for status updates
 
         Yields:
-            Tuples of (chunk, accumulated_response)
+            Tuples of ``(chunk, accumulated_response, kind)`` where ``kind`` is
+            "text" (assistant answer), "reasoning" (model chain-of-thought, shown
+            dimmed), or "tool" (a tool-call/result status line). Consumers that
+            only care about text can ignore non-"text" kinds.
         """
         try:
             # Add user message to conversation
@@ -1450,7 +1453,7 @@ class Agent:
                             )
                             if action_result:
                                 # Yield complete result as single chunk
-                                yield (action_result, action_result)
+                                yield (action_result, action_result, "text")
                                 return
                     else:
                         intent = None
@@ -1477,16 +1480,49 @@ class Agent:
 
             llm_messages = self._prepare_llm_messages(user_input, context_prompt)
 
-            # Stream the response
+            # Agentic tool loop (default ON, mode != chat): stream the model's
+            # reasoning + tool actions + final answer live as (chunk, accumulated,
+            # kind) tuples. Falls through to the legacy single-shot stream below
+            # on any failure or when the loop is disabled / in CHAT mode.
+            if self._agent_loop_active():
+                loop_text = ""
+                loop_streamed = False
+                try:
+                    async for chunk, _acc, kind in self._run_agent_loop_stream(
+                        llm_messages
+                    ):
+                        loop_streamed = True
+                        if kind == "text":
+                            loop_text += chunk
+                        yield (chunk, loop_text or chunk, kind)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.warning(
+                        f"Agent loop stream failed, falling back to single-shot: {e}"
+                    )
+                    loop_streamed = False
+                if loop_streamed:
+                    if loop_text.strip():
+                        self.conversation.messages.append(
+                            ChatMessage(role="assistant", content=loop_text)
+                        )
+                        self._track_conversation_in_memory(
+                            user_input, loop_text, intent
+                        )
+                    self.actions_performed += 1
+                    return
+
+            # Stream the response (legacy single-shot path / fallback)
             llm_response = ""
             async for chunk in self._stream_response(llm_messages):
                 if chunk:
                     llm_response += chunk
-                    yield (chunk, llm_response)
+                    yield (chunk, llm_response, "text")
 
             if not llm_response.strip():
                 error_msg = "I apologize, but I'm having trouble connecting to the AI model. Please try again."
-                yield (error_msg, error_msg)
+                yield (error_msg, error_msg, "text")
                 return
 
             # Add assistant response to conversation
@@ -1513,14 +1549,14 @@ class Agent:
                 # Send the additional action result
                 additional = final_response[len(llm_response) :]
                 if additional:
-                    yield (additional, final_response)
+                    yield (additional, final_response, "text")
 
             self.actions_performed += 1
 
         except Exception as e:
             logger.error(f"Error processing user input: {e}")
             error_msg = f"I encountered an error while processing your request: {e}"
-            yield (error_msg, error_msg)
+            yield (error_msg, error_msg, "text")
 
     async def _analyze_project_structure(self) -> None:
         """Analyze the current project structure."""
@@ -1757,6 +1793,85 @@ class Agent:
         except Exception as e:
             logger.warning(f"Agent loop failed, falling back to single-shot: {e}")
             return None
+
+    def _agent_loop_active(self) -> bool:
+        """True when the tool loop should drive this turn (enabled, mode≠chat)."""
+        if not self.settings.get_preference("enable_agent_loop", True):
+            return False
+        mode = str(self.settings.get_preference("agent_mode", "execute")).lower()
+        return mode != "chat"
+
+    async def _run_agent_loop_stream(
+        self, llm_messages: list[ChatMessage]
+    ) -> AsyncGenerator[tuple[str, str, str], None]:
+        """Stream the agentic tool loop as (chunk, accumulated, kind) tuples.
+
+        ``kind`` is one of "reasoning" (model chain-of-thought), "tool" (a
+        tool-call / result status line), or "text" (the final answer). The loop's
+        synchronous ``on_event`` callback pushes events onto a queue which this
+        generator drains live while the loop runs as a cancellable task, so the
+        UI can show thinking + tool actions as they happen. On cancellation
+        (Escape) the loop task is cancelled and the error re-raised so the
+        caller's existing CancelledError handling fires.
+        """
+        from .tool_registry import run_agent_loop
+
+        registry = self._get_tool_registry()
+        max_iter = int(self.settings.get_preference("agent_loop_max_iterations", 10))
+        queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue()
+
+        def on_event(name: str, payload: dict[str, Any]) -> None:
+            if name == "tool_call":
+                args = payload.get("args") or {}
+                preview = ", ".join(f"{k}={v!r}" for k, v in list(args.items())[:3])
+                queue.put_nowait(("tool", f"⚙ {payload.get('name', '?')}({preview})\n"))
+            elif name == "tool_result":
+                result = str(payload.get("result", "")).replace("\n", " ")
+                if len(result) > 100:
+                    result = result[:100] + "…"
+                queue.put_nowait(("tool", f"  ↳ {result}\n"))
+
+        task: asyncio.Task[Any] = asyncio.ensure_future(
+            run_agent_loop(
+                self.llm_client,
+                llm_messages,
+                registry,
+                model=self.settings.current_model or None,
+                confirm=self._tool_confirm,
+                allow_tools=True,
+                max_iterations=max_iter,
+                on_event=on_event,
+            )
+        )
+        accumulated = ""
+        try:
+            # Drain status events while the loop runs.
+            while not task.done():
+                try:
+                    kind, chunk = await asyncio.wait_for(queue.get(), timeout=0.05)
+                except TimeoutError:
+                    continue
+                accumulated += chunk
+                yield (chunk, accumulated, kind)
+            # Flush any events queued between the last check and completion.
+            while not queue.empty():
+                kind, chunk = queue.get_nowait()
+                accumulated += chunk
+                yield (chunk, accumulated, kind)
+
+            result = task.result()
+            reasoning = getattr(result, "reasoning", "") or ""
+            if reasoning:
+                accumulated += reasoning
+                yield (reasoning, accumulated, "reasoning")
+            content = result.content or ""
+            if content:
+                accumulated += content
+                yield (content, accumulated, "text")
+        except asyncio.CancelledError:
+            if not task.done():
+                task.cancel()
+            raise
 
     async def _complete_response(self, llm_messages: list[ChatMessage]) -> str:
         """Non-streaming completion, routed to the active persona's provider."""

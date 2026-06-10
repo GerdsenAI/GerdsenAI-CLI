@@ -703,8 +703,10 @@ class GerdsenAICLI:
                 async for (
                     chunk,
                     _full_response,
+                    kind,
                 ) in self.agent.process_user_input_stream(message):
-                    console.print(chunk, end="", style="white")
+                    style = {"reasoning": "dim", "tool": "cyan"}.get(kind, "white")
+                    console.print(chunk, end="", style=style)
 
                 console.print()  # Final newline
             else:
@@ -1286,10 +1288,12 @@ class GerdsenAICLI:
                             tui.start_streaming_response()
 
                             chunk_count = 0
-                            async for chunk, _ in self.agent.process_user_input_stream(
-                                original_request
-                            ):
-                                tui.append_streaming_chunk(chunk)
+                            async for (
+                                chunk,
+                                _,
+                                kind,
+                            ) in self.agent.process_user_input_stream(original_request):
+                                tui.append_streaming_chunk(chunk, kind)
                                 chunk_count += 1
 
                                 if tui.streaming_chunk_delay > 0:
@@ -1436,9 +1440,11 @@ class GerdsenAICLI:
 
                     chunk_count = 0
                     try:
-                        async for chunk, _ in self.agent.process_user_input_stream(
-                            enhanced_text
-                        ):
+                        async for (
+                            chunk,
+                            _,
+                            kind,
+                        ) in self.agent.process_user_input_stream(enhanced_text):
                             # Record chunk for health monitoring
                             tui_edge_handler.stream_recovery.record_chunk()
 
@@ -1457,7 +1463,7 @@ class GerdsenAICLI:
                                     timeout_seconds=tui_edge_handler.stream_recovery.timeout_seconds,
                                 )
 
-                            tui.append_streaming_chunk(chunk)
+                            tui.append_streaming_chunk(chunk, kind)
                             chunk_count += 1
 
                             # Add configurable delay for smooth typewriter animation
@@ -1597,9 +1603,13 @@ class GerdsenAICLI:
                     try:
                         # Capture AI response silently (don't stream to screen)
                         full_response = ""
-                        async for chunk, _ in self.agent.process_user_input_stream(
-                            enhanced_text
-                        ):
+                        async for (
+                            chunk,
+                            _,
+                            kind,
+                        ) in self.agent.process_user_input_stream(enhanced_text):
+                            if kind != "text":
+                                continue  # plan capture wants the answer, not reasoning/tool noise
                             full_response += chunk
                             # Update animation message periodically
                             if len(full_response) % 200 == 0 and tui.current_animation:
@@ -1689,10 +1699,12 @@ class GerdsenAICLI:
 
                     chunk_count = 0
                     try:
-                        async for chunk, _ in self.agent.process_user_input_stream(
-                            enhanced_text
-                        ):
-                            tui.append_streaming_chunk(chunk)
+                        async for (
+                            chunk,
+                            _,
+                            kind,
+                        ) in self.agent.process_user_input_stream(enhanced_text):
+                            tui.append_streaming_chunk(chunk, kind)
                             chunk_count += 1
 
                             # Add configurable delay for smooth typewriter animation

@@ -57,6 +57,10 @@ def _make_agent(
     settings = Settings()
     settings.set_preference("enable_llm_intent_detection", False)
     settings.set_preference("streaming", streaming)
+    # These tests pin the legacy single-shot path; CHAT mode keeps the agent
+    # tool-loop inactive so process_user_input(_stream) take the plain LLM path.
+    settings.set_preference("agent_mode", "chat")
+    settings.set_preference("enable_agent_loop", False)
     client = FakeLLMClient(response)
     agent = Agent(client, settings, project_root=tmp_path)
     # Mark context as already built so the turn doesn't depend on a project scan.
@@ -136,7 +140,7 @@ async def test_process_user_input_stream_yields_and_accumulates(
     agent, client = _make_agent(tmp_path, response="streamed reply", streaming=True)
     chunks: list[str] = []
     final = ""
-    async for chunk, accumulated in agent.process_user_input_stream("tell me"):
+    async for chunk, accumulated, _kind in agent.process_user_input_stream("tell me"):
         chunks.append(chunk)
         final = accumulated
     assert client.stream_calls == 1
@@ -151,7 +155,9 @@ async def test_process_user_input_stream_records_assistant_message(
     tmp_path: Path,
 ) -> None:
     agent, _ = _make_agent(tmp_path, response="final answer", streaming=True)
-    async for _chunk, _accumulated in agent.process_user_input_stream("question?"):
+    async for _chunk, _accumulated, _kind in agent.process_user_input_stream(
+        "question?"
+    ):
         pass
     assert any(
         m.role == "assistant" and m.content == "final answer"

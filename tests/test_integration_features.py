@@ -65,7 +65,12 @@ class TestModeIntegration:
         """Test mode descriptions are displayed correctly."""
         tui = PromptToolkitTUI()
 
-        for mode in [ExecutionMode.CHAT, ExecutionMode.ARCHITECT, ExecutionMode.EXECUTE, ExecutionMode.LLVL]:
+        for mode in [
+            ExecutionMode.CHAT,
+            ExecutionMode.ARCHITECT,
+            ExecutionMode.EXECUTE,
+            ExecutionMode.LLVL,
+        ]:
             tui.mode_manager.set_mode(mode)
             desc = tui.mode_manager.get_mode_description()
             assert len(desc) > 0
@@ -79,16 +84,16 @@ class TestThinkingIntegration:
         """Test thinking can be toggled on and off."""
         tui = PromptToolkitTUI()
 
-        # Start disabled
-        assert not tui.thinking_enabled
-
-        # Enable
-        tui.thinking_enabled = True
+        # On by default (agent-loop reasoning is shown dimmed unless toggled off).
         assert tui.thinking_enabled
 
         # Disable
         tui.thinking_enabled = False
         assert not tui.thinking_enabled
+
+        # Re-enable
+        tui.thinking_enabled = True
+        assert tui.thinking_enabled
 
     def test_capability_detection_thinking_models(self):
         """Test thinking capability detection for known models."""
@@ -155,7 +160,7 @@ class TestMCPIntegration:
         parser.register_command(MCPCommand())
 
         # Check command can be retrieved
-        mcp_cmd = parser.registry.get_command('mcp')
+        mcp_cmd = parser.registry.get_command("mcp")
         assert mcp_cmd is not None
 
     @pytest.mark.asyncio
@@ -168,10 +173,7 @@ class TestMCPIntegration:
         settings = Settings()
         settings.mcp_servers = {}
 
-        result = await cmd.execute(
-            {"action": "list"},
-            {"settings": settings}
-        )
+        result = await cmd.execute({"action": "list"}, {"settings": settings})
 
         assert result.success
         assert result.message is None or "no" in result.message.lower()
@@ -194,7 +196,7 @@ class TestMCPIntegration:
 
         result = await cmd.execute(
             {"action": "add", "name": "test-server", "url": "http://localhost:8000"},
-            {"settings": settings, "config_manager": config_manager}
+            {"settings": settings, "config_manager": config_manager},
         )
 
         assert result.success
@@ -218,7 +220,7 @@ class TestMCPIntegration:
 
         result = await cmd.execute(
             {"action": "remove", "name": "test-server"},
-            {"settings": settings, "config_manager": config_manager}
+            {"settings": settings, "config_manager": config_manager},
         )
 
         assert result.success
@@ -232,11 +234,12 @@ class TestMCPIntegration:
 
         cmd = MCPCommand()
         settings = Settings()
-        settings.mcp_servers = {"test-server": {"url": "http://localhost:8000", "status": "Not connected"}}
+        settings.mcp_servers = {
+            "test-server": {"url": "http://localhost:8000", "status": "Not connected"}
+        }
 
         result = await cmd.execute(
-            {"action": "connect", "name": "test-server"},
-            {"settings": settings}
+            {"action": "connect", "name": "test-server"}, {"settings": settings}
         )
 
         assert result.success
@@ -255,10 +258,7 @@ class TestMCPIntegration:
             "server2": {"url": "http://localhost:8001", "status": "Not connected"},
         }
 
-        result = await cmd.execute(
-            {"action": "status"},
-            {"settings": settings}
-        )
+        result = await cmd.execute({"action": "status"}, {"settings": settings})
 
         assert result.success
         if result.message:
@@ -280,11 +280,7 @@ class TestInfoBarIntegration:
         """Test updating info bar values."""
         tui = PromptToolkitTUI()
 
-        tui.update_info_bar(
-            tokens=1234,
-            context=0.45,
-            activity="Processing"
-        )
+        tui.update_info_bar(tokens=1234, context=0.45, activity="Processing")
 
         assert tui.token_count == 1234
         assert tui.context_usage == 0.45
@@ -294,11 +290,7 @@ class TestInfoBarIntegration:
         """Test info bar text formatting."""
         tui = PromptToolkitTUI()
 
-        tui.update_info_bar(
-            tokens=500,
-            context=0.25,
-            activity="Thinking"
-        )
+        tui.update_info_bar(tokens=500, context=0.25, activity="Thinking")
 
         info_text = tui._get_info_bar_text()
         info_str = str(info_text)
@@ -319,7 +311,7 @@ class TestCopyIntegration:
         assert isinstance(result, tuple)
         assert len(result) == 2
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_copy_with_pbcopy(self, mock_popen):
         """Test copying conversation to clipboard with pbcopy."""
         tui = PromptToolkitTUI()
@@ -336,14 +328,14 @@ class TestCopyIntegration:
         assert "copied" in message.lower()
         assert mock_popen.called
 
-    @patch('subprocess.Popen', side_effect=FileNotFoundError)
+    @patch("subprocess.Popen", side_effect=FileNotFoundError)
     def test_copy_fallback_to_pyperclip(self, mock_popen):
         """Test fallback to pyperclip when pbcopy fails."""
         tui = PromptToolkitTUI()
         tui.conversation.add_message("user", "Test message")
 
         # Mock pyperclip.copy after Popen fails
-        with patch('pyperclip.copy'):
+        with patch("pyperclip.copy"):
             success, message = tui.copy_conversation_to_clipboard()
 
             # Should successfully fall back to pyperclip
@@ -412,7 +404,7 @@ class TestEndToEndWorkflow:
         plan = PlanCapture.extract_summary(plan_response)
 
         # Should extract files and actions
-        assert len(plan['files_affected']) > 0 or len(plan['actions']) > 0
+        assert len(plan["files_affected"]) > 0 or len(plan["actions"]) > 0
 
         # Show plan for approval
         tui.show_plan_for_approval(plan)
@@ -453,15 +445,24 @@ class TestCapabilityDetectionIntegration:
             ("claude-3-opus", True, True, True),
             ("gpt-4o", True, True, True),
             ("gpt-4-turbo", True, False, True),
-            ("qwen-2.5-coder", True, False, False),  # Qwen doesn't support tools in current detection
+            (
+                "qwen-2.5-coder",
+                True,
+                False,
+                False,
+            ),  # Qwen doesn't support tools in current detection
             ("llama-3-70b", False, False, False),
             ("gemini-pro", False, False, True),
         ]
 
         for model_name, should_think, should_vision, should_tools in test_cases:
             caps = CapabilityDetector.detect_from_model_name(model_name)
-            assert caps.supports_thinking == should_think, f"Failed thinking for {model_name}"
-            assert caps.supports_vision == should_vision, f"Failed vision for {model_name}"
+            assert caps.supports_thinking == should_think, (
+                f"Failed thinking for {model_name}"
+            )
+            assert caps.supports_vision == should_vision, (
+                f"Failed vision for {model_name}"
+            )
             assert caps.supports_tools == should_tools, f"Failed tools for {model_name}"
 
     def test_streaming_always_supported(self):
