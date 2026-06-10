@@ -31,6 +31,20 @@ jobs:
         ruff check gerdsenai_cli/
         ruff format --check gerdsenai_cli/
 
+    # The agentic-loop core is held at zero mypy errors and gated as BLOCKING so
+    # new work on the heart of the tool can't silently regress types. Keep this
+    # file list in sync with the clean core (see docs/ROADMAP.md). The rest of
+    # the repo's backlog is paid down separately (non-blocking step below).
+    - name: Type check core loop with mypy (blocking)
+      run: |
+        mypy \
+          gerdsenai_cli/core/agent.py \
+          gerdsenai_cli/core/tool_registry.py \
+          gerdsenai_cli/core/tool_parsing.py \
+          gerdsenai_cli/core/agent_tools.py \
+          gerdsenai_cli/core/llm_client.py \
+          gerdsenai_cli/utils/performance.py
+
     # mypy has a backlog of pre-existing type errors (see docs/ROADMAP.md).
     # Kept visible but non-blocking so the rest of CI stays meaningful while
     # the backlog is worked down.

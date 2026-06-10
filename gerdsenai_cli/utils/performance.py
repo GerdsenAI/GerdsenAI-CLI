@@ -8,11 +8,11 @@ and performance metrics across all components.
 import asyncio
 import functools
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, ParamSpec, TypeVar, cast
 
 import psutil
 from rich.console import Console
@@ -22,6 +22,10 @@ from rich.table import Table
 from ..constants import PerformanceTargets
 
 console = Console()
+
+# Preserve the wrapped callable's signature through the decorator.
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 @dataclass
@@ -47,7 +51,7 @@ class PerformanceMetric:
 class PerformanceTracker:
     """Global performance tracking and monitoring."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metrics: list[PerformanceMetric] = []
         self.operation_stack: list[dict[str, Any]] = []
         self.process = psutil.Process()
@@ -83,7 +87,7 @@ class PerformanceTracker:
         return None
 
     @contextmanager
-    def measure_sync(self, operation: str, **metadata):
+    def measure_sync(self, operation: str, **metadata: Any) -> Iterator[None]:
         """Context manager for measuring synchronous operations."""
         start_time = time.time()
         memory_before = self.get_memory_usage()
@@ -116,7 +120,9 @@ class PerformanceTracker:
             self._add_metric(metric)
 
     @asynccontextmanager
-    async def measure_async(self, operation: str, **metadata):
+    async def measure_async(
+        self, operation: str, **metadata: Any
+    ) -> AsyncIterator[None]:
         """Context manager for measuring asynchronous operations."""
         start_time = time.time()
         memory_before = self.get_memory_usage()
@@ -330,26 +336,31 @@ class PerformanceTracker:
 performance_tracker = PerformanceTracker()
 
 
-def measure_performance(operation: str, **metadata):
-    """Decorator for measuring function performance."""
+def measure_performance(
+    operation: str, **metadata: Any
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator for measuring function performance.
 
-    def decorator(func: Callable) -> Callable:
+    Preserves the wrapped callable's signature (via ParamSpec/TypeVar) so
+    decorated methods stay fully typed for callers and mypy.
+    """
+
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         if asyncio.iscoroutinefunction(func):
 
             @functools.wraps(func)
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 async with performance_tracker.measure_async(operation, **metadata):
-                    return await func(*args, **kwargs)
+                    return await cast(Any, func)(*args, **kwargs)
 
-            return async_wrapper
-        else:
+            return cast(Callable[P, R], async_wrapper)
 
-            @functools.wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                with performance_tracker.measure_sync(operation, **metadata):
-                    return func(*args, **kwargs)
+        @functools.wraps(func)
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            with performance_tracker.measure_sync(operation, **metadata):
+                return func(*args, **kwargs)
 
-            return sync_wrapper
+        return sync_wrapper
 
     return decorator
 
