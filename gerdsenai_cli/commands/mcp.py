@@ -198,21 +198,55 @@ class MCPCommand(BaseCommand):
         )
 
     async def _connect_server(self, settings, name: str) -> CommandResult:
-        """Connect to an MCP server."""
+        """Connect to an MCP server and list its tools.
+
+        Uses the optional ``mcp`` SDK over streamable-HTTP. When the SDK is not
+        installed we report a clear install hint instead of failing; when the
+        server is unreachable we surface that without crashing.
+        """
         if not hasattr(settings, "mcp_servers") or name not in settings.mcp_servers:
             return CommandResult(
                 success=False,
                 message=f"MCP server '{name}' not found.\n\nUse '/mcp list' to see configured servers.",
             )
 
-        # MCP Protocol Integration: Planned for future release
-        # This feature allows connection to Model Context Protocol servers
-        # For now, servers are configured but connections are simulated
-        settings.mcp_servers[name]["status"] = "Connected (simulated)"
+        from ..core.mcp_client import MCPClient
 
+        if not MCPClient.sdk_available():
+            return CommandResult(
+                success=False,
+                message=(
+                    "MCP support is not installed.\n\n"
+                    'Install it with: pip install "gerdsenai-cli[mcp]"'
+                ),
+            )
+
+        url = settings.mcp_servers[name].get("url", "")
+        client = MCPClient(url, name=name)
+        tools = await client.list_tools()
+
+        if not tools:
+            settings.mcp_servers[name]["status"] = "Unreachable"
+            return CommandResult(
+                success=False,
+                message=(
+                    f"Could not connect to MCP server '{name}' at {url}, "
+                    "or it exposes no tools.\n\nVerify the URL and that the server "
+                    "is running."
+                ),
+            )
+
+        settings.mcp_servers[name]["status"] = f"Connected ({len(tools)} tools)"
+        tool_names = ", ".join(t["name"] for t in tools[:10])
+        more = "" if len(tools) <= 10 else f", +{len(tools) - 10} more"
         return CommandResult(
             success=True,
-            message=f"Connected to MCP server '{name}'\n\nNote: Full MCP integration is in development.",
+            message=(
+                f"Connected to MCP server '{name}' — {len(tools)} tool(s) available.\n"
+                f"Tools: {tool_names}{more}\n\n"
+                "They're now exposed to the agent loop as "
+                f"mcp__{name}__<tool> (confirmation-gated)."
+            ),
         )
 
     async def _show_status(self, settings) -> CommandResult:
