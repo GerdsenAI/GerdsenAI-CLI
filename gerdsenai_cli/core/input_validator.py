@@ -149,6 +149,24 @@ class InputValidator:
         if not isinstance(action, str):
             return False, "Action must be a string"
 
+        # Normalize action variations to standard names
+        action_normalize_map = {
+            "explain": "read_and_explain",
+            "read": "read_and_explain",
+            "show": "read_and_explain",
+            "analyze": "whole_repo_analysis",
+            "overview": "whole_repo_analysis",
+            "search": "iterative_search",
+            "find": "iterative_search",
+            "edit": "edit_files",
+            "modify": "edit_files",
+            "create": "create_files",
+            "new": "create_files",
+        }
+
+        # Normalize the action if it's a common variation
+        normalized_action = action_normalize_map.get(action.lower(), action)
+
         # Validate action against allowlist
         valid_actions = {
             "read_and_explain",
@@ -158,8 +176,14 @@ class InputValidator:
             "create_files",
             "chat",
         }
-        if action not in valid_actions:
-            return False, f"Invalid action type: {action}"
+        if normalized_action not in valid_actions:
+            return (
+                False,
+                f"Invalid action type: {action} (normalized to: {normalized_action})",
+            )
+
+        # Update the response_data with normalized action
+        response_data["action"] = normalized_action
 
         return True, ""
 
