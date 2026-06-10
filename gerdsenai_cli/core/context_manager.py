@@ -20,7 +20,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 from ..utils.display import show_error
-from .token_counter import count_tokens
+from .token_counter import get_token_counter
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -864,14 +864,17 @@ class ProjectContext:
         Uses tiktoken for accurate token counting when available,
         falls back to heuristic (~4 chars per token) if not.
 
+        Routed through the global ``TokenCounter`` so repeated text — context
+        rebuilds re-include the same file contents every turn/refresh — hits its
+        bounded cache instead of re-running tiktoken on identical input.
+
         Args:
             text: Text to estimate tokens for
 
         Returns:
             Estimated token count
         """
-        # Use accurate tiktoken-based counting
-        return count_tokens(text)
+        return get_token_counter().count(text)
 
     def _prioritize_files(
         self,
