@@ -393,25 +393,36 @@ class TestTokenCounterPerformance:
         assert elapsed < 0.5
 
     def test_cache_effectiveness(self):
-        """Test that caching improves performance."""
+        """Repeated counts of the same text are served from cache.
+
+        Asserts caching *behavior* (a hit returns the same value without
+        re-tokenizing) rather than wall-clock timing, which was flaky under
+        full-suite load.
+        """
         counter = TokenCounter()
         text = "Hello, world! " * 100
 
-        import time
+        first = counter.count(text)
+        assert first > 0
+        assert text in counter._cache  # populated on first count
 
-        # First count (no cache)
-        start = time.time()
-        counter.count(text)
-        first_elapsed = time.time() - start
+        # Subsequent counts hit the cache without invoking the tokenizer again.
+        import gerdsenai_cli.core.token_counter as tc
 
-        # Subsequent counts (cached)
-        start = time.time()
-        for _ in range(100):
-            counter.count(text)
-        cached_elapsed = time.time() - start
+        calls = {"n": 0}
+        real = tc.count_tokens
 
-        # Cached should be much faster
-        assert cached_elapsed < first_elapsed * 10
+        def counting(t: str, model: str = "default") -> int:
+            calls["n"] += 1
+            return real(t, model)
+
+        tc.count_tokens = counting  # type: ignore[assignment]
+        try:
+            for _ in range(100):
+                assert counter.count(text) == first
+        finally:
+            tc.count_tokens = real  # type: ignore[assignment]
+        assert calls["n"] == 0  # all 100 were cache hits
 
 
 class TestTokenCounterEdgeCases:

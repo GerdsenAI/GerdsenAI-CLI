@@ -89,6 +89,7 @@ class LoopResult:
     iterations: int
     tool_calls_made: int
     stopped_reason: str  # "final" | "max_iterations" | "error" | "empty"
+    reasoning: str = ""  # chain-of-thought from the final model turn (display-only)
 
 
 async def _supports_native_tools(client: LLMClient) -> bool:
@@ -177,6 +178,7 @@ async def run_agent_loop(
                 iterations=iteration,
                 tool_calls_made=tool_calls_made,
                 stopped_reason="final" if result.content else "empty",
+                reasoning=result.reasoning,
             )
 
         # Record the assistant's tool-call turn so the model sees its own calls.

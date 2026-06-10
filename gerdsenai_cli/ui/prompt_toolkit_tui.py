@@ -376,6 +376,11 @@ class ConversationControl:
         ] = []  # (role, content, timestamp)
         self.streaming_message: str | None = None
         self.streaming_role: str | None = None
+        # Styled segments of the in-flight stream: (kind, text) where kind is
+        # "text" (assistant answer), "reasoning" (dim chain-of-thought), or
+        # "tool" (a tool-call/result status line). streaming_message holds the
+        # "text" portion only, so finalize/cancel keep their existing contract.
+        self.streaming_segments: list[tuple[str, str]] = []
         self.system_info: str | None = None  # For model info, warnings, etc.
         self.debug_mode: bool = False  # Debug mode flag for enhanced logging
 
@@ -426,14 +431,23 @@ class ConversationControl:
         """Start a new streaming message."""
         self.streaming_role = role
         self.streaming_message = ""
+        self.streaming_segments = []
 
-    def append_streaming(self, chunk: str) -> None:
-        """Append content to the currently streaming message."""
+    def append_streaming(self, chunk: str, kind: str = "text") -> None:
+        """Append content to the currently streaming message.
+
+        ``kind`` selects styling: "text" (the assistant answer, also accumulated
+        into ``streaming_message``), "reasoning" (dim), or "tool" (status line).
+        Only "text" feeds ``streaming_message`` so finalize keeps the answer-only
+        contract; reasoning/tool segments are display-only.
+        """
         if self.streaming_message is not None:
-            # Strip emoji from streaming chunks (assistant messages only)
-            if self.streaming_role == "assistant":
+            # Strip emoji from assistant answer text only.
+            if kind == "text" and self.streaming_role == "assistant":
                 chunk = strip_emoji(chunk)
-            self.streaming_message += chunk
+            self.streaming_segments.append((kind, chunk))
+            if kind == "text":
+                self.streaming_message += chunk
             self._update_buffer()
 
     def finish_streaming(self) -> None:
@@ -442,6 +456,7 @@ class ConversationControl:
             self.add_message(self.streaming_role, self.streaming_message)
             self.streaming_message = None
             self.streaming_role = None
+            self.streaming_segments = []
             # Note: add_message already calls _update_buffer()
 
     def get_formatted_text(self) -> FormattedText:
@@ -522,9 +537,22 @@ class ConversationControl:
                 ("class:ai-label", f"\n  GerdsenAI · {time_str} [streaming]\n")
             )
             result.append(("class:ai-border", "  " + "─" * 70 + "\n"))
-            # Add padding to streaming content
-            for line in self.streaming_message.split("\n"):
-                result.append(("class:ai-text", f"  {line}\n"))
+            # Render styled segments (reasoning dim, tool status, answer text).
+            # Falls back to the plain accumulated text if no segments were
+            # recorded (e.g. legacy single-shot stream).
+            style_for = {
+                "text": "class:ai-text",
+                "reasoning": "class:dim",
+                "tool": "class:tool-status",
+            }
+            if self.streaming_segments:
+                for kind, text in self.streaming_segments:
+                    style = style_for.get(kind, "class:ai-text")
+                    for line in text.split("\n"):
+                        result.append((style, f"  {line}\n" if line else "\n"))
+            else:
+                for line in self.streaming_message.split("\n"):
+                    result.append(("class:ai-text", f"  {line}\n"))
             result.append(("class:cursor", "  ▌"))  # Streaming cursor
 
         result.append(("", "\n"))
@@ -601,8 +629,9 @@ class PromptToolkitTUI:
         self.pending_plan: dict[str, Any] | None = None
         self.approval_mode = False
 
-        # Thinking mode - shows/hides AI reasoning
-        self.thinking_enabled = False
+        # Thinking mode - shows/hides AI reasoning (dimmed). On by default so the
+        # agent loop's chain-of-thought is visible; /thinking toggles it off.
+        self.thinking_enabled = True
 
         # Info bar state (above prompt) - tracks operational info
         self.token_count = 0
@@ -1421,13 +1450,19 @@ class PromptToolkitTUI:
         self._auto_scroll_to_bottom()
         self.app.invalidate()
 
-    def append_streaming_chunk(self, chunk: str) -> None:
+    def append_streaming_chunk(self, chunk: str, kind: str = "text") -> None:
         """Append a chunk to the streaming AI response.
 
         Args:
-            chunk: Text chunk to append to current streaming message
+            chunk: Text chunk to append to current streaming message.
+            kind: "text" (answer), "reasoning" (dim chain-of-thought), or "tool"
+                (a tool-call/result status line). Reasoning is shown only when the
+                ``/thinking`` toggle is on.
         """
-        self.conversation.append_streaming(chunk)
+        # Honor the /thinking toggle: drop reasoning chunks when disabled.
+        if kind == "reasoning" and not self.thinking_enabled:
+            return
+        self.conversation.append_streaming(chunk, kind)
         self._auto_scroll_to_bottom()
         self.app.invalidate()
 
@@ -1518,6 +1553,7 @@ def get_mode_style(mode: ExecutionMode) -> Style:
             "info-text": "#888888",  # Dim gray text
             "cursor": "#ffff00 blink",
             "dim": "#888888 italic",
+            "tool-status": "#5fafff",  # agent tool-call / result status lines
             "frame.border": colors["border"],  # For input frame border
         }
     )
