@@ -388,7 +388,7 @@ class LLMClient:
         if last_exception:
             raise last_exception
 
-    @measure_performance("health")  # type: ignore[misc]
+    @measure_performance("health")
     async def connect(self) -> bool:
         """
         Test connection to the LLM server.
@@ -503,7 +503,7 @@ class LLMClient:
             self._handle_failure("Connection test", wrapped)
             return False
 
-    @measure_performance("model_loading")  # type: ignore[misc]
+    @measure_performance("model_loading")
     async def list_models(self) -> list[ModelInfo]:
         """
         Get list of available models from the server.
@@ -608,7 +608,7 @@ class LLMClient:
 
         return models
 
-    @measure_performance("chat")  # type: ignore[misc]
+    @measure_performance("chat")
     async def chat(
         self,
         messages: list[ChatMessage],
@@ -899,7 +899,7 @@ class LLMClient:
         """Get cached list of available models."""
         return self._available_models.copy()
 
-    @measure_performance("health")  # type: ignore[misc]
+    @measure_performance("health")
     async def health_check(self) -> dict[str, Any]:
         """
         Perform a health check on the LLM server.
