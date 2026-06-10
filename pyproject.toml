@@ -50,6 +50,11 @@ anthropic = [
     "anthropic>=0.40.0",
     "keyring>=25.0.0",
 ]
+# Optional Model Context Protocol support: exposes configured MCP servers'
+# tools to the agent loop. Lazy-imported and gracefully degraded when absent.
+mcp = [
+    "mcp>=1.0.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -103,6 +108,8 @@ module = [
     "keyring.*",
     "sentence_transformers",
     "sentence_transformers.*",
+    "mcp",
+    "mcp.*",
 ]
 ignore_missing_imports = true
 

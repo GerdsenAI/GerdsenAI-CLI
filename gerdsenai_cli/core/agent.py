@@ -648,6 +648,7 @@ class Agent:
         # Agentic tool loop: registry built lazily; confirmation_callback is set
         # by the app (e.g. the TUI) to drive interactive approval of mutating tools.
         self._tool_registry: Any | None = None
+        self._mcp_tools_loaded: bool = False  # MCP tools registered into the loop?
         self.confirmation_callback: Any | None = None
 
     async def initialize(self) -> bool:
@@ -1734,6 +1735,38 @@ class Agent:
             self._tool_registry = build_default_registry(self)
         return self._tool_registry
 
+    async def _ensure_tool_registry(self) -> Any:
+        """Async registry: the default tools plus any configured MCP server tools.
+
+        Builds the default (read/edit/search/...) registry, then — when MCP
+        servers are configured and the optional ``mcp`` SDK is present — lists
+        each server's tools and registers them (prefixed ``mcp__<server>__<tool>``,
+        ``mutating=True`` so they pass through the confirm gate). Cached after the
+        first build so we don't re-list servers on every turn. Degrades to the
+        default-only registry when the SDK is absent or a server is unreachable.
+        """
+        registry = self._get_tool_registry()
+        if self._mcp_tools_loaded:
+            return registry
+        self._mcp_tools_loaded = True
+
+        servers = getattr(self.settings, "mcp_servers", None) or {}
+        if not servers:
+            return registry
+        try:
+            from .mcp_tools import build_mcp_tools
+
+            mcp_tools = await build_mcp_tools(self.settings)
+            for tool in mcp_tools:
+                registry.register(tool)
+            if mcp_tools:
+                logger.info(
+                    "Registered %d MCP tool(s) into the agent loop.", len(mcp_tools)
+                )
+        except Exception as e:
+            logger.warning("Failed to load MCP tools: %s", e)
+        return registry
+
     async def _tool_confirm(self, name: str, arguments: dict[str, Any]) -> bool:
         """Async confirm gate for mutating tools, driven by the execution mode.
 
@@ -1776,7 +1809,7 @@ class Agent:
         try:
             from .tool_registry import run_agent_loop
 
-            registry = self._get_tool_registry()
+            registry = await self._ensure_tool_registry()
             max_iter = int(
                 self.settings.get_preference("agent_loop_max_iterations", 10)
             )
@@ -1816,7 +1849,7 @@ class Agent:
         """
         from .tool_registry import run_agent_loop
 
-        registry = self._get_tool_registry()
+        registry = await self._ensure_tool_registry()
         max_iter = int(self.settings.get_preference("agent_loop_max_iterations", 10))
         queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue()
 

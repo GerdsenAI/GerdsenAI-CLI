@@ -43,6 +43,8 @@ jobs:
           gerdsenai_cli/core/tool_parsing.py \
           gerdsenai_cli/core/agent_tools.py \
           gerdsenai_cli/core/llm_client.py \
+          gerdsenai_cli/core/mcp_client.py \
+          gerdsenai_cli/core/mcp_tools.py \
           gerdsenai_cli/utils/performance.py
 
     # mypy has a backlog of pre-existing type errors (see docs/ROADMAP.md).

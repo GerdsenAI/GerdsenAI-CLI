@@ -227,10 +227,21 @@ class TestMCPIntegration:
         assert "test-server" not in settings.mcp_servers
 
     @pytest.mark.asyncio
-    async def test_mcp_connect_server(self):
-        """Test connecting to an MCP server."""
+    async def test_mcp_connect_server(self, monkeypatch):
+        """Connecting lists the server's tools and records the count (SDK present)."""
+        from typing import Any
+
         from gerdsenai_cli.commands.mcp import MCPCommand
         from gerdsenai_cli.config.settings import Settings
+        from gerdsenai_cli.core.mcp_client import MCPClient
+
+        # Pretend the optional SDK is installed and the server offers one tool.
+        monkeypatch.setattr(MCPClient, "sdk_available", staticmethod(lambda: True))
+
+        async def _tools(self: MCPClient) -> list[dict[str, Any]]:
+            return [{"name": "search", "description": "Search", "inputSchema": {}}]
+
+        monkeypatch.setattr(MCPClient, "list_tools", _tools)
 
         cmd = MCPCommand()
         settings = Settings()
@@ -243,7 +254,30 @@ class TestMCPIntegration:
         )
 
         assert result.success
-        assert "connected" in settings.mcp_servers["test-server"]["status"].lower()
+        status = settings.mcp_servers["test-server"]["status"].lower()
+        assert "connected" in status and "1" in status
+
+    @pytest.mark.asyncio
+    async def test_mcp_connect_without_sdk_gives_install_hint(self, monkeypatch):
+        """Without the optional SDK, connect fails cleanly with an install hint."""
+        from gerdsenai_cli.commands.mcp import MCPCommand
+        from gerdsenai_cli.config.settings import Settings
+        from gerdsenai_cli.core.mcp_client import MCPClient
+
+        monkeypatch.setattr(MCPClient, "sdk_available", staticmethod(lambda: False))
+
+        cmd = MCPCommand()
+        settings = Settings()
+        settings.mcp_servers = {
+            "test-server": {"url": "http://localhost:8000", "status": "Not connected"}
+        }
+
+        result = await cmd.execute(
+            {"action": "connect", "name": "test-server"}, {"settings": settings}
+        )
+
+        assert not result.success
+        assert "gerdsenai-cli[mcp]" in result.message
 
     @pytest.mark.asyncio
     async def test_mcp_status(self):

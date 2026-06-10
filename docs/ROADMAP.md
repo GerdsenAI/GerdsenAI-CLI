@@ -104,10 +104,19 @@ decisions already made, so future work can proceed without re-litigating them.
 - Landed (engine): `core/tool_registry.py` — `Tool`, `ToolRegistry`, and
   `run_agent_loop` (bounded loop; read-only tools run freely, mutating tools gated
   by a `confirm` callback; CHAT mode = no tools; `max_iterations` cap).
-- **Next:** wire `run_agent_loop` into `Agent.process_user_input`, expose the
-  existing file/search/terminal handlers as tools, and drive autonomy from
-  `ExecutionMode`. Then diff-based edits, a headless `-p` one-shot mode, and
-  unifying the duplicated TUI streaming loops.
+- Landed (wire-in + UX): the loop drives both `process_user_input` and the
+  streaming TUI path, surfacing reasoning/tool/answer events live; model-compat
+  layer (`core/tool_parsing.py`) handles OpenAI, Hermes `<tool_call>` XML, the
+  shim, and `<think>` reasoning.
+- Landed (MCP tools): configured MCP servers are exposed to the loop as tools via
+  the **optional** `mcp` extra — `pip install "gerdsenai-cli[mcp]"`. `core/mcp_client.py`
+  (streamable-HTTP wrapper, lazy-imported, degrades to no-op when the SDK is absent
+  or the server is unreachable) + `core/mcp_tools.py` (`build_mcp_tools` wraps each
+  server tool as `mcp__<server>__<tool>`, `mutating=True` so it passes the confirm
+  gate). `/mcp connect` lists a server's tools for real; `Agent._ensure_tool_registry`
+  merges them into the default registry (cached per session).
+- **Next:** diff-based edits and unifying the duplicated TUI streaming loops; MCP
+  stdio transport (the SDK gives it to us for free).
 
 ## Process notes
 - **GitHub PR creation depends on a working GitHub connection.** Branches always
