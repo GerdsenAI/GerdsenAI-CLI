@@ -275,12 +275,20 @@ def _mock_async_client(client: Any) -> Any:
     return factory
 
 
+def _persistent_client(client: MagicMock) -> MagicMock:
+    """Patch target: httpx.AsyncClient(...) held persistently by the store."""
+    client.is_closed = False
+    factory = MagicMock(return_value=client)
+    return factory
+
+
 @pytest.mark.asyncio
 async def test_qdrant_available_true() -> None:
     client = MagicMock()
     client.get = AsyncMock(return_value=MagicMock(status_code=200))
     with patch(
-        "gerdsenai_cli.core.vector_store.httpx.AsyncClient", _mock_async_client(client)
+        "gerdsenai_cli.core.vector_store.httpx.AsyncClient",
+        _persistent_client(client),
     ):
         assert await QdrantVectorStore().available() is True
 
@@ -290,9 +298,50 @@ async def test_qdrant_available_false_on_error() -> None:
     client = MagicMock()
     client.get = AsyncMock(side_effect=OSError("connection refused"))
     with patch(
-        "gerdsenai_cli.core.vector_store.httpx.AsyncClient", _mock_async_client(client)
+        "gerdsenai_cli.core.vector_store.httpx.AsyncClient",
+        _persistent_client(client),
     ):
         assert await QdrantVectorStore().available() is False
+
+
+@pytest.mark.asyncio
+async def test_qdrant_client_is_reused_across_calls() -> None:
+    """The pooled client is created once, not per call (the optimization)."""
+    client = MagicMock()
+    client.get = AsyncMock(return_value=MagicMock(status_code=200))
+    factory = _persistent_client(client)
+    with patch("gerdsenai_cli.core.vector_store.httpx.AsyncClient", factory):
+        store = QdrantVectorStore()
+        await store.available()
+        await store.collection_exists("c")
+        await store.collection_exists("c")
+    assert factory.call_count == 1  # one client for all three calls
+
+
+@pytest.mark.asyncio
+async def test_qdrant_close_releases_and_recreates() -> None:
+    """close() closes the pool; a later call transparently gets a new client."""
+    first = MagicMock()
+    first.get = AsyncMock(return_value=MagicMock(status_code=200))
+    first.is_closed = False
+
+    async def _close() -> None:
+        first.is_closed = True
+
+    first.aclose = AsyncMock(side_effect=_close)
+    second = MagicMock()
+    second.get = AsyncMock(return_value=MagicMock(status_code=200))
+    second.is_closed = False
+
+    factory = MagicMock(side_effect=[first, second])
+    with patch("gerdsenai_cli.core.vector_store.httpx.AsyncClient", factory):
+        store = QdrantVectorStore()
+        await store.available()
+        await store.close()
+        first.aclose.assert_awaited_once()
+        await store.close()  # idempotent: nothing left to close
+        await store.available()  # recreated after close
+    assert factory.call_count == 2
 
 
 @pytest.mark.asyncio

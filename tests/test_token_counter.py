@@ -239,8 +239,7 @@ class TestMessageTruncation:
     def test_truncate_messages_needs_truncation(self):
         """Test when messages need truncation."""
         messages = [
-            {"role": "user", "content": "Message " + str(i)}
-            for i in range(100)
+            {"role": "user", "content": "Message " + str(i)} for i in range(100)
         ]
         result = truncate_messages_to_fit(
             messages=messages,
@@ -384,6 +383,7 @@ class TestTokenCounterPerformance:
         text = "Hello, world! " * 100
 
         import time
+
         start = time.time()
         for _ in range(100):
             counter.count(text)
@@ -452,3 +452,39 @@ class TestTokenCounterEdgeCases:
         tokens = counter.count_messages(messages)
         # Should still count content
         assert tokens > 0
+
+
+class TestContextManagerTokenCaching:
+    """_estimate_tokens routes through the cached global TokenCounter, so
+    re-tokenizing identical text (context rebuilds re-include the same files)
+    is a dict hit instead of a tiktoken encode."""
+
+    def test_estimate_tokens_hits_cache_for_repeated_text(self, monkeypatch):
+        import gerdsenai_cli.core.token_counter as tc
+        from gerdsenai_cli.core.context_manager import ProjectContext
+
+        calls = {"n": 0}
+        real_count = tc.count_tokens
+
+        def counting(text: str, model: str = "default") -> int:
+            calls["n"] += 1
+            return real_count(text, model)
+
+        monkeypatch.setattr(tc, "count_tokens", counting)
+        # Fresh global counter so the wrapper is what gets cached through.
+        monkeypatch.setattr(tc, "_global_counter", None)
+
+        first = ProjectContext._estimate_tokens("the same file content")
+        second = ProjectContext._estimate_tokens("the same file content")
+
+        assert first == second > 0
+        assert calls["n"] == 1  # second call was a cache hit
+
+    def test_estimate_tokens_distinct_text_not_conflated(self, monkeypatch):
+        import gerdsenai_cli.core.token_counter as tc
+        from gerdsenai_cli.core.context_manager import ProjectContext
+
+        monkeypatch.setattr(tc, "_global_counter", None)
+        a = ProjectContext._estimate_tokens("alpha " * 50)
+        b = ProjectContext._estimate_tokens("b")
+        assert a > b
