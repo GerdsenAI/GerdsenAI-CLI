@@ -160,6 +160,9 @@ async def test_retrieve_semantic_when_enabled(agent: Agent, monkeypatch: Any) ->
         async def search(self, query: str, limit: int = 5) -> list[Any]:
             return [_Hit()]
 
+        async def aclose(self) -> None:
+            return None
+
     async def fake_build_indexer(settings: Any, root: Path) -> Any:
         return _Indexer()
 
@@ -182,3 +185,52 @@ async def test_retrieve_semantic_noop_when_no_indexer(
 
     monkeypatch.setattr("gerdsenai_cli.core.repo_index.build_indexer", none_indexer)
     assert await agent._retrieve_semantic_context("foo") == ""
+
+
+@pytest.mark.asyncio
+async def test_retrieve_semantic_closes_indexer(agent: Agent, monkeypatch: Any) -> None:
+    """The per-search indexer's pooled connection is released (no socket leak)."""
+    agent.settings.enable_vector_index = True
+    closed = {"n": 0}
+
+    class _Indexer:
+        async def search(self, query: str, limit: int = 5) -> list[Any]:
+            return []
+
+        async def aclose(self) -> None:
+            closed["n"] += 1
+
+    async def fake_build_indexer(settings: Any, root: Path) -> Any:
+        return _Indexer()
+
+    monkeypatch.setattr(
+        "gerdsenai_cli.core.repo_index.build_indexer", fake_build_indexer
+    )
+    await agent._retrieve_semantic_context("foo")
+    assert closed["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_retrieve_semantic_closes_indexer_on_search_error(
+    agent: Agent, monkeypatch: Any
+) -> None:
+    """Even when search raises, the indexer is still closed (finally)."""
+    agent.settings.enable_vector_index = True
+    closed = {"n": 0}
+
+    class _Indexer:
+        async def search(self, query: str, limit: int = 5) -> list[Any]:
+            raise RuntimeError("qdrant blew up")
+
+        async def aclose(self) -> None:
+            closed["n"] += 1
+
+    async def fake_build_indexer(settings: Any, root: Path) -> Any:
+        return _Indexer()
+
+    monkeypatch.setattr(
+        "gerdsenai_cli.core.repo_index.build_indexer", fake_build_indexer
+    )
+    out = await agent._retrieve_semantic_context("foo")
+    assert out == ""  # graceful degradation preserved
+    assert closed["n"] == 1  # and still closed
