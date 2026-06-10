@@ -370,6 +370,32 @@ python -m gerdsenai_cli --config examples/config/basic.json
 
 See [examples/README.md](examples/README.md) for more details on configuration options.
 
+### Environment Variables
+
+Configuration can also come from the environment. Precedence is always
+**CLI flag > environment variable > config file**.
+
+| Variable | Effect |
+|---|---|
+| `GERDSENAI_CONFIG` | Path to the config file (used when `--config` is not given) |
+| `GERDSENAI_LLM_SERVER_URL` | Overrides `llm_server_url` at load time. Must be `http(s)://host:port` with an explicit port — a malformed value fails loudly instead of silently falling back to localhost |
+| `GERDSENAI_MODEL` | Overrides `current_model` at load time (also skips the first-run auto-select of the first listed model) |
+| `GERDSENAI_LLM_API_KEY` | Bearer token for authenticated OpenAI-compatible endpoints (takes precedence over the `api_key` config field; keeps secrets out of the on-disk config) |
+
+Environment values are never written back to the config file.
+
+With `GERDSENAI_LLM_SERVER_URL` set, headless mode (`-p` / `--stdin`) runs
+without any config file — handy for Docker and CI harnesses:
+
+```bash
+# Headless one-shot against a remote server, no config file needed
+docker run --rm \
+  -e GERDSENAI_LLM_SERVER_URL=http://10.0.0.5:11434 \
+  -e GERDSENAI_MODEL=qwen2.5-coder:14b \
+  my-gerdsenai-image \
+  gerdsenai -p "Summarize the failing tests"
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](docs/development/CONTRIBUTING.md) for detailed information.
