@@ -357,6 +357,10 @@ class RepoIndexer:
         except OSError as e:
             logger.debug(f"Could not remove index manifest: {e}")
 
+    async def aclose(self) -> None:
+        """Release the vector store's pooled connection."""
+        await self.store.close()
+
 
 async def build_indexer(settings: Settings, repo_root: Path) -> RepoIndexer | None:
     """Construct a RepoIndexer if Qdrant and an embedding backend are available.

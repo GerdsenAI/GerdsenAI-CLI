@@ -1621,6 +1621,7 @@ class Agent:
         """
         if not query or not getattr(self.settings, "enable_vector_index", False):
             return ""
+        indexer = None
         try:
             from .repo_index import build_indexer
 
@@ -1633,6 +1634,11 @@ class Agent:
             # so an exception here is a real retrieval failure worth flagging.
             logger.warning(f"Semantic retrieval failed, continuing without it: {e}")
             return ""
+        finally:
+            # build_indexer creates a fresh store with a pooled connection on
+            # every call; release it so per-turn retrieval doesn't leak sockets.
+            if indexer is not None:
+                await indexer.aclose()
 
         blocks = []
         for hit in hits:

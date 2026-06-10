@@ -412,6 +412,9 @@ async def test_index_command_build_and_search(monkeypatch: Any) -> None:
                 "backend": "fake",
             }
 
+        async def aclose(self) -> None:
+            return None
+
         async def clear(self) -> None:
             return None
 
