@@ -466,15 +466,30 @@ class ConversationControl:
         """
         result = []
 
+        # System info (model info, warnings, recovery/error notes) is set via
+        # add_message("system", ...) but was previously never shown. Render it as
+        # a labelled block so those notes are actually visible to the user.
+        if self.system_info:
+            result.append(("class:system-label", "\n  System\n"))
+            result.append(("class:system-border", "  " + "─" * 70 + "\n"))
+            for line in self.system_info.split("\n"):
+                result.append(("class:system-text", f"  {line}\n" if line else "\n"))
+
         # Show empty state if no messages
         if not self.messages and self.streaming_message is None:
-            result.append(("class:dim", "\n"))
-            result.append(("class:dim", "  No messages yet.\n"))
-            result.append(
-                ("class:dim", "  Type your message below and press Enter to start.\n")
-            )
-            result.append(("class:dim", "  Type /help to see available commands.\n"))
-            result.append(("class:dim", "\n"))
+            if not self.system_info:
+                result.append(("class:dim", "\n"))
+                result.append(("class:dim", "  No messages yet.\n"))
+                result.append(
+                    (
+                        "class:dim",
+                        "  Type your message below and press Enter to start.\n",
+                    )
+                )
+                result.append(
+                    ("class:dim", "  Type /help to see available commands.\n")
+                )
+                result.append(("class:dim", "\n"))
             return FormattedText(result)
 
         # Display all complete messages
