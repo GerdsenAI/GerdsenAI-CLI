@@ -11,37 +11,15 @@ from typing import Any
 
 import pytest
 
-from gerdsenai_cli.core.llm_client import ChatMessage, ChatResult, ToolCall
+from gerdsenai_cli.core.llm_client import ChatMessage
 from gerdsenai_cli.core.tool_registry import (
     Tool,
     ToolRegistry,
     run_agent_loop,
 )
-
-
-class ScriptedClient:
-    """A fake LLMClient that returns a pre-scripted sequence of ChatResults.
-
-    Native tool-calling is used (use_native_tools=True in tests), so only
-    chat_with_tools is exercised; chat() backs the CHAT-mode path.
-    """
-
-    def __init__(self, script: list[ChatResult]) -> None:
-        self._script = list(script)
-        self.calls = 0
-        self.last_convo: list[ChatMessage] | None = None
-
-    async def chat_with_tools(
-        self, messages: list[ChatMessage], tools: list[dict[str, Any]], **kw: Any
-    ) -> ChatResult:
-        self.last_convo = list(messages)
-        self.calls += 1
-        return self._script.pop(0)
-
-    async def chat(self, messages: list[ChatMessage], **kw: Any) -> str:
-        self.last_convo = list(messages)
-        self.calls += 1
-        return "plain chat answer"
+from tests.harness import ScriptedLLMClient as ScriptedClient
+from tests.harness import final as _final
+from tests.harness import tool_call as _call
 
 
 def _registry(record: list[str] | None = None) -> ToolRegistry:
@@ -75,16 +53,6 @@ def _registry(record: list[str] | None = None) -> ToolRegistry:
         )
     )
     return reg
-
-
-def _call(name: str, **args: Any) -> ChatResult:
-    return ChatResult(
-        content="", tool_calls=[ToolCall(id=f"c_{name}", name=name, arguments=args)]
-    )
-
-
-def _final(text: str) -> ChatResult:
-    return ChatResult(content=text)
 
 
 # --------------------------------------------------------------------------- #
@@ -123,7 +91,7 @@ async def test_chat_mode_runs_no_tools() -> None:
         _registry(),
         allow_tools=False,
     )
-    assert result.content == "plain chat answer"
+    assert result.content == "single-shot answer"
     assert result.tool_calls_made == 0
     assert result.iterations == 0
 
@@ -152,8 +120,10 @@ async def test_confirm_denies_mutating_tool() -> None:
     assert record == []  # the write never executed
     assert result.stopped_reason == "final"
     # The tool-result message told the model it was declined.
-    assert client.last_convo is not None
-    assert any(m.role == "tool" and "declined" in m.content for m in client.last_convo)
+    assert client.last_messages is not None
+    assert any(
+        m.role == "tool" and "declined" in m.content for m in client.last_messages
+    )
 
 
 @pytest.mark.asyncio
@@ -205,9 +175,9 @@ async def test_unknown_tool_is_reported_not_fatal() -> None:
         use_native_tools=True,
     )
     assert result.stopped_reason == "final"
-    assert client.last_convo is not None
+    assert client.last_messages is not None
     assert any(
-        m.role == "tool" and "unknown tool" in m.content for m in client.last_convo
+        m.role == "tool" and "unknown tool" in m.content for m in client.last_messages
     )
 
 
@@ -234,8 +204,8 @@ async def test_tool_exception_does_not_kill_loop() -> None:
         use_native_tools=True,
     )
     assert result.stopped_reason == "final"
-    assert client.last_convo is not None
-    assert any(m.role == "tool" and "kaboom" in m.content for m in client.last_convo)
+    assert client.last_messages is not None
+    assert any(m.role == "tool" and "kaboom" in m.content for m in client.last_messages)
 
 
 @pytest.mark.asyncio
@@ -253,7 +223,7 @@ async def test_max_iterations_cap() -> None:
     )
     assert result.stopped_reason == "max_iterations"
     assert result.iterations == 3
-    assert client.calls == 3
+    assert client.tool_calls == 3
 
 
 @pytest.mark.asyncio
@@ -264,7 +234,7 @@ async def test_empty_registry_falls_back_to_plain_chat() -> None:
         [ChatMessage(role="user", content="hi")],
         ToolRegistry(),  # no tools
     )
-    assert result.content == "plain chat answer"
+    assert result.content == "single-shot answer"
     assert result.tool_calls_made == 0
 
 

@@ -228,6 +228,7 @@ The project is configured to use `.venv` automatically:
 - `/help` - Show all available commands
 - `/tools` - List tools by category with search/filter
 - `/status` - Check system and AI connection status
+- `/doctor` - Run health diagnostics (version, LLM connection, capabilities, optional extras)
 - `/about` - Version and troubleshooting information
 
 ### File Operations
@@ -240,6 +241,7 @@ The project is configured to use `.venv` automatically:
 ### AI & Context
 - Chat naturally or use `/chat <message>`
 - `/agent` - View AI agent statistics
+- `/delegate <task>` - Hand a focused sub-task to a fresh sub-agent loop
 - `/refresh` - Refresh project context
 - `/clear` - Clear conversation history
 
@@ -248,6 +250,27 @@ The project is configured to use `.venv` automatically:
 - `/model <name>` - Switch to specific model
 - `/config` - Show current configuration
 - `/setup` - Reconfigure LLM server connection
+
+## Agentic Tool-Use Loop
+
+The agent is a real tool-use loop, not a single-shot classifier: it is given a set of
+tools (`read_file`, `search_files`, `analyze_project`, `semantic_search`, `create_file`,
+`edit_file`, `run_command`) and driven in a bounded loop — call a tool, observe the
+result, call another — until it produces a final answer. It works on any local endpoint:
+native tool-calling when the model supports it, a prompt-based shim otherwise.
+
+- **Autonomy modes** gate the loop: `CHAT` (no tools), `ARCHITECT` (confirm every mutating
+  tool), `EXECUTE` (auto-apply edits, but `run_command` **always** confirms), `LLVL`
+  (auto-allow). Consent + diff-preview + auto-backup guard every file write.
+- **Sub-agent delegation** — the model (via a `delegate` tool) or you (via `/delegate
+  <task>`) can hand a self-contained sub-task to a fresh child loop. Delegation is
+  depth-capped (`delegation_max_depth`, default 1) and the child runs through the same
+  confirmation gates, so consent is never bypassed. Toggle with `enable_delegation`.
+- **MCP servers** can be exposed as loop tools via the optional `mcp` extra
+  (`pip install "gerdsenai-cli[mcp]"`).
+
+See [`docs/VERIFY.md`](docs/VERIFY.md) for how the loop is verified — a deterministic test
+harness (`tests/harness.py`) plus a manual real-model TUI recipe.
 
 ## Advanced Intelligence Systems
 
