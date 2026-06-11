@@ -36,6 +36,7 @@ from .commands.audio_commands import (
     SpeakCommand,
     TranscribeCommand,
 )
+from .commands.delegate import DelegateCommand
 from .commands.discover import DiscoverCommand
 from .commands.files import (
     CreateFileCommand,
@@ -62,6 +63,7 @@ from .commands.system import (
     ConfigCommand,
     CopyCommand,
     DebugCommand,
+    DoctorCommand,
     ExitCommand,
     HelpCommand,
     InitCommand,
@@ -314,6 +316,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(ToolsCommand())
         self.command_parser.register_command(TuiCommand())
         self.command_parser.register_command(MCPCommand())
+        self.command_parser.register_command(DoctorCommand())
 
         # Register model commands
         self.command_parser.register_command(ListModelsCommand())
@@ -331,6 +334,7 @@ class GerdsenAICLI:
         self.command_parser.register_command(RefreshContextCommand())
         self.command_parser.register_command(ResetCommand())
         self.command_parser.register_command(AgentConfigCommand())
+        self.command_parser.register_command(DelegateCommand())
         if self.agent:
             # Register Phase 8d intelligence features
             from .commands.memory import MemoryCommand

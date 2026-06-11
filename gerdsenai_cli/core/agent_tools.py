@@ -34,8 +34,13 @@ def _truncate(text: str, limit: int = _MAX_TOOL_RESULT_CHARS) -> str:
     return text[:limit] + f"\n... [truncated {len(text) - limit} chars]"
 
 
-def build_default_registry(agent: Agent) -> ToolRegistry:
-    """Build the standard tool set bound to a live Agent."""
+def build_default_registry(agent: Agent, *, delegation_depth: int = 0) -> ToolRegistry:
+    """Build the standard tool set bound to a live Agent.
+
+    ``delegation_depth`` is the depth of the (sub-)agent this registry is for: the
+    top-level agent is 0. The ``delegate`` tool is added only while below the
+    configured depth cap, so a sub-agent at max depth cannot spawn another.
+    """
     reg = ToolRegistry()
 
     # -- read-only tools ------------------------------------------------- #
@@ -201,4 +206,50 @@ def build_default_registry(agent: Agent) -> ToolRegistry:
             mutating=True,
         )
     )
+
+    _maybe_register_delegate(reg, agent, delegation_depth)
     return reg
+
+
+def _maybe_register_delegate(reg: ToolRegistry, agent: Agent, depth: int) -> None:
+    """Register the ``delegate`` tool, unless disabled or at the depth cap.
+
+    ``delegate`` is ``mutating`` so the spawn passes through the loop's confirm
+    gate (ARCHITECT confirms it; EXECUTE auto-runs it like an edit). The child's
+    own mutating tools — including ``run_command`` — remain individually gated, so
+    delegating never bypasses consent.
+    """
+    from .delegation import delegation_enabled, delegation_max_depth, run_delegation
+
+    if not delegation_enabled(agent):
+        return
+    max_depth = delegation_max_depth(agent)
+    if depth >= max_depth:
+        return  # at/over the cap: this (sub-)agent gets no delegate tool
+
+    async def delegate(task: str) -> str:
+        return await run_delegation(agent, task, depth=depth + 1, max_depth=max_depth)
+
+    reg.register(
+        Tool(
+            name="delegate",
+            description=(
+                "Hand a focused, self-contained sub-task to a fresh sub-agent and "
+                "get back its result. Use for a chunk of work that can be done "
+                "independently (e.g. 'write unit tests for module X'). The sub-agent "
+                "has the same tools and the same confirmation gates as you."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "The self-contained sub-task to delegate.",
+                    }
+                },
+                "required": ["task"],
+            },
+            func=delegate,
+            mutating=True,
+        )
+    )

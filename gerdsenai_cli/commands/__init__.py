@@ -20,6 +20,7 @@ from .audio_commands import (
 from .base import BaseCommand
 from .clarify_commands import ClarifyCommand
 from .complexity_commands import ComplexityCommand
+from .delegate import DelegateCommand
 from .discover import DiscoverCommand
 from .files import (
     CreateFileCommand,
@@ -47,6 +48,7 @@ from .system import (
     ConfigCommand,
     CopyCommand,
     DebugCommand,
+    DoctorCommand,
     ExitCommand,
     HelpCommand,
     InitCommand,
@@ -75,6 +77,7 @@ __all__ = [
     "InitCommand",
     "SetupCommand",
     "ToolsCommand",
+    "DoctorCommand",
     # Model commands
     "ListModelsCommand",
     "SwitchModelCommand",
@@ -92,6 +95,7 @@ __all__ = [
     "RefreshContextCommand",
     "ResetCommand",
     "AgentConfigCommand",
+    "DelegateCommand",
     "PlanCommand",
     "MemoryCommand",
     "ClarifyCommand",

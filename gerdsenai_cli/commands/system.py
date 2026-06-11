@@ -619,6 +619,172 @@ class AboutCommand(BaseCommand):
         )
 
 
+class DoctorCommand(BaseCommand):
+    """Run health diagnostics across the install, server, loop, and extras."""
+
+    @property
+    def name(self) -> str:
+        return "doctor"
+
+    @property
+    def description(self) -> str:
+        return "Run health diagnostics (version, LLM connection, capabilities, extras)"
+
+    @property
+    def category(self) -> CommandCategory:
+        return CommandCategory.SYSTEM
+
+    @property
+    def aliases(self) -> list[str]:
+        return ["health", "diagnose"]
+
+    @staticmethod
+    def _installed(module: str) -> bool:
+        """True if an optional dependency is importable, without importing it."""
+        import importlib.util
+
+        try:
+            return importlib.util.find_spec(module) is not None
+        except (ImportError, ValueError):
+            return False
+
+    async def execute(
+        self, args: dict[str, Any], context: dict[str, Any]
+    ) -> CommandResult:
+        """Execute the doctor command."""
+        try:
+            from .. import __version__
+        except ImportError:
+            __version__ = "0.1.0-dev"
+
+        console.print("\n🩺 [bold cyan]GerdsenAI CLI — Doctor[/bold cyan]\n")
+
+        # -- Runtime ----------------------------------------------------- #
+        console.print("[bold]Runtime[/bold]")
+        console.print(f"  ✅ Version:           [bold green]{__version__}[/bold green]")
+        console.print(f"  ✅ Python:            {sys.version.split()[0]}")
+        console.print(
+            f"  ✅ Platform:          {platform.system()} {platform.release()} "
+            f"({platform.machine()})"
+        )
+        console.print(
+            "  [dim]↳ Update with `pip install -U gerdsenai-cli` once published.[/dim]"
+        )
+
+        # -- LLM connection ---------------------------------------------- #
+        console.print("\n[bold]LLM server[/bold]")
+        llm_client = context.get("llm_client")
+        connected = False
+        if llm_client is None:
+            console.print("  ❌ LLM client:        not initialized")
+        else:
+            try:
+                with console.status(
+                    "[bold green]Checking LLM server...", spinner="dots"
+                ):
+                    health = await llm_client.health_check()
+                connected = bool(health.get("connected"))
+                icon = "✅" if connected else "❌"
+                state = "Connected" if connected else "Disconnected"
+                console.print(f"  {icon} Connection:        [bold]{state}[/bold]")
+                console.print(
+                    f"  •  Server URL:        {health.get('server_url', '?')}"
+                )
+                console.print(
+                    f"  •  Models available:  {health.get('models_available', 0)}"
+                )
+                if health.get("response_time_ms") is not None:
+                    console.print(
+                        f"  •  Response time:     {health['response_time_ms']}ms"
+                    )
+                if health.get("error"):
+                    console.print(
+                        f"  •  Error:             [red]{health['error']}[/red]"
+                    )
+                if not connected:
+                    console.print(
+                        "  [dim]↳ Start your local server (e.g. `ollama serve`) "
+                        "or run `/setup` to reconfigure.[/dim]"
+                    )
+            except Exception as e:
+                console.print(f"  ❌ Health check failed: [red]{e}[/red]")
+
+        # -- Model + agent loop ------------------------------------------ #
+        console.print("\n[bold]Agent loop[/bold]")
+        settings = context.get("settings")
+        if settings is not None:
+            model = settings.current_model or "(none selected)"
+            console.print(f"  •  Current model:     {model}")
+            try:
+                from ..core.capabilities import CapabilityDetector
+
+                caps = CapabilityDetector.detect_from_model_name(
+                    settings.current_model or ""
+                )
+                if caps.supports_tools:
+                    console.print(
+                        "  ✅ Tool-calling:      native (model recognized as "
+                        "tool-capable)"
+                    )
+                else:
+                    console.print(
+                        "  ⚠️  Tool-calling:      prompt-shim fallback "
+                        "(works, but native is preferred)"
+                    )
+            except Exception:
+                console.print("  ⚠️  Tool-calling:      could not detect")
+
+            enabled = settings.get_preference("enable_agent_loop", True)
+            console.print(f"  {'✅' if enabled else '⚠️ '} Loop enabled:      {enabled}")
+            console.print(
+                f"  •  Mode:              {settings.get_preference('agent_mode', 'execute')}"
+            )
+            console.print(
+                "  •  Max iterations:    "
+                f"{settings.get_preference('agent_loop_max_iterations', 10)}"
+            )
+            console.print(
+                "  •  Delegation:        "
+                f"enabled={settings.get_preference('enable_delegation', True)}, "
+                f"max_depth={settings.get_preference('delegation_max_depth', 1)}"
+            )
+        else:
+            console.print("  ⚠️  Settings not available")
+
+        # -- Optional extras --------------------------------------------- #
+        console.print("\n[bold]Optional extras[/bold]")
+        extras = [
+            ("mcp", "MCP tool servers", 'pip install "gerdsenai-cli[mcp]"'),
+            ("anthropic", "Anthropic cloud provider", "pip install anthropic"),
+            ("qdrant_client", "semantic code index", "pip install qdrant-client"),
+            ("psutil", "memory diagnostics", "pip install psutil"),
+            ("pyperclip", "clipboard (/copy)", "pip install pyperclip"),
+        ]
+        for module, label, hint in extras:
+            if self._installed(module):
+                console.print(f"  ✅ {label:<24} installed")
+            else:
+                console.print(f"  ⚠️  {label:<24} missing  [dim]({hint})[/dim]")
+
+        # -- Config ------------------------------------------------------ #
+        import os
+
+        config_dir = Path(os.path.expanduser("~")) / ".config" / "gerdsenai-cli"
+        exists = config_dir.exists()
+        console.print("\n[bold]Config[/bold]")
+        console.print(
+            f"  {'✅' if exists else '⚠️ '} Directory:         {config_dir} "
+            f"({'exists' if exists else 'not created yet'})"
+        )
+
+        console.print()
+        return CommandResult(
+            success=True,
+            message="Doctor diagnostics displayed",
+            data={"version": __version__, "llm_connected": connected},
+        )
+
+
 class InitCommand(BaseCommand):
     """Initialize project with GerdsenAI.md guide."""
 
