@@ -10,61 +10,25 @@ security sanitization, and graceful handling of an empty model response.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from gerdsenai_cli.config.settings import Settings
 from gerdsenai_cli.core.agent import Agent
-from gerdsenai_cli.core.llm_client import ChatMessage
-
-
-class FakeLLMClient:
-    """Stand-in for LLMClient covering just what the send path touches."""
-
-    def __init__(self, response: str = "Hello from the model.") -> None:
-        self.response = response
-        self.chat_calls = 0
-        self.stream_calls = 0
-        self.last_messages: list[ChatMessage] | None = None
-
-    async def chat(self, messages: list[ChatMessage], **kwargs: Any) -> str:
-        self.chat_calls += 1
-        self.last_messages = messages
-        return self.response
-
-    async def stream_chat(self, messages: list[ChatMessage], **kwargs: Any):
-        self.stream_calls += 1
-        self.last_messages = messages
-        # Yield in a couple of chunks to exercise accumulation.
-        mid = max(1, len(self.response) // 2)
-        yield self.response[:mid]
-        yield self.response[mid:]
-
-    def get_model_context_window(self, model_id: str) -> int:
-        return 8192
+from tests.harness import ScriptedLLMClient, build_agent
 
 
 def _make_agent(
     tmp_path: Path, response: str = "Hello from the model.", streaming: bool = False
-) -> tuple[Agent, FakeLLMClient]:
-    """Build a real Agent with a faked LLM client.
+) -> tuple[Agent, ScriptedLLMClient]:
+    """Build a real Agent with a faked LLM client (via the shared harness).
 
-    LLM-based intent detection is disabled so a plain message takes the
-    deterministic CHAT path (regex intent -> CHAT, no action), and streaming is
-    toggled explicitly per test.
+    CHAT mode pins the legacy single-shot path (the tool-loop stays inactive), LLM
+    intent detection is off for determinism, and streaming is toggled per test.
     """
-    settings = Settings()
-    settings.set_preference("enable_llm_intent_detection", False)
-    settings.set_preference("streaming", streaming)
-    # These tests pin the legacy single-shot path; CHAT mode keeps the agent
-    # tool-loop inactive so process_user_input(_stream) take the plain LLM path.
-    settings.set_preference("agent_mode", "chat")
-    settings.set_preference("enable_agent_loop", False)
-    client = FakeLLMClient(response)
-    agent = Agent(client, settings, project_root=tmp_path)
-    # Mark context as already built so the turn doesn't depend on a project scan.
-    agent.conversation.project_context_built = True
+    client = ScriptedLLMClient(chat_reply=response)
+    agent = build_agent(
+        tmp_path, client, mode="chat", preferences={"streaming": streaming}
+    )
     return agent, client
 
 
